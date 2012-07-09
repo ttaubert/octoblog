@@ -2,11 +2,9 @@
 #      Main Configs       #
 # ----------------------- #
 
-url: http://timtaubert.de/
+url: http://timtaubert.de
 title: Tim Taubert
 author: Tim Taubert
-subtitle:
-simple_search:
 description:
 
 # Default date format is "ordinal" (resulting in "July 22nd 2007")
@@ -16,7 +14,7 @@ description:
 date_format: "%B, %o %Y"
 
 # RSS / Email (optional) subscription links (change if using something like Feedburner)
-subscribe_rss: /feed/
+subscribe_rss: /atom.xml
 subscribe_email:
 # RSS feeds can list your email address if you like
 email:
