@@ -16,9 +16,11 @@ How does this prevent new leaks?
 
 We implemented a threshold of (currently) 130 leaks that must not be exceeded. If a test run leaks more than the limit we configured it goes orange and the patch should be backed out from the tree. These are the current numbers:
 
-Linux (64): 116 (116)  
-OS X (64): 79 (89)  
-Windows (XP): 120 (118)
+{% codeblock lang:text %}
+Linux (64): 116 (116) leaks
+OS X (64): 79 (89) leaks
+Windows (XP): 120 (118) leaks
+{% endcodeblock %}
 
 Additionally, I filed [bug 730797](https://bugzilla.mozilla.org/show_bug.cgi?id=730797 "Bug 730797 - Track number of DOMWindow/DocShell leaks and report improvements/regressions") to integrate these leaks statistics into our Talos infrastructure. So the leak count for each push will be recorded and compared to previous runs to make sure the numbers don’t regress. As the leak numbers differ quite heavily between OSes it makes sense to apply a custom threshold per OS, this will be implemented in [bug 730800](https://bugzilla.mozilla.org/show_bug.cgi?id=730800 "Bug 730800 - Apply per-OS threshold for shutdown leaks").
 
