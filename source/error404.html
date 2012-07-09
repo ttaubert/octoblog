@@ -1,0 +1,12 @@
+---
+layout: page
+title: "Page not found"
+---
+
+{% codeblock lang:ruby %}
+class TimTaubert < Padrino::Application
+  error 404 do
+    print "Nothing to see here. Please move along."
+  end
+end
+{% endcodeblock %}

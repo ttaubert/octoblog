@@ -1,0 +1,8 @@
+<section class="well">
+  <h1 class="sidebar-header">Recent posts</h1>
+  <ul class="nav nav-list" id="recent-posts">
+    {% for post in site.posts limit: site.recent_posts %}
+      <li><a title="{{ post.title }}" href="{{ root_url }}{{ post.url }}">{{ post.title }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
