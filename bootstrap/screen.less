@@ -36,6 +36,7 @@ h3 {
 p {
   -webkit-hyphens: auto;
   -moz-hyphens: auto;
+  -ms-hyphens: auto;
   -o-hyphens: auto;
   hyphens: auto;
   text-rendering: optimizeLegibility;
@@ -130,6 +131,10 @@ img:hover {
   height: 1px;
   margin: 60px auto;
   background-color: lighten(@textColor, 50%);
+  background-image: -o-linear-gradient(left,#fff,lighten(@textColor, 20%),#fff);
+  background-image: -ms-linear-gradient(left,#fff,lighten(@textColor, 20%),#fff);
+  background-image: -moz-linear-gradient(left,#fff,lighten(@textColor, 20%),#fff);
+  background-image: -webkit-linear-gradient(left,#fff,lighten(@textColor, 20%),#fff);
   background-image: linear-gradient(to right,#fff,lighten(@textColor, 20%),#fff);
 }
 
