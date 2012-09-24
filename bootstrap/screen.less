@@ -123,6 +123,16 @@ img:hover {
   margin-top: 60px;
 }
 
+.post:not(:first-of-type):before {
+  content: " ";
+  display: block;
+  width: 80%;
+  height: 1px;
+  margin: 60px auto;
+  background-color: lighten(@textColor, 50%);
+  background-image: linear-gradient(to right,#fff,lighten(@textColor, 20%),#fff);
+}
+
 time {
   font-size: 13px;
   color: #aaa;
