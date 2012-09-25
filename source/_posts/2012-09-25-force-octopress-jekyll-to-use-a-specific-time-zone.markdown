@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Force Octopress/Jekyll to use a specific time zone"
-date: 2012-09-25 12:18
+date: 2012-09-25 15:00
 ---
 
 I could not be happier ever since I switched from Wordpress to Octopress.
