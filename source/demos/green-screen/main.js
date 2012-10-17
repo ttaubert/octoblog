@@ -33,8 +33,10 @@ let GreenScreen = {
       // Convert from RGB to HSL...
       let [h, s, l] = this.rgb2hsl(r, g, b);
 
-      // ... and check if we have a somewhat yellow pixel.
-      if (h > 30 && h < 90 && s > 30) {
+      // ... and check if we have a somewhat green pixel.
+      if (h >= 90 && h <= 160 &&
+          s >= 25 && s <= 90 &&
+          l >= 20 && l <= 75) {
         frame.data[i * 4 + 3] = 0;
       }
     }

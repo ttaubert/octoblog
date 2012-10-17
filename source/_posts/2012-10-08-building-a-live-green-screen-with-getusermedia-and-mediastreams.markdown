@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Building a live green screen with getUserMedia() and MediaStreams"
-date: 2012-10-08 14:24
+date: 2012-10-17 22:00
 ---
 
 While recently watching a talk about the new WebRTC features I was reminded of
@@ -69,8 +69,10 @@ that happens. Now for the last and most important part of our green screen:
       // Convert from RGB to HSL...
       let [h, s, l] = this.rgb2hsl(r, g, b);
 
-      // ... and check if we have a somewhat yellow pixel.
-      if (h > 30 && h < 90 && s > 30) {
+      // ... and check if we have a somewhat green pixel.
+      if (h >= 90 && h <= 160 &&
+          s >= 25 && s <= 90 &&
+          l >= 20 && l <= 75) {
         frame.data[i * 4 + 3] = 0;
       }
     }
@@ -82,7 +84,7 @@ that happens. Now for the last and most important part of our green screen:
 
 What happens here is actually quite simple: we draw the current video frame
 to our canvas and extract its image data. We then iterate over all pixels in
-the frame and check if we found a yellow pixel - if so its opacity byte is set
+the frame and check if we found a green pixel - if so its opacity byte is set
 to zero, which means fully transparent. The manipulated image data is put back
 into the canvas and we're done for now until the next animation frame is ready.
 
@@ -90,16 +92,18 @@ into the canvas and we're done for now until the next animation frame is ready.
 
 Take a look a the [live demo](/demos/green-screen/). You'll need Firefox 18
 and thus Nightly or Aurora as of the time of writing. Make sure that
-*media.navigator.enabled* is set to *true*. Hold a yellow object in front of the
-the camera and try it out yourself. Your light setup might be very different
-from mine so you might need to adjust the color check a little bit to make it
-work.
+*media.navigator.enabled* is set to *true*. Hold a green object in front of the
+the camera and try it out yourself. Your camera and light setup is probably very
+different from mine so you might need to adjust the color check a little bit to
+make it work.
 
-<iframe class="embed" width="560" height="315" frameborder="0"
-        src="http://www.youtube.com/embed/dhcGNN9r1D4"></iframe>
+<iframe class="embed"
+ src="http://player.vimeo.com/video/51593914?title=1&amp;byline=1&amp;portrait=1"
+ width="500" height="191" frameborder="0"
+ webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
 
 ## The end
 
 This is an admittedly very simple example of a green screen but you can use
 this framework to manipulate your webcam's live video stream and build all
-kinds of fancy stuff with it.
+kinds of fancy demos with it.
