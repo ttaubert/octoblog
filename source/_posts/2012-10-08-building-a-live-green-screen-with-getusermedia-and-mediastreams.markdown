@@ -20,7 +20,7 @@ Let's build a live green screen!
 {% endcodeblock %}
 
 Those are the parts we need. A \<video\> element that plays the media stream
-and a canvas we'll use to read and transform image data.
+and a canvas we will use to read and transform image data.
 
 ## The JavaScript
 
@@ -38,7 +38,7 @@ let GreenScreen = {
 
 We call getUserMedia() and pass *{video: true}* as the first argument which
 indicates that we want to receive a video stream. We assign the MediaStream
-to the video's *.src* property to connect it with the \<video\> element.
+to the video's *.src* property to connect it to the \<video\> element.
 
 The video starts playing (which means the camera will be activated and you will
 see your webcam's live video) and we request an animation frame using the
@@ -86,16 +86,16 @@ What happens here is actually quite simple: we draw the current video frame
 to our canvas and extract its image data. We then iterate over all pixels in
 the frame and check if we found a green pixel - if so its opacity byte is set
 to zero, which means fully transparent. The manipulated image data is put back
-into the canvas and we're done for now until the next animation frame is ready.
+into the canvas and we are done for now until the next animation frame is ready.
 
 ## The demo
 
-Take a look a the [live demo](/demos/green-screen/). You'll need Firefox 18
+Take a look a the [live demo](/demos/green-screen/). You will need Firefox 18+
 and thus Nightly or Aurora as of the time of writing. Make sure that
 *media.navigator.enabled* is set to *true*. Hold a green object in front of the
 the camera and try it out yourself. Your camera and light setup is probably very
-different from mine so you might need to adjust the color check a little bit to
-make it work.
+different from mine so you might need to adjust the color check a little to
+make it work. Alternatively, here is a screencast of the demo:
 
 <iframe class="embed"
  src="http://player.vimeo.com/video/51593914?title=1&amp;byline=1&amp;portrait=1"
@@ -105,5 +105,5 @@ make it work.
 ## The end
 
 This is an admittedly very simple example of a green screen but you can use
-this framework to manipulate your webcam's live video stream and build all
+this little template to manipulate your webcam's live video stream and build all
 kinds of fancy demos with it.
