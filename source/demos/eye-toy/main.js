@@ -1,5 +1,5 @@
 let GreenScreen = {
-  revealed: {},
+  revealed: new Set(),
 
   start: function () {
     this.video = document.getElementById("v");
@@ -29,7 +29,7 @@ let GreenScreen = {
     // Iterate over all pixels in the current frame.
     for (let i = 0; i < len; i++) {
       // This pixel has already been revealed.
-      if (i in this.revealed) {
+      if (this.revealed.has(i)) {
         frame.data[i * 4 + 3] = 0;
         continue;
       }
@@ -44,7 +44,7 @@ let GreenScreen = {
       // ... and check if we have a somewhat green pixel.
       if (h >= 90 && h <= 160 && s >= 25 && s <= 90 && l >= 20 && l <= 75) {
         frame.data[i * 4 + 3] = 0;
-        this.revealed[i] = true;
+        this.revealed.add(i);
       }
     }
 
