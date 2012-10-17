@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Building a live green screen with getUserMedia() and MediaStreams"
-date: 2012-10-17 22:00
+date: 2012-10-17 20:00
 ---
 
 While recently watching a talk about the new WebRTC features I was reminded of
