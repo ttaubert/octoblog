@@ -1,4 +1,5 @@
 let GreenScreen = {
+  // Keep track of revealed pixels.
   revealed: new Set(),
 
   start: function () {
@@ -66,7 +67,7 @@ let GreenScreen = {
     } else if (g == max) {
       h = 2 + (b - r) / delta;
     } else if (b == max) {
-      h = 4 + (r - g)/ delta;
+      h = 4 + (r - g) / delta;
     }
 
     h = Math.min(h * 60, 360);
