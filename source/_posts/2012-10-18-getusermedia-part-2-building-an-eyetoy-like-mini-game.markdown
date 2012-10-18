@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "getUserMedia() part 2: building an EyeToy-like mini-game"
-date: 2012-10-18 17:00
+date: 2012-10-18 22:00
 ---
 
 This post is a follow-up to my previous one about
@@ -60,7 +60,7 @@ That is all! Take a look at the [live demo](/demos/eye-toy/) or watch the
 screencast below:
 
 <iframe class="embed"
- src="http://player.vimeo.com/video/51598757?title=1&amp;byline=1&amp;portrait=1"
+ src="http://player.vimeo.com/video/51703468?title=1&amp;byline=1&amp;portrait=1"
  width="500" height="195" frameborder="0"
  webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
 
