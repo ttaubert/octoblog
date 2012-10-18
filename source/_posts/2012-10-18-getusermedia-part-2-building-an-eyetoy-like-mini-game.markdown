@@ -19,7 +19,7 @@ let GreenScreen = {
   start: function () {
 {% endcodeblock %}
 
-We add a
+Let us add a
 [Set](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Set)
 to *GreenScreen* that keeps track of all pixels that have already been
 revealed by holding a green object in front of the camera.
@@ -35,7 +35,7 @@ revealed by holding a green object in front of the camera.
 {% endcodeblock %}
 
 When iterating over all of the canvas' pixels we check if the current index is
-contained int the set. If so we do not need to check its color but set its
+contained in the set. If so we do not need to check its color but set its
 opacity to zero and continue with the next iteration.
 
 {% codeblock lang:js %}
