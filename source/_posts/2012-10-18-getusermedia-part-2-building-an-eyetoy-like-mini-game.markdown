@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "getUserMedia() part 2: building an EyeToy-like mini-game"
-date: 2012-10-18 18:00
+date: 2012-10-18 17:00
 ---
 
 This post is a follow-up to my previous one about
