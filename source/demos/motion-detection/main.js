@@ -23,32 +23,37 @@ let MotionDetector = {
   draw: function () {
     this.context.drawImage(this.video, 0, 0, this.width, this.height);
     let frame = this.context.getImageData(0, 0, this.width, this.height);
-    let lightnessData = this.getFrameLightnessData(frame.data);
 
-    // Compare lightness values from the current
-    // frame with those from the previous one.
-    let changes = new Set();
-    if (this.lastLightnessData) {
-      changes = this.compareLightnessData(lightnessData, this.lastLightnessData);
-    }
-
-    this.markLightnessChanges(frame.data, changes);
-    this.lastLightnessData = lightnessData;
-
+    this.markLightnessChanges(frame.data);
     this.context.putImageData(frame, 0, 0);
     this.requestAnimationFrame();
   },
 
-  getFrameLightnessData: function (frameData) {
-    let data = [];
+  markLightnessChanges: function (frameData) {
+    let lastLightnessData = this.lastLightnessData;
+    let lightnessData = this.lastLightnessData = [];
 
-    // Iterate over all pixels in the current frame.
-    for (let i = 0; i < frameData.length; i += 4) {
-      let pixel = Array.slice(frameData, i, i + 3);
-      data.push(this.determineLightness(pixel));
+    let len = frameData.length / 4;
+    for (let i = 0; i < len; i++) {
+      // Determine the current pixel's
+      // lightness value and save it for later.
+      let pixel = Array.slice(frameData, i * 4, i * 4 + 3);
+      let lightness = this.determineLightness(pixel);
+      lightnessData.push(lightness);
+
+      // Check if the lightness has changed.
+      let changed = lastLightnessData &&
+                    Math.abs(lightness - lastLightnessData[i]) >= 15;
+
+      // Changed pixels will be turned black,
+      // everything else becomes transparent.
+      if (changed) {
+        frameData[i * 4] =
+          frameData[i * 4 + 1] =
+          frameData[i * 4 + 2] = 0;
+      }
+      frameData[i * 4 + 3] = 255 * changed;
     }
-
-    return data;
   },
 
   determineLightness: function ([r, g, b]) {
@@ -56,28 +61,5 @@ let MotionDetector = {
     let min = Math.min(r, g, b);
     let max = Math.max(r, g, b);
     return (min + max) * 50;
-  },
-
-  compareLightnessData: function (a, b) {
-    let changes = new Set();
-
-    for (let i = 0; i < a.length; i++) {
-      if (Math.abs(a[i] - b[i]) >= 10) {
-        changes.add(i);
-      }
-    }
-
-    return changes;
-  },
-
-  markLightnessChanges: function (frameData, changes) {
-    let len = frameData.length / 4;
-    for (let i = 0; i < len; i++) {
-      let changed = changes.has(i);
-      if (changed) {
-        frameData[i * 4 + 0] = frameData[i * 4 + 1] = frameData[i * 4 + 2] = 0;
-      }
-      frameData[i*4 + 3] = 255 * changed;
-    }
   }
 };
