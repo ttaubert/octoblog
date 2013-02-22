@@ -12,47 +12,49 @@ example to build an EyeToy-like mini-game.
 ## Some additions
 
 {% codeblock lang:js %}
-let GreenScreen = {
-  // Keep track of revealed pixels.
-  revealed: new Set(),
+var video, width, height, context;
+var revealed = Object.create(null);
 
-  start: function () {
+function initialize() {
 {% endcodeblock %}
 
-Let us add a
-[Set](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Set)
-to *GreenScreen* that keeps track of all pixels that have already been
-revealed by holding a green object in front of the camera.
+First, we will add a variable called *revealed* that keeps track of all pixels
+that have already been revealed by holding a green object in front of the
+camera. Instead of *replaceGreen()* we will call our method *revealGreen()*
+from now on:
 
 {% codeblock lang:js %}
-    // Iterate over all pixels in the current frame.
-    for (let i = 0; i < len; i++) {
-      // This pixel has already been revealed.
-      if (this.revealed.has(i)) {
-        frame.data[i * 4 + 3] = 0;
-        continue;
-      }
+function revealGreen(data) {
+  var len = width * height;
+
+  for (var i = 0, j = 0; i < len; i++, j += 4) {
+    // This pixel has already been revealed.
+    if (i in revealed) {
+      data[j + 3] = 0;
+      continue;
+    }
 {% endcodeblock %}
 
-When iterating over all of the canvas' pixels we check if the current index is
-contained in the set. If so we do not need to check its color but set its
-opacity to zero and continue with the next iteration.
+When iterating over all of the canvas' pixels we check whether the current
+index in the typed array is marked as revealed. If so we do not need to check
+its color but set its opacity to zero and continue with the next iteration.
 
 {% codeblock lang:js %}
-      // Convert from RGB to HSL...
-      let [h, s, l] = this.rgb2hsl(r, g, b);
+    // Convert from RGB to HSL...
+    var hsl = rgb2hsl(data[j], data[j + 1], data[j + 2]);
+    var h = hsl[0], s = hsl[1], l = hsl[2];
 
-      // ... and check if we have a somewhat green pixel.
-      if (h >= 90 && h <= 160 &&
-          s >= 25 && s <= 90 &&
-          l >= 20 && l <= 75) {
-        frame.data[i * 4 + 3] = 0;
-        this.revealed.add(i);
-      }
+    // ... and check if we have a somewhat green pixel.
+    if (h >= 90 && h <= 160 && s >= 25 && s <= 90 && l >= 20 && l <= 75) {
+      data[j + 3] = 0;
+      revealed[i] = true;
+    }
+  }
+}
 {% endcodeblock %}
 
-If the pixel is not in the set but is a green one, we make it transparent like
-before and add it to the set to make it stay that way.
+If the pixel has not been revealed yet but is a green one, we make it
+transparent like before and mark it to make it stay that way.
 
 ## Demo and screencast
 

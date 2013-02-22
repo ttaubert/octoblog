@@ -15,8 +15,8 @@
 
     // Prepare two buffers to store lightness data.
     bufsize = width * height;
-    buffer1 = new Int8Array(bufsize);
-    buffer2 = new Int8Array(bufsize);
+    buffer1 = new Uint8Array(bufsize);
+    buffer2 = new Uint8Array(bufsize);
 
     // Get the webcam's stream.
     nav.getUserMedia({video: true}, startStream, function () {});

@@ -5,10 +5,11 @@
     <title>Demo: live green screen with getUserMedia()</title>
     <meta content="Tim Taubert" name="author">
     <link href="main.css" rel="stylesheet" type="text/css">
-    <script type="text/javascript;version=1.8" src="main.js"></script>
+    <script src="shim.js"></script>
+    <script src="main.js"></script>
   </head>
 
-  <body onload="GreenScreen.start()">
+  <body>
     <video id="v" width="320" height="240"></video>
     <canvas id="c" width="320" height="240"></canvas>
   </body>

@@ -1,64 +1,83 @@
-let GreenScreen = {
-  // Keep track of revealed pixels.
-  revealed: new Set(),
+(function (doc, nav) {
+  "use strict";
 
-  start: function () {
-    this.video = document.getElementById("v");
-    this.width = this.video.width;
-    this.height = this.video.height;
+  var video, width, height, context;
+  var revealed = Object.create(null);
 
-    let canvas = document.getElementById("c");
-    this.context = canvas.getContext("2d");
+  function initialize() {
+    // The source video.
+    video = doc.getElementById("v");
+    width = video.width;
+    height = video.height;
 
-    // Get the video stream.
-    navigator.mozGetUserMedia({video: true}, function (stream) {
-      this.video.mozSrcObject = stream;
-      this.video.play();
-      this.requestAnimationFrame();
-    }.bind(this), function err() {});
-  },
+    // The target canvas.
+    var canvas = doc.getElementById("c");
+    context = canvas.getContext("2d");
 
-  requestAnimationFrame: function () {
-    mozRequestAnimationFrame(this.draw.bind(this));
-  },
+    // Get the webcam's stream.
+    nav.getUserMedia({video: true}, startStream, function () {});
+  }
 
-  draw: function () {
-    this.context.drawImage(this.video, 0, 0, this.width, this.height);
-    let frame = this.context.getImageData(0, 0, this.width, this.height);
-    let len = frame.data.length / 4;
+  function startStream(stream) {
+    video.src = URL.createObjectURL(stream);
+    video.play();
 
-    // Iterate over all pixels in the current frame.
-    for (let i = 0; i < len; i++) {
-      // This pixel has already been revealed.
-      if (this.revealed.has(i)) {
-        frame.data[i * 4 + 3] = 0;
+    // Ready! Let's start drawing.
+    requestAnimationFrame(draw);
+  }
+
+  function draw() {
+    var frame = readFrame();
+
+    if (frame) {
+      revealGreen(frame.data);
+      context.putImageData(frame, 0, 0);
+    }
+
+    // Wait for the next frame.
+    requestAnimationFrame(draw);
+  }
+
+  function readFrame() {
+    try {
+      context.drawImage(video, 0, 0, width, height);
+    } catch (e) {
+      // The video may not be ready, yet.
+      return null;
+    }
+
+    return context.getImageData(0, 0, width, height);
+  }
+
+  function revealGreen(data) {
+    var len = width * height;
+
+    for (var i = 0, j = 0; i < len; i++, j += 4) {
+      // Check if this pixel has already been revealed.
+      if (i in revealed) {
+        data[j + 3] = 0;
         continue;
       }
 
-      let r = frame.data[i * 4 + 0];
-      let g = frame.data[i * 4 + 1];
-      let b = frame.data[i * 4 + 2];
-
       // Convert from RGB to HSL...
-      let [h, s, l] = this.rgb2hsl(r, g, b);
+      var hsl = rgb2hsl(data[j], data[j + 1], data[j + 2]);
+      var h = hsl[0], s = hsl[1], l = hsl[2];
 
       // ... and check if we have a somewhat green pixel.
       if (h >= 90 && h <= 160 && s >= 25 && s <= 90 && l >= 20 && l <= 75) {
-        frame.data[i * 4 + 3] = 0;
-        this.revealed.add(i);
+        data[j + 3] = 0;
+        revealed[i] = true;
       }
     }
+  }
 
-    this.context.putImageData(frame, 0, 0);
-    this.requestAnimationFrame();
-  },
-
-  rgb2hsl: function (r, g, b) {
+  function rgb2hsl(r, g, b) {
     r /= 255; g /= 255; b /= 255;
-    let min = Math.min(r, g, b),
-        max = Math.max(r, g, b),
-        delta = max - min,
-        h, s, l;
+
+    var min = Math.min(r, g, b);
+    var max = Math.max(r, g, b);
+    var delta = max - min;
+    var h, s, l;
 
     if (max == min) {
       h = 0;
@@ -88,4 +107,6 @@ let GreenScreen = {
 
     return [h, s * 100, l * 100];
   }
-};
+
+  addEventListener("DOMContentLoaded", initialize);
+})(document, navigator);
