@@ -1,65 +1,79 @@
-let MotionDetector = {
-  start: function () {
-    this.video = document.getElementById("v");
-    this.width = this.video.width;
-    this.height = this.video.height;
+(function (doc, nav) {
+  "use strict";
 
-    let canvas = document.getElementById("c");
-    this.context = canvas.getContext("2d");
-    this.context.fillStyle = "#000";
+  var video, width, height, context, buffer1, buffer2, bufsize;
 
-    // Get the video stream.
-    navigator.mozGetUserMedia({video: true}, function (stream) {
-      this.video.mozSrcObject = stream;
-      this.video.play();
-      this.requestAnimationFrame();
-    }.bind(this), function err() {});
-  },
+  function initialize() {
+    // The source video.
+    video = doc.getElementById("v");
+    width = video.width;
+    height = video.height;
 
-  requestAnimationFrame: function () {
-    mozRequestAnimationFrame(this.draw.bind(this));
-  },
+    // The target canvas.
+    var canvas = doc.getElementById("c");
+    context = canvas.getContext("2d");
 
-  draw: function () {
-    this.context.drawImage(this.video, 0, 0, this.width, this.height);
-    let frame = this.context.getImageData(0, 0, this.width, this.height);
+    // Prepare two buffers to store lightness data.
+    bufsize = width * height;
+    buffer1 = new Int8Array(bufsize);
+    buffer2 = new Int8Array(bufsize);
 
-    this.markLightnessChanges(frame.data);
-    this.context.putImageData(frame, 0, 0);
-    this.requestAnimationFrame();
-  },
-
-  markLightnessChanges: function (frameData) {
-    let lastLightnessData = this.lastLightnessData;
-    let lightnessData = this.lastLightnessData = [];
-
-    let len = frameData.length / 4;
-    for (let i = 0; i < len; i++) {
-      // Determine the current pixel's
-      // lightness value and save it for later.
-      let pixel = Array.slice(frameData, i * 4, i * 4 + 3);
-      let lightness = this.determineLightness(pixel);
-      lightnessData.push(lightness);
-
-      // Check if the lightness has changed.
-      let changed = lastLightnessData &&
-                    Math.abs(lightness - lastLightnessData[i]) >= 15;
-
-      // Changed pixels will be turned black,
-      // everything else becomes transparent.
-      if (changed) {
-        frameData[i * 4] =
-          frameData[i * 4 + 1] =
-          frameData[i * 4 + 2] = 0;
-      }
-      frameData[i * 4 + 3] = 255 * changed;
-    }
-  },
-
-  determineLightness: function ([r, g, b]) {
-    r /= 255; g /= 255; b /= 255;
-    let min = Math.min(r, g, b);
-    let max = Math.max(r, g, b);
-    return (min + max) * 50;
+    // Get the webcam's stream.
+    nav.getUserMedia({video: true}, startStream, function () {});
   }
-};
+
+  function startStream(stream) {
+    video.src = URL.createObjectURL(stream);
+    video.play();
+
+    // Ready! Let's start drawing.
+    requestAnimationFrame(draw);
+  }
+
+  function draw() {
+    var frame = readFrame();
+
+    if (frame) {
+      markLightnessChanges(frame.data);
+      context.putImageData(frame, 0, 0);
+    }
+
+    // Wait for the next frame.
+    requestAnimationFrame(draw);
+  }
+
+  function readFrame() {
+    try {
+      context.drawImage(video, 0, 0, width, height);
+    } catch (e) {
+      // The video may not be ready, yet.
+      return null;
+    }
+
+    return context.getImageData(0, 0, width, height);
+  }
+
+  function markLightnessChanges(data) {
+    var last = buffer1, current = buffer2;
+
+    for (var i = 0, j = 0; i < bufsize; i++, j += 4) {
+      // Determine lightness value.
+      current[i] = lightnessValue(data[j], data[j + 1], data[j + 2]);
+
+      // Set color to black.
+      data[j] = data[j + 1] = data[j + 2] = 0;
+
+      // Full opacity for changes.
+      data[j + 3] = 255 * (Math.abs(current[i] - last[i]) >= 15);
+    }
+
+    // Swap buffers.
+    buffer1 = current, buffer2 = last;
+  }
+
+  function lightnessValue(r, g, b) {
+    return (Math.min(r, g, b) + Math.max(r, g, b)) / 255 * 50;
+  }
+
+  addEventListener("DOMContentLoaded", initialize);
+})(document, navigator);
