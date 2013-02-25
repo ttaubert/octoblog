@@ -35,9 +35,9 @@ function revealGreen(data) {
     }
 {% endcodeblock %}
 
-When iterating over all of the canvas' pixels we check whether the current
-index in the typed array is marked as revealed. If so we do not need to check
-its color but set its opacity to zero and continue with the next iteration.
+When iterating over all of the canvas' pixels we check whether the current index
+is marked as revealed. If so we do not need to check its color but set its
+opacity to zero and continue with the next iteration.
 
 {% codeblock lang:js %}
     // Convert from RGB to HSL...
@@ -54,7 +54,7 @@ its color but set its opacity to zero and continue with the next iteration.
 {% endcodeblock %}
 
 If the pixel has not been revealed yet but is a green one, we make it
-transparent like before and mark it to make it stay that way.
+transparent like before and mark it to stay that way.
 
 ## Demo and screencast
 

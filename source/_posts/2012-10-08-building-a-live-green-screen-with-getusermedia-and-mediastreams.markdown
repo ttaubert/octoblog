@@ -8,7 +8,7 @@ While recently watching a talk about the new WebRTC features I was reminded of
 Paul Rouget's great
 [green screen demo](https://developer.mozilla.org/samples/video/chroma-key/index.xhtml)
 and thought that this would be a cool thing to have for live video as well.
-Let's build a live green screen!
+Let us build a live green screen!
 
 ## The markup
 
@@ -39,17 +39,17 @@ function startStream(stream) {
 }
 {% endcodeblock %}
 
-We call getUserMedia() and pass *{video: true}* as the first argument which
-indicates that we want to receive a video stream. We assign the MediaStream
-to the video's *.src* property to connect it to the \<video\> element.
+We call [navigator.getUserMedia()](https://developer.mozilla.org/en-US/docs/WebRTC/navigator.getUserMedia)
+and pass *{video: true}* as the first argument which indicates that we want to
+receive a video stream. We assign the MediaStream to the video's *.src* property
+to connect it to the \<video\> element.
 
 The video starts playing (which means the camera will be activated and you will
 see your webcam's live video) and we request an animation frame using the
 [requestAnimationFrame() API](https://developer.mozilla.org/en-US/docs/DOM/window.requestAnimationFrame).
-
-*requestAnimationFrame()* is perfect for updating/ drawing to our canvas as the
-browser schedules the next repaint and we will be called immediately before
-that happens. Now for the last and most important part of our green screen:
+This is perfect for drawing to our canvas as the browser schedules the next
+repaint and we will be called immediately before that happens. Now for the last
+and most important part of our green screen:
 
 {% codeblock lang:js %}
 function draw() {
@@ -82,14 +82,14 @@ function replaceGreen(data) {
 
 What happens here is actually quite simple: we read the current video frame and
 extract its image data. We then iterate over all pixels in the frame and check
-if we found a green pixel - if so its opacity byte is set to zero, which means
+if we found a green one - if so its opacity byte is set to zero, which means
 fully transparent. The manipulated image data is put back into the canvas and
 we are done for now until the next animation frame is ready.
 
 ## The demo
 
-Take a look a the [live demo](/demos/green-screen/). You will need a recent
-Firefox/Chrome/Chromium build. Make sure that getUserMedia() support is enabled
+Take a look at the [live demo](/demos/green-screen/), you will need a recent
+Firefox/Chrome/Opera build. Make sure that getUserMedia() support is enabled
 in your browser of choice. Hold a green object in front of the the camera and
 try it out yourself. Your camera and light setup is probably very different
 from mine so you might need to adjust the color check a little to make it work.

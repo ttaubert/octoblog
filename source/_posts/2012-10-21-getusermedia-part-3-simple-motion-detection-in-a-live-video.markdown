@@ -2,6 +2,7 @@
 layout: post
 title: "getUserMedia() part 3: simple motion detection in a live video"
 date: 2013-01-14 18:00
+published: false
 ---
 
 Now that you should already know how to build a
@@ -63,9 +64,9 @@ to its previous value in the previous frame. If the difference exceeds a
 specific threshold we change the pixel's color to black - if not it becomes
 transparent.
 
-## Bend mode difference
+## Blend mode difference
 
-Why do we determine the pixels' lightness values? 
+Why do we determine the pixels' lightness values?
 
 {% codeblock lang:js %}
   determineLightness: function ([r, g, b]) {
