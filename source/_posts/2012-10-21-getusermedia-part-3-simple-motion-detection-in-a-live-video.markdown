@@ -2,7 +2,6 @@
 layout: post
 title: "getUserMedia() part 3: simple motion detection in a live video"
 date: 2013-02-27 12:00
-published: false
 ---
 
 Now that you should already know how to build a
