@@ -1,7 +1,8 @@
 (function (doc, nav) {
   "use strict";
 
-  var video, width, height, context, buffer1, buffer2, bufsize;
+  var video, width, height, context;
+  var bufidx = 0, buffers = [];
 
   function initialize() {
     // The source video.
@@ -13,10 +14,10 @@
     var canvas = doc.getElementById("c");
     context = canvas.getContext("2d");
 
-    // Prepare two buffers to store lightness data.
-    bufsize = width * height;
-    buffer1 = new Uint8Array(bufsize);
-    buffer2 = new Uint8Array(bufsize);
+    // Prepare buffers to store lightness data.
+    for (var i = 0; i < 2; i++) {
+      buffers.push(new Uint8Array(width * height));
+    }
 
     // Get the webcam's stream.
     nav.getUserMedia({video: true}, startStream, function () {});
@@ -54,21 +55,28 @@
   }
 
   function markLightnessChanges(data) {
-    var last = buffer1, current = buffer2;
+    // Pick the next buffer (round-robin).
+    var buffer = buffers[bufidx++ % buffers.length];
 
-    for (var i = 0, j = 0; i < bufsize; i++, j += 4) {
+    for (var i = 0, j = 0; i < buffer.length; i++, j += 4) {
       // Determine lightness value.
-      current[i] = lightnessValue(data[j], data[j + 1], data[j + 2]);
+      var current = lightnessValue(data[j], data[j + 1], data[j + 2]);
 
       // Set color to black.
       data[j] = data[j + 1] = data[j + 2] = 0;
 
       // Full opacity for changes.
-      data[j + 3] = 255 * (Math.abs(current[i] - last[i]) >= 15);
-    }
+      data[j + 3] = 255 * lightnessHasChanged(i, current);
 
-    // Swap buffers.
-    buffer1 = current, buffer2 = last;
+      // Store current lightness value.
+      buffer[i] = current;
+    }
+  }
+
+  function lightnessHasChanged(index, value) {
+    return buffers.some(function (buffer) {
+      return Math.abs(value - buffer[index]) >= 15;
+    });
   }
 
   function lightnessValue(r, g, b) {

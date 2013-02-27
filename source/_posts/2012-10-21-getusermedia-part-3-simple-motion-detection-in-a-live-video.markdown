@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "getUserMedia() part 3: simple motion detection in a live video"
-date: 2013-01-14 18:00
+date: 2013-02-27 12:00
 published: false
 ---
 
@@ -13,83 +13,107 @@ using nothing but plain JavaScript and a modern browser supporting WebRTC, let
 us move on to another interesting example: simple motion detection in a live
 video.
 
-## The code
+## The initialization code
+
+To detect motion in a video we need to compare at least two frames. We will use
+[typed arrays](https://developer.mozilla.org/en-US/docs/JavaScript_typed_arrays)
+to store the lightness data of the previous frames:
 
 {% codeblock lang:js %}
-  draw: function () {
-    this.context.drawImage(this.video, 0, 0, this.width, this.height);
-    let frame = this.context.getImageData(0, 0, this.width, this.height);
+function initialize() {
+  // ... code to initialize the canvas and video elements ...
 
-    this.markLightnessChanges(frame.data);
-    this.context.putImageData(frame, 0, 0);
-    this.requestAnimationFrame();
-  },
+  // Prepare buffers to store lightness data.
+  for (var i = 0; i < 2; i++) {
+    buffers.push(new Uint8Array(width * height));
+  }
+
+  // Get the webcam's stream.
+  nav.getUserMedia({video: true}, startStream, function () {});
+}
 {% endcodeblock %}
 
-The main draw() function did not change very much. We read the image data,
-highlight motion we detected and put it back to the canvas. The obviously
-most interesting function is markLightnessChanges():
+We want two frame buffers - a single one results in a heavily
+flickering motion video but the more frames we store the more motion blur
+we will see. Two seems like a good value for demonstration purposes.
+
+## Illustrating lightness changes
+
+The main *draw()* function from
+[part 1](/blog/2012/10/building-a-live-green-screen-with-getusermedia-and-mediastreams/)
+did not change except that we now call *markLightnessChanges()* for every frame.
+This is also the probably most interesting function of the whole demo:
 
 {% codeblock lang:js %}
-  markLightnessChanges: function (frameData) {
-    let lastLightnessData = this.lastLightnessData;
-    let lightnessData = this.lastLightnessData = [];
+function markLightnessChanges(data) {
+  // Pick the next buffer (round-robin).
+  var buffer = buffers[bufidx++ % buffers.length];
 
-    let len = frameData.length / 4;
-    for (let i = 0; i < len; i++) {
-      // Determine the current pixel's
-      // lightness value and save it for later.
-      let pixel = Array.slice(frameData, i * 4, i * 4 + 3);
-      let lightness = this.determineLightness(pixel);
-      lightnessData.push(lightness);
+  for (var i = 0, j = 0; i < buffer.length; i++, j += 4) {
+    // Determine lightness value.
+    var current = lightnessValue(data[j], data[j + 1], data[j + 2]);
 
-      // Check if the lightness has changed.
-      let changed = lastLightnessData &&
-                    Math.abs(lightness - lastLightnessData[i]) >= 15;
+    // Set color to black.
+    data[j] = data[j + 1] = data[j + 2] = 0;
 
-      // Changed pixels will be turned black,
-      // everything else becomes transparent.
-      if (changed) {
-        frameData[i * 4] =
-          frameData[i * 4 + 1] =
-          frameData[i * 4 + 2] = 0;
-      }
-      frameData[i * 4 + 3] = 255 * changed;
-    }
-  },
+    // Full opacity for changes.
+    data[j + 3] = 255 * lightnessHasChanged(i, current);
+
+    // Store current lightness value.
+    buffer[i] = current;
+  }
+}
 {% endcodeblock %}
 
 We determine the lightness value of every pixel in the canvas and compare it
-to its previous value in the previous frame. If the difference exceeds a
-specific threshold we change the pixel's color to black - if not it becomes
-transparent.
+to its values in the previously captured frames. If the difference to one of
+those buffers exceeds a specific threshold the pixel will be black, if not it
+becomes transparent.
+
+{% codeblock lang:js %}
+function lightnessHasChanged(index, value) {
+  return buffers.some(function (buffer) {
+    return Math.abs(value - buffer[index]) >= 15;
+  });
+}
+{% endcodeblock %}
 
 ## Blend mode difference
 
-Why do we determine the pixels' lightness values?
+The simple method we use to detect motion is called a
+[blend mode difference](http://en.wikipedia.org/wiki/Blend_modes#Difference).
+That is a quite fancy word to say: we compare two images (also called layers
+or frames) by putting them on top of each other and subtracting the bottom from
+the top layer. In this example we do it for every pixel's L-value of the
+[HSL color model](https://en.wikipedia.org/wiki/HSL_and_HSV).
 
 {% codeblock lang:js %}
-  determineLightness: function ([r, g, b]) {
-    r /= 255; g /= 255; b /= 255;
-    let min = Math.min(r, g, b);
-    let max = Math.max(r, g, b);
-    return (min + max) * 50;
-  }
+function lightnessValue(r, g, b) {
+  return (Math.min(r, g, b) + Math.max(r, g, b)) / 255 * 50;
+}
 {% endcodeblock %}
+
+If the current frame is identical to the previous one, the lightness
+difference will be exactly zero for all pixels. If the frames differ because
+something in that picture has moved then there is a good chance that lightness
+values change where motion occured. A small threshold ensures that we ignore
+noise in the signal.
 
 ## Demo and screencast
 
-Take a look at the [live demo](/demos/motion-detection/) or watch the screencast below:
+That is all! Take a look at the [live demo](/demos/motion-detection/) or watch
+the screencast below:
 
-<iframe class="embed"
- src="http://player.vimeo.com/video/51703468?title=1&amp;byline=1&amp;portrait=1"
+<iframe class="embed embed-space"
+ src="http://player.vimeo.com/video/60650211?title=1&amp;byline=1&amp;portrait=1"
  width="500" height="195" frameborder="0"
  webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
 
-## The cool stuff
+You can create some really great demos with this simple technique. Here is a
+neat one of
+[a xylophone you can play by waving your hands](http://www.soundstep.com/blog/experiments/jsdetection/)
+(which unfortunately does not work in Firefox).
 
-You can create some pretty amazing demos with this simple technique. Here is a
-great one of a xylophone you can play by waving your hands:
-
-[http://www.soundstep.com/blog/experiments/jsdetection/](http://www.soundstep.com/blog/experiments/jsdetection/)   
-[http://www.soundstep.com/blog/2012/03/22/javascript-motion-detection/](http://www.soundstep.com/blog/2012/03/22/javascript-motion-detection/)
+Whatever your ideas may be, I encourage you to fiddle around with the small
+demos I provided in my three getUserMedia() examples so far and let me know if
+you built something amazing!
