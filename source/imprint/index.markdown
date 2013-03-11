@@ -4,7 +4,7 @@ title: "Imprint"
 ---
 
 Tim Taubert  
-Freienwalderstr. 7  
-13055 Berlin
+Straßmannstr. 10  
+10249 Berlin
 
 +49 30 659 192 34
