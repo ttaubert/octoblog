@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Stop. Iteration time!"
-date: 2013-04-30 16:39
+date: 2013-05-03 18:00
 ---
 
 You have probably already heard of
@@ -11,8 +11,8 @@ time and are used extensively all over the Mozilla code base. The V8 team
 will implement iterators and generators
 [once ES6 has been finalized](http://code.google.com/p/v8/issues/detail?id=2355).
 
-This post describes the current implementation in SpiderMonkey and includes the
-current state of the ES6 draft and discussions.
+This post describes the current implementation in SpiderMonkey and tries to
+include the current state of the ES6 draft and discussions.
 
 ## A simple generator
 
@@ -29,7 +29,7 @@ function myInfiniteGenerator() {
   }
 }
 
-let iter = myInfiniteGenerator();
+var iter = myInfiniteGenerator();
 
 while (true) {
   console.log(iter.next());
@@ -66,8 +66,8 @@ MyFiniteIterator.prototype.next = function () {
 };
 {% endcodeblock %}
 
-Here you can see how to implement custom iterators without writing a generator
-function. Please note that it throws *StopIteration* as soon as it reaches the
+Here you can see how to implement custom iterators without writing generator
+functions. Please note that it throws *StopIteration* as soon as it reaches the
 maximum value to signal that the sequence is exhausted. It is a lot more elegant
 to implement the same sequence using a generator function:
 
@@ -159,7 +159,7 @@ throw a *StopIteration*. The outer function simply catches and returns it.
 
 The current
 [iterator strawman](http://wiki.ecmascript.org/doku.php?id=harmony:iterators#stopiteration)
-states that StopIteration will become a constructor to maintain compatibility
+states that *StopIteration* will become a constructor to maintain compatibility
 with generator functions returning values.
 
 {% codeblock lang:js %}
@@ -182,8 +182,10 @@ just use *instanceof*.
 The Python way of throwing to denote the end of a sequence is backwards
 compatible with old ECMAScript versions but there seem to be
 [people](https://mail.mozilla.org/pipermail/es-discuss/2013-February/028668.html)
-[disagreeing](https://mail.mozilla.org/pipermail/es-discuss/2013-March/028937.html)
+[not happy](https://mail.mozilla.org/pipermail/es-discuss/2013-March/028937.html)
 [with the current proposal](http://esdiscuss.org/notes/2013-03-12).
+While I can't tell whether *StopIteration* is really to be removed from the
+proposal a couple of alternative suggestions have been made:
 
 ### Introduce a keyword to end a frame
 
@@ -223,6 +225,20 @@ Iter.prototype = {
     throw new Error("sequence exhausted");
   }
 };
+{% endcodeblock %}
+
+### Let next() return an object of shape:
+
+Custom iterators would be required to implement a single method but would not
+need to throw. Instead they would return an object with *done* set to true to
+indicate that the sequence has ended. The *value* property would be used to
+store values passed to *yield* or *return* in a generator function.
+
+{% codeblock lang:js %}
+{
+  next() -> { done: false , value: any }
+          | { done: true[, value: any] }
+}
 {% endcodeblock %}
 
 This is in no way a complete list of possibilites or proposals that were brought
