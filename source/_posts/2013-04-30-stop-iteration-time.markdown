@@ -5,7 +5,7 @@ date: 2013-05-03 18:00
 ---
 
 You have probably already heard of
-[generators/iterators](https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Iterators_and_Generators)
+[generators and iterators](https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Iterators_and_Generators)
 coming to a browser near you. They have been available in Firefox for a long
 time and are used extensively all over the Mozilla code base. The V8 team
 will implement iterators and generators
@@ -66,10 +66,10 @@ MyFiniteIterator.prototype.next = function () {
 };
 {% endcodeblock %}
 
-Here you can see how to implement custom iterators without writing generator
-functions. Please note that it throws *StopIteration* as soon as it reaches the
-maximum value to signal that the sequence is exhausted. It is a lot more elegant
-to implement the same sequence using a generator function:
+The given code implements a custom iterator without writing a generator
+function. Note that it throws *StopIteration* as soon as it reaches the maximum
+value to signal that the sequence is exhausted. It is a lot more elegant to
+implement the same sequence using a generator function:
 
 {% codeblock lang:js %}
 function myFiniteGenerator(max) {
@@ -85,8 +85,8 @@ So how should one consume iterators with finite sequences?
 
 ## Consuming sequences
 
-In Java, you would check *iter.hasNext()* and stop when it returns false. In
-JavaScript however you need to use a *try...catch* statement to catch
+In Java for example, you would check *iter.hasNext()* and stop when it returns
+false. In JavaScript however you need to use a *try...catch* statement to catch
 *StopIteration* when it is being thrown.
 
 {% codeblock lang:js %}
@@ -110,7 +110,7 @@ loop will terminate normally without the exception being propagated:
 var iter = myFiniteGenerator(10);
 
 for (var i in iter) {
-  console.log(iter.next());
+  console.log(i);
 }
 {% endcodeblock %}
 
@@ -184,15 +184,15 @@ compatible with old ECMAScript versions but there seem to be
 [people](https://mail.mozilla.org/pipermail/es-discuss/2013-February/028668.html)
 [not happy](https://mail.mozilla.org/pipermail/es-discuss/2013-March/028937.html)
 [with the current proposal](http://esdiscuss.org/notes/2013-03-12).
-While I can't tell whether *StopIteration* is really to be removed from the
-proposal a couple of alternative suggestions have been made:
+While I can't tell whether *StopIteration* is really to be removed a couple of
+alternative suggestions have been made:
 
 ### Introduce a keyword to end a frame
 
 To not misuse exceptions for normal control flow ES6 could introduce a
 *stopiteration* or *endframe* keyword that would end the current frame with
-an optional return value. The downside is that it would not scale well and is
-probably not backwards compatible.
+an optional return value. The obvious downside is that it is probably not
+backwards compatible.
 
 {% codeblock lang:js %}
 Iter.prototype.next = function () {
@@ -227,12 +227,12 @@ Iter.prototype = {
 };
 {% endcodeblock %}
 
-### Let next() return an object of shape:
+### Let next() always return an object
 
 Custom iterators would be required to implement a single method but would not
-need to throw. Instead they would return an object with *done* set to true to
-indicate that the sequence has ended. The *value* property would be used to
-store values passed to *yield* or *return* in a generator function.
+need to throw. Instead they would return an object with the property *done* set
+to true to indicate that the sequence has ended. The *value* property would be
+used to store values passed to *yield* or *return* in a generator function.
 
 {% codeblock lang:js %}
 {
@@ -241,7 +241,23 @@ store values passed to *yield* or *return* in a generator function.
 }
 {% endcodeblock %}
 
-This is in no way a complete list of possibilites or proposals that were brought
-up on [es-discuss](http://mail.mozilla.org/pipermail/es-discuss/) but merely
-some food for thought if you might think that *StopIteration* is not the right
-approach.
+### Food for thought
+
+This is in no way a complete list of possibilities or proposals that were
+brought up on [es-discuss](http://mail.mozilla.org/pipermail/es-discuss/) so
+please make up your own mind about the current iterators implementation and the
+suggested improvements.
+
+## The future is bright
+
+Whether or not *StopIteration* will end up in ES6, generators and iterators are
+great and you should make sure to be prepared when they become available in
+modern browsers as well as on Node.js.
+
+I concentrated particularly on *StopIteration* but there are
+[lots of](http://jlongster.com/2012/10/05/javascript-yield.html)
+[great](http://ejohn.org/blog/javascript-18-progress/)
+[posts](http://bjouhier.wordpress.com/2012/05/18/asynchronous-javascript-with-generators-an-experiment/)
+out there that go way more into depth about generators and their usage. Make
+sure to also take a look at libraries like [Task.js](http://taskjs.org/) that
+combines generators with promises to cooperative tasks.
