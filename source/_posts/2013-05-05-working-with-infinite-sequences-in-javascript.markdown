@@ -4,6 +4,13 @@ title: "Working with infinite sequences in JavaScript"
 date: 2013-05-06 12:00
 ---
 
+> Update: Please note that this post describes the current implementation in
+> SpiderMonkey. The final
+> [ES6 specification](http://wiki.ecmascript.org/doku.php?id=harmony:generators)
+> will require generator functions to have a '\*' token as in *function\* nat()
+> { ... }*. The *flatten()* function from the last example could use *yield\** to
+> delegate instead of a nested loop.
+
 JavaScript comes with most of the little functional tools you need to work on
 finite sequences that are usually implemented using Arrays. Array.prototype
 includes a number of methods like *map()* and *filter()* that apply a given
@@ -187,7 +194,8 @@ As a last example we will implement a function that flattens nested sequences.
 {% codeblock lang:js %}
 function flatten(it) {
   for (var x of it) {
-    if (Array.isArray(x) || (typeof x === "function" && x.isGenerator())) {
+    if (Object.prototype.toString.call(x) === "[object Generator]" ||
+        Array.isArray(x)) {
       for (var y of flatten(x)) {
         yield y;
       }
