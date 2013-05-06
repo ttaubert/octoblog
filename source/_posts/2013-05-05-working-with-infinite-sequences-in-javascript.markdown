@@ -1,19 +1,33 @@
 ---
 layout: post
 title: "Working with infinite sequences in JavaScript"
-date: 2013-05-05 22:59
+date: 2013-05-06 18:00
 ---
 
-Using the new generators implementing infinite sequence is a trivial task.
-
-Without generators implementing sequences would be tedious.
+JavaScript comes with most of the little functional tools you need to work on
+finite sequences that are usually implemented using Arrays. Array.prototype
+includes a number of methods like *map()* and *filter()* that apply a given
+function to all items of the Array and return the resulting new Array.
 
 {% codeblock lang:js %}
 [1, 2, 3].map(x => x + 1); // result: [2, 3, 4];
 {% endcodeblock %}
 
+These tools however are not a good fit for infinite sequences as Arrays are
+fixed-length. These function always consume the whole sequence at once to return
+a complete set. Implementing infinite sets by yourself means you would have to
+come up with your own API that clients need to adhere to. You often would keep
+state variables whose values need to be maintained for the duration of the
+computation process.
+
+## Generators to the rescue
+
+Using ES6
+[generators](https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Iterators_and_Generators)
+implementing the infinite sequence of all natural numbers turns out to be a
+trivial task. We even have language support to iterate over these sets.
+
 {% codeblock lang:js %}
-// Sequence of all natural numbers, starting with 1.
 function nat() {
   var i = 1;
   while (true) {
@@ -25,17 +39,14 @@ var it = nat();
 console.log(it.next(), it.next(), it.next()); // prints 1 2 3
 {% endcodeblock %}
 
-Before generators however, sequences were mostly implemented using Arrays.
-Arrays bring all important functionality like map(), filter(), some() and
-every() but they were designed with only Arrays in mind. They are not at all
-suited to work with infinite sequences. We therefore need to write our own
-tools.
+Now that we have a first infinite set we need a couple of functions that help us
+working with, combining, and building new sets.
 
 ## Mapping
 
 Let us start with *map()* - a function at the very heart of functional
-programming. It builds a new sequence by applying a given function to all
-elements of a given sequence.
+programming. It builds a new sequence by applying a function to all elements of
+a given sequence.
 
 {% codeblock lang:js %}
 function map(it, f) {
@@ -45,12 +56,11 @@ function map(it, f) {
 }
 {% endcodeblock %}
 
-Using the generator implementation of *map()* we could now write a function
+Using the generator implementation of *map()* we can now easily write a function
 called *squares()* that implements the sequence of squares of all natural
 numbers (1², 2², 3², ..., n²).
 
 {% codeblock lang:js %}
-// Sequence of squares of all natural numbers.
 function squares() {
   return map(nat(), x => x * x);
 }
@@ -59,16 +69,27 @@ var it = squares();
 console.log(it.next(), it.next(), it.next()); // prints 1 4 9
 {% endcodeblock %}
 
+Using
+[for...in](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/for...in)
+instead of
+[for...of](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/for...of)
+works just fine but using *of* has a neat
+advantage in that it properly iterates Arrays as well. If you want to map values
+of a finite sequence you can just do that.
+
+{% codeblock lang:js %}
+var it = map([1, 2, 3], x => x * x);
+console.log(it.next(), it.next(), it.next()); // prints 1 4 9
+{% endcodeblock %}
+
 ## Filtering
 
 Another common task is filtering specific values from a sequence. Our custom
-implementation of *filter()* takes an iterator and a predicate. The returned
+implementation of *filter()* takes an iterator and a predicate - the returned
 sequence will consist of all items of the original one for which the predicate
 holds.
 
 {% codeblock lang:js %}
-// Returns a sequence consisting of all items of the
-// original sequence where the given predicate holds.
 function filter(it, f) {
   for (var x of it) {
     if (f(x)) {
@@ -78,11 +99,9 @@ function filter(it, f) {
 }
 {% endcodeblock %}
 
-We could now use *filter()* to easily create the sequence of all even natural
-numbers.
+We can now use *filter()* to create the sequence of all even natural numbers.
 
 {% codeblock lang:js %}
-// Sequence of all even natural numbers.
 function even() {
   return filter(nat(), x => x % 2 === 0);
 }
@@ -91,17 +110,14 @@ var it = even();
 console.log(it.next(), it.next(), it.next()); // prints 2 4 6
 {% endcodeblock %}
 
-*filterNot()* is quite simple to derive from *filter()* and we could use that
-too to implement *even()*.
+A common derivation from *filter()* is *filterNot()* that simply negates the
+given predicate. We can use that to implement *even()* as well.
 
 {% codeblock lang:js %}
-// Returns a sequence consisting of all items of the
-// original sequence where the given predicate does *NOT* hold.
 function filterNot(it, f) {
   return filter(it, x => !f(x));
 }
 
-// Sequence of all even natural numbers.
 function even() {
   return filterNot(nat(), x => x % 2);
 }
@@ -109,26 +125,28 @@ function even() {
 
 ## Mersenne primes
 
-Suppose we were to find all
-[Mersenne prime numbers](https://en.wikipedia.org/wiki/Mersenne_prime) and want
-to use generators.
+Suppose we were to implement a sequence that represents all
+[Mersenne prime numbers](https://en.wikipedia.org/wiki/Mersenne_prime).
+Mersenne primes are defined as prime numbers of the form M<sub>n</sub> = 2^n - 1,
+that is the set of all numbers of the given form that have no positive divisors
+other than 1 and themselves. The set of Mersenne primes is
+[assumed to be infinite](https://en.wikipedia.org/wiki/Lenstra%E2%80%93Pomerance%E2%80%93Wagstaff_conjecture)
+though this remains unproven, yet.
 
-Let us define some helper functions. *range(from, to)* and *forall()* are common
-helpers in functional programming languages. *range()* allows us to iterate all
-numbers in a given range. *forall()* returns true if the given predicate returns
-true for all items in the sequence and should therefore only be used for finite
-ones.
+
+Let us first define some helper functions. *range(from, to)* and *forall()* are
+common helpers in functional programming languages. *range()* returns the set of
+natural numbers in a given range. *forall()* returns whether the given predicate
+holds for all items in the sequence and should therefore only be used for finite
+sets.
 
 {% codeblock lang:js %}
-// Sequence of numbers in range [lo, hi].
 function range(lo, hi) {
   while (lo <= hi) {
     yield lo++;
   }
 }
 
-// Returns a boolean to indicate whether a given
-// predicate holds for all items of a given sequence.
 function forall(it, f) {
   for (var x of it) {
     if (!f(x)) {
@@ -140,25 +158,22 @@ function forall(it, f) {
 }
 {% endcodeblock %}
 
-Mersenne primes are defined as numbers of the form M_n = 2^n - 1, that is the
-set of all numbers of the given form that have no positive divisors other than
-1 and themselves. *candidates()* is the sequence of all Mersenne numbers that is
-then filtered using *isPrime()*. The algorithm used by *isPrime()* is a very
-simple but slow one and checks that the given candidate is not divisible by any
-of the numbers in the range of 2 to candidate - 1.
+*mersenneNumbers()* is the set of all numbers of the form M<sub>n</sub> = 2^n -
+1 that is then filtered to remove all non-prime numbers. *isPrime()* is a very
+simple and naive (and slow) primality filter that checks whether the given
+candidate is divisible by any of the numbers in the range of [2, candidate - 1].
 
 {% codeblock lang:js %}
-// Sequence of all Mersenne numbers.
 function mersenneNumbers() {
   return map(nat(), x => Math.pow(2, x) - 1);
 }
 
-// Sequence of all Mersenne prime numbers.
 function mersennePrimes() {
-  return filter(mersenneNumbers(), function isPrime(n) {
-    // Very simple and naive primality filter.
-    return forall(range(2, n - 1), x => n % x > 0);
-  });
+  function isPrime(n) {
+    return forall(range(2, n - 1), x => n % x);
+  }
+
+  return filter(mersenneNumbers(), isPrime);
 }
 
 var it = mersennePrimes();
@@ -166,6 +181,8 @@ console.log(it.next(), it.next(), it.next()); // prints 1 3 7
 {% endcodeblock %}
 
 ## Flattening
+
+As a last example we will implement a function that flattens nested sequences.
 
 {% codeblock lang:js %}
 function flatten(it) {
@@ -181,6 +198,17 @@ function flatten(it) {
 }
 {% endcodeblock %}
 
+Using *flatten()* we can now do:
+
+{% codeblock lang:js %}
+flatten([1, [2, 3], [[4], [5]]]); // result: [1, 2, 3, 4, 5]
+{% endcodeblock %}
+
+Combining *flatten()* and *map()* to *flatMap()* we can easily implement another
+very common function that flattens the result of applying a given function to
+all items of a sequence. Let us use it to re-build the set of all natural
+numbers from the set of all even natural numbers.
+
 {% codeblock lang:js %}
 function flatMap(it, f) {
   return flatten(map(it, f));
@@ -189,3 +217,11 @@ function flatMap(it, f) {
 var it = flatMap(even(), x => [x - 1, x]);
 console.log(it.next(), it.next(), it.next()); // prints 1 2 3
 {% endcodeblock %}
+
+## Generators are powerful
+
+It is quite obvious that studying ES6 generators really repays. They are a very
+powerful language construct and I personally cannot wait until they are
+available in V8/Node.js as well. They will be in the toolbox of every
+professional JavaScript developer soon and I am sure we can count on the
+community to come up with lots of great uses and libraries.
