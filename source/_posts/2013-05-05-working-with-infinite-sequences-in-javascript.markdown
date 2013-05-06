@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Working with infinite sequences in JavaScript"
-date: 2013-05-06 18:00
+date: 2013-05-06 12:00
 ---
 
 JavaScript comes with most of the little functional tools you need to work on
@@ -13,19 +13,18 @@ function to all items of the Array and return the resulting new Array.
 [1, 2, 3].map(x => x + 1); // result: [2, 3, 4];
 {% endcodeblock %}
 
-These tools however are not a good fit for infinite sequences as Arrays are
-fixed-length. These function always consume the whole sequence at once to return
-a complete set. Implementing infinite sets by yourself means you would have to
-come up with your own API that clients need to adhere to. You often would keep
-state variables whose values need to be maintained for the duration of the
-computation process.
+These tools however are not a good fit for infinite sequences as they always
+consume the whole sequence at once to return a new one. Implementing infinite
+sequences by yourself means you would have to come up with your own API that
+clients need to adhere to. You often would keep state variables whose values
+need to be maintained for the duration of the computation process.
 
 ## Generators to the rescue
 
 Using ES6
 [generators](https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Iterators_and_Generators)
 implementing the infinite sequence of all natural numbers turns out to be a
-trivial task. We even have language support to iterate over these sets.
+trivial task. We even have language support to iterate over them.
 
 {% codeblock lang:js %}
 function nat() {
@@ -40,7 +39,7 @@ console.log(it.next(), it.next(), it.next()); // prints 1 2 3
 {% endcodeblock %}
 
 Now that we have a first infinite set we need a couple of functions that help us
-working with, combining, and building new sets.
+working with, combining, and building new sequences.
 
 ## Mapping
 
@@ -57,8 +56,8 @@ function map(it, f) {
 {% endcodeblock %}
 
 Using the generator implementation of *map()* we can now easily write a function
-called *squares()* that implements the sequence of squares of all natural
-numbers (1², 2², 3², ..., n²).
+called *squares()* that represents the set of squares of all natural numbers
+(1², 2², 3², ..., n²).
 
 {% codeblock lang:js %}
 function squares() {
@@ -73,9 +72,9 @@ Using
 [for...in](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/for...in)
 instead of
 [for...of](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/for...of)
-works just fine but using *of* has a neat
-advantage in that it properly iterates Arrays as well. If you want to map values
-of a finite sequence you can just do that.
+works fine but using *of* has a neat advantage in that it properly iterates
+Arrays as well. If you want to map values of a finite sequence you can just do
+that.
 
 {% codeblock lang:js %}
 var it = map([1, 2, 3], x => x * x);
@@ -99,7 +98,7 @@ function filter(it, f) {
 }
 {% endcodeblock %}
 
-We can now use *filter()* to create the sequence of all even natural numbers.
+We can now use *filter()* to create the set of all even natural numbers.
 
 {% codeblock lang:js %}
 function even() {
@@ -138,7 +137,7 @@ Let us first define some helper functions. *range(from, to)* and *forall()* are
 common helpers in functional programming languages. *range()* returns the set of
 natural numbers in a given range. *forall()* returns whether the given predicate
 holds for all items in the sequence and should therefore only be used for finite
-sets.
+sequences.
 
 {% codeblock lang:js %}
 function range(lo, hi) {
@@ -158,10 +157,11 @@ function forall(it, f) {
 }
 {% endcodeblock %}
 
-*mersenneNumbers()* is the set of all numbers of the form M<sub>n</sub> = 2^n -
-1 that is then filtered to remove all non-prime numbers. *isPrime()* is a very
-simple and naive (and slow) primality filter that checks whether the given
-candidate is divisible by any of the numbers in the range of [2, candidate - 1].
+*mersenneNumbers()* is the set of all numbers of the form M<sub>n</sub> = 2^n - 1.
+*isPrime()* is a very simple and naive (and slow) primality checker that returns
+whether the given candidate is divisible by any of the numbers in the range of
+[2, candidate - 1]. We will use *isPrime()* as a filter to remove all non-prime
+numbers from *mersenneNumbers()*.
 
 {% codeblock lang:js %}
 function mersenneNumbers() {
@@ -198,16 +198,17 @@ function flatten(it) {
 }
 {% endcodeblock %}
 
-Using *flatten()* we can now do:
+Note that using *for...of* comes in handy again as we can use it to iterate
+over Arrays and generators. Using *flatten()* we can now do:
 
 {% codeblock lang:js %}
 flatten([1, [2, 3], [[4], [5]]]); // result: [1, 2, 3, 4, 5]
 {% endcodeblock %}
 
-Combining *flatten()* and *map()* to *flatMap()* we can easily implement another
-very common function that flattens the result of applying a given function to
-all items of a sequence. Let us use it to re-build the set of all natural
-numbers from the set of all even natural numbers.
+Combining *flatten()* and *map()* to *flatMap()* we can implement another very
+common function that flattens the result of applying a given function to all
+items of a sequence. Let us use it to re-build the set of all natural numbers
+from the set of all even natural numbers.
 
 {% codeblock lang:js %}
 function flatMap(it, f) {
