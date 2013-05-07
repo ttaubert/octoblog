@@ -172,7 +172,7 @@ numbers from *mersenneNumbers()*.
 
 {% codeblock lang:js %}
 function mersenneNumbers() {
-  return map(nat(), x => Math.pow(2, x) - 1);
+  return map(nat(), x => Math.pow(2, x + 1) - 1);
 }
 
 function mersennePrimes() {
@@ -184,7 +184,7 @@ function mersennePrimes() {
 }
 
 var it = mersennePrimes();
-console.log(it.next(), it.next(), it.next()); // prints 1 3 7
+console.log(it.next(), it.next(), it.next()); // prints 3 7 31
 {% endcodeblock %}
 
 ## Flattening
