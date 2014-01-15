@@ -4,13 +4,6 @@ title: "Working with infinite sequences in JavaScript"
 date: 2013-05-06 12:00
 ---
 
-> Update: Please note that this post describes the current implementation in
-> SpiderMonkey. The final
-> [ES6 specification](http://wiki.ecmascript.org/doku.php?id=harmony:generators)
-> will require generator functions to have a '\*' token as in *function\* nat()
-> { ... }*. The *flatten()* function from the last example could use *yield\** to
-> delegate instead of a nested loop.
-
 JavaScript comes with most of the little functional tools you need to work on
 finite sequences that are usually implemented using Arrays. Array.prototype
 includes a number of methods like *map()* and *filter()* that apply a given
@@ -29,20 +22,23 @@ need to be maintained for the duration of the computation process.
 ## Generators to the rescue
 
 Using ES6
-[generators](https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Iterators_and_Generators)
+[generators](http://wiki.ecmascript.org/doku.php?id=harmony:generators)
 implementing the infinite sequence of all natural numbers turns out to be a
 trivial task. We even have language support to iterate over them.
 
 {% codeblock lang:js %}
-function nat() {
-  var i = 1;
+function* nat() {
+  let i = 1;
   while (true) {
     yield i++;
   }
 }
 
-var it = nat();
-console.log(it.next(), it.next(), it.next()); // prints 1 2 3
+for (let num of nat()) {
+  print(num);
+}
+
+// prints 1 2 3 4 ...
 {% endcodeblock %}
 
 Now that we have a first infinite set we need a couple of functions that help us
@@ -55,8 +51,8 @@ programming. It builds a new sequence by applying a function to all elements of
 a given sequence.
 
 {% codeblock lang:js %}
-function map(it, f) {
-  for (var x of it) {
+function* map(it, f) {
+  for (let x of it) {
     yield f(x);
   }
 }
@@ -71,21 +67,27 @@ function squares() {
   return map(nat(), x => x * x);
 }
 
-var it = squares();
-console.log(it.next(), it.next(), it.next()); // prints 1 4 9
+for (let num of squares()) {
+  print(num);
+}
+
+// prints 1 4 9 16 ...
 {% endcodeblock %}
 
-Using
-[for...in](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/for...in)
-instead of
+As we are using
 [for...of](https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Statements/for...of)
-works fine but using *of* has a neat advantage in that it properly iterates
-Arrays as well. If you want to map values of a finite sequence you can just do
-that.
+we can also pass an Array to *map()* to retrieve a new generator with a finite
+source. The given function is applied to value after value instead of to all
+values at once when using *Array.prototype.map*.
 
 {% codeblock lang:js %}
-var it = map([1, 2, 3], x => x * x);
-console.log(it.next(), it.next(), it.next()); // prints 1 4 9
+let squares = map([1, 2, 3], x => x * x);
+
+for (let num of squares) {
+  print(num);
+}
+
+// prints 1 4 9
 {% endcodeblock %}
 
 ## Filtering
@@ -96,8 +98,8 @@ sequence will consist of all items of the original one for which the predicate
 holds.
 
 {% codeblock lang:js %}
-function filter(it, f) {
-  for (var x of it) {
+function* filter(it, f) {
+  for (let x of it) {
     if (f(x)) {
       yield x;
     }
@@ -112,8 +114,11 @@ function even() {
   return filter(nat(), x => x % 2 === 0);
 }
 
-var it = even();
-console.log(it.next(), it.next(), it.next()); // prints 2 4 6
+for (let num of even()) {
+  print(num);
+}
+
+// prints 2 4 6 8 ...
 {% endcodeblock %}
 
 A common derivation from *filter()* is *filterNot()* that simply negates the
@@ -147,14 +152,14 @@ holds for all items in the sequence and should therefore only be used for finite
 sequences.
 
 {% codeblock lang:js %}
-function range(lo, hi) {
+function* range(lo, hi) {
   while (lo <= hi) {
     yield lo++;
   }
 }
 
 function forall(it, f) {
-  for (var x of it) {
+  for (let x of it) {
     if (!f(x)) {
       return false;
     }
@@ -183,8 +188,11 @@ function mersennePrimes() {
   return filter(mersenneNumbers(), isPrime);
 }
 
-var it = mersennePrimes();
-console.log(it.next(), it.next(), it.next()); // prints 3 7 31
+for (let mprime of mersennePrimes()) {
+  print(mprime);
+}
+
+// prints 3 7 31 127 ...
 {% endcodeblock %}
 
 ## Flattening
@@ -192,13 +200,10 @@ console.log(it.next(), it.next(), it.next()); // prints 3 7 31
 As a last example we will implement a function that flattens nested sequences.
 
 {% codeblock lang:js %}
-function flatten(it) {
-  for (var x of it) {
-    if (Object.prototype.toString.call(x) === "[object Generator]" ||
-        Array.isArray(x)) {
-      for (var y of flatten(x)) {
-        yield y;
-      }
+function* flatten(it) {
+  for (let x of it) {
+    if (typeof(x["@@iterator"]) == "function") {
+      yield* flatten(x);
     } else {
       yield x;
     }
@@ -210,7 +215,13 @@ Note that using *for...of* comes in handy again as we can use it to iterate
 over Arrays and generators. Using *flatten()* we can now do:
 
 {% codeblock lang:js %}
-flatten([1, [2, 3], [[4], [5]]]); // result: [1, 2, 3, 4, 5]
+let it = flatten([1, [2, 3], [[4], [5]]]);
+
+for (let num of it) {
+  print(num);
+}
+
+// prints 1 2 3 4 5
 {% endcodeblock %}
 
 Combining *flatten()* and *map()* to *flatMap()* we can implement another very
@@ -223,14 +234,20 @@ function flatMap(it, f) {
   return flatten(map(it, f));
 }
 
-var it = flatMap(even(), x => [x - 1, x]);
-console.log(it.next(), it.next(), it.next()); // prints 1 2 3
+let it = flatMap(even(), x => [x - 1, x]);
+
+for (let num of it) {
+  print(num);
+}
+
+// prints 1 2 3 4 ...
 {% endcodeblock %}
 
 ## Generators are powerful
 
-It is quite obvious that studying ES6 generators really repays. They are a very
-powerful language construct and I personally cannot wait until they are
-available in V8/Node.js as well. They will be in the toolbox of every
-professional JavaScript developer soon and I am sure we can count on the
-community to come up with lots of great uses and libraries.
+It is quite obvious that studying ES6 generators really repays. Thanks to Andy
+Wingo these are available in the latest versions of
+[Firefox](http://wingolog.org/archives/2013/10/07/es6-generators-and-iteration-in-spidermonkey) and
+[Chrome](http://wingolog.org/archives/2013/05/08/generators-in-v8). They will be
+in the toolbox of every professional JavaScript developer soon and I am sure we
+can count on the community to come up with lots of great uses and libraries.
