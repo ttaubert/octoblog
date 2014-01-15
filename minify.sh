@@ -6,7 +6,7 @@ cat scripts/jquery.min.js \
     scripts/main.js \
     > source/javascripts/main.tmp.js
 
-java -jar ~/Downloads/yuicompressor-2.4.7.jar \
+java -jar ~/workspace/yuicompressor-2.4.8.jar \
     -o source/javascripts/main.js \
     source/javascripts/main.tmp.js
 
