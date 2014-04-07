@@ -2,7 +2,6 @@
 layout: post
 title: "A ready-to-use virtual build environment for Firefox"
 date: 2014-04-07 18:00
-published: false
 ---
 
 If you ever wondered what contributing to Firefox feels like but you never had
@@ -38,7 +37,7 @@ environment ready to modify and build Firefox. You can get it here:
 [http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova](http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova)  
 (sha1 = c5717af5cccdc2c42e0a236a9859abffd940df9a)
 
-Downloading ~2.7 GB might take a while if you are on a slow connection, sorry.
+Downloading ~2.6 GB might take a while if you are on a slow connection, sorry.
 
 ### 3) Set up the virtual machine
 
@@ -52,8 +51,8 @@ you want it to build as fast as possible.
 
 Now that your virtual machine is ready, boot it and wait for the Ubuntu desktop
 to be shown. A terminal will pop up automatically and do some last steps before
-we can get started. After a successful installation Sublime 2 should be
-started automatically.
+we can get started. After a successful installation Sublime 2 should start
+automatically.
 
 {% img /images/firefoxdev1.png Screenshot showing Sublime 2 running on Ubuntu %}
 
@@ -84,10 +83,12 @@ shipped to half a billion people? If that sounds compelling then take a look
 at [Bugs Ahoy!](http://www.joshmatthews.net/bugsahoy/) and find something to
 work on that sounds interesting to you.
 
-TODO  
-If you are interested in exploring
-[Code Firefox Lessons](http://codefirefox.com/)
+If you are interested in digging deeper into the build system or the version
+control system, or want to know more about how to create your first patch and
+post it to our bug tracker then take a look at our
+[Code Firefox Lessons](http://codefirefox.com/).
 
 I would love to hear your feedback about the Firefox Build Environment!
 Please tell me what can be improved and what you would like to see in the next
-version. Do not hesitate to drop me a mail should you have a detailed opinion.
+version. Do not hesitate to drop me a mail should you have a more detailed
+opinion.
