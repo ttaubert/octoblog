@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Introducing a ready-to-use virtual build environment for Firefox"
+title: "A ready-to-use virtual build environment for Firefox"
 date: 2014-04-07 18:00
 published: false
 ---
@@ -15,11 +15,9 @@ This article will guide you through a small list of steps that in the end
 will leave you with a virtual machine ready to modify and build your own
 development version of Firefox.
 
-I hope this will be valuable to novice programmers that don't have a full
+I hope this will be valuable to novice programmers that do not have a full
 C++ development environment at hand as well as to the more experienced
-folks that do not have a lot of time but even more curiosity.
-
-Let's start.
+folks with little time and lots of curiosity.
 
 ### 1) Install VirtualBox
 
@@ -38,9 +36,9 @@ Now is the time to download the virtual machine containing our development
 environment ready to modify and build Firefox. You can get it here:
 
 [http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova](http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova)  
-(sha1 = 18a09e309fe5b9554f843734073848d2205edde5)
+(sha1 = c5717af5cccdc2c42e0a236a9859abffd940df9a)
 
-(Downloading ~3GB might take a while of you are on a slow connection, sorry.)
+Downloading ~2.7 GB might take a while if you are on a slow connection, sorry.
 
 ### 3) Set up the virtual machine
 
@@ -50,10 +48,14 @@ and import the new virtual machine into VirtualBox. Please give it at least
 host machine has available. Building Firefox takes up a lot of resources and
 you want it to build as fast as possible.
 
+{% img /images/firefoxdev3.png Screenshot showing the VirtualBox import dialog %}
+
 Now that your virtual machine is ready, boot it and wait for the Ubuntu desktop
 to be shown. A terminal will pop up automatically and do some last steps before
 we can get started. After a successful installation Sublime 2 should be
 started automatically.
+
+{% img /images/firefoxdev1.png Screenshot showing Sublime 2 running on Ubuntu %}
 
 > *Note: Should you ever need root credentials, use "firefox-dev" as the
 > password. If you want to change your Language and Keyboard settings then
@@ -62,14 +64,13 @@ started automatically.
 
 ### 4) Build Firefox
 
-After the text editor has been installed and opened, and the most recent
-source code has been pulled we can do a quick sanity test and build Firefox.
-
 Click `Tools > Build` to start the process. This might take a long time
 depending on the features of your host machine, please be patient. You can
 watch the build progress in the text editor's console at the bottom. Once the
 build has finished you can use `Tools > Run` to start your custom Firefox
 build and check that everything works as expected.
+
+{% img /images/firefoxdev2.png Screenshot showing the build menu %}
 
 > *Note: if you want to switch from an optimized to a debug build then
 > choose `Tools > Build System > Firefox (Debug)` and hit `Tools > Build`
