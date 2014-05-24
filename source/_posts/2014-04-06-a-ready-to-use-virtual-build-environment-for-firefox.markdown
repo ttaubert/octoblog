@@ -18,7 +18,7 @@ I hope this will be valuable to novice programmers that do not have a full
 C++ development environment at hand as well as to the more experienced
 folks with little time and lots of curiosity.
 
-### 1) Install VirtualBox
+## Install VirtualBox
 
 > *Note: The [Open Virtualization Format (OVF)](https://en.wikipedia.org/wiki/Open_Virtualization_Format)
 > is supported by other Virtualization Environments such as VMWare, etc. You
@@ -29,7 +29,7 @@ page and download the latest version available for your operating system.
 Should you already have VirtualBox installed then please ensure you are running
 the latest version by checking for updates before continuing.
 
-### 2) Download the Firefox Build Environment
+## Download the Firefox Build Environment
 
 Now is the time to download the virtual machine containing our development
 environment ready to modify and build Firefox. You can get it here:
@@ -39,7 +39,7 @@ environment ready to modify and build Firefox. You can get it here:
 
 Downloading ~2.6 GB might take a while if you are on a slow connection, sorry.
 
-### 3) Set up the virtual machine
+## Set up the virtual machine
 
 Once the image has been downloaded you can double-click the .ova file
 and import the new virtual machine into VirtualBox. Please give it at least
@@ -61,7 +61,7 @@ automatically.
 > follow the instructions on
 > [How to change the UI Language in Ubuntu](http://www.howtogeek.com/howto/17528/change-the-user-interface-language-in-ubuntu/).*
 
-### 4) Build Firefox
+## Build Firefox
 
 Click `Tools > Build` to start the process. This might take a long time
 depending on the features of your host machine, please be patient. You can
@@ -75,7 +75,7 @@ build and check that everything works as expected.
 > choose `Tools > Build System > Firefox (Debug)` and hit `Tools > Build`
 > again to start a debug build.*
 
-### 5) Now what?
+## Now what?
 
 You successfully built Firefox for the first time and wonder what's next? How
 about picking a small bug for a start, contribute code and get your changes
