@@ -5,15 +5,20 @@ date: 2014-06-05 18:00
 published: false
 ---
 
+> This is a multi-part blog post series on the [Web Cryptography API](http://www.w3.org/TR/WebCryptoAPI/):
+>
+> [→ Part 1: Hashing](/blog/2014/06/hashing-using-the-web-cryptography-api/)  
+> [→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  
+> [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)
+
 Cryptography is coming to the browser. While there is a lot that can and has
 been said about cryptography in an environment running untrusted code (the
 browser),
 [Mozilla](https://bugzilla.mozilla.org/show_bug.cgi?id=865789),
 [Google](https://code.google.com/p/chromium/issues/detail?id=245025), and
 [Apple](https://bugs.webkit.org/show_bug.cgi?id=122679) are already working on
-implementing the
-[Web Cryptography API](http://www.w3.org/TR/WebCryptoAPI/#sha). It will
-inevitably be an important part of the future web.
+implementing the WebCrypto API. It will inevitably be an important part of the
+future web.
 
 ## Computing a message digest
 
@@ -98,4 +103,4 @@ authenticity at the same time.
 See my next post about how you can use the WebCrypto API to compute
 [hash-based message authentication codes (HMACs)](https://en.wikipedia.org/wiki/Hash-based_message_authentication_code).
 
-[→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)
+[→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  

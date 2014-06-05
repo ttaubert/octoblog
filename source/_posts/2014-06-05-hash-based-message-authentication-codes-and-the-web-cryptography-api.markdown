@@ -1,9 +1,15 @@
 ---
 layout: post
 title: "Hash-based message authentication codes and the Web Cryptography API"
-date: 2014-06-05 18:00
+date: 2014-06-05 19:00
 published: false
 ---
+
+> This is a multi-part blog post series on the [Web Cryptography API](http://www.w3.org/TR/WebCryptoAPI/):
+>
+> [→ Part 1: Hashing](/blog/2014/06/hashing-using-the-web-cryptography-api/)  
+> [→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  
+> [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)
 
 In the [previous post](/blog/2014/06/hashing-using-the-web-cryptography-api/)
 I talked about cryptographic hash functions and how those are exposed by the
