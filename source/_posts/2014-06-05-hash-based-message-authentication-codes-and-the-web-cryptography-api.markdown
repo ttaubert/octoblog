@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Hash-based message authentication codes and the Web Cryptography API"
-date: 2014-06-05 19:00
+date: 2014-06-12 19:00
 published: false
 ---
 
@@ -35,8 +35,9 @@ var usages = ["sign", "verify"];
 var promiseKey = window.crypto.subtle.generateKey(algo, false, usages);
 {% endcodeblock %}
 
-With `promiseKey` we now have a promise that will resolve to a random 256-bit
-key that we can then use to authenticate the given message:
+With `promiseKey` we now have a promise that will resolve to a random 512-bit
+(the hash function's block size) key that we can then use to authenticate the
+given message:
 
 {% codeblock lang:js %}
 var msg = "The quick brown fox jumps over the lazy dog";
@@ -96,7 +97,7 @@ crypto.subtle.verify({name: "HMAC"}, key, mac, data)
 
 ## HMAC applications
 
-MACs are great when all you need integrity and authenticity but not secrecy,
+MACs are great when all you need is integrity and authenticity but not secrecy,
 i.e. if you do not care about leaking the message contents but you do care
 about the identity of the sender - assuming that only the right person has the
 shared secret key.

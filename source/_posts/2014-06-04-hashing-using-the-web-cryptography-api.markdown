@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Hashing using the Web Cryptography API"
-date: 2014-06-05 18:00
+date: 2014-06-12 18:00
 published: false
 ---
 
@@ -80,14 +80,6 @@ the UI thread. Making the WebCrypto API asynchronous thus allows implementors
 to move all crypto operations to a worker thread. Returning a promise that
 resolves when that operation has finished or failed is a great way to make an
 easy to work with API.
-
-## What about SHA-1?
-
-If you wondered why SHA-1 was not mentioned in the above examples, good job!
-You did read the spec it seems. Since already 2005 we know that there exists a
-theoretical attack on SHA-1 and it is thus strongly advised to not use it for
-any new project. You might still need it for backwards compatibility reasons,
-e.g. to interact with a legacy system.
 
 ## Applications for hash functions
 
