@@ -87,7 +87,7 @@ functions by themselves provide only integrity but not authenticity as anyone
 could just change the message and compute a new hash for it.
 
 Cryptographically secure hash functions are the basis of HMACs, a message
-authentication code that can be used to to both provide integrity and
+authentication code that can be used to both provide integrity and
 authenticity at the same time.
 
 See my next post about how you can use the WebCrypto API to compute

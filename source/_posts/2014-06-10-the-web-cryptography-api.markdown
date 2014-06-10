@@ -12,7 +12,7 @@ published: false
 > [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)  
 > [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)
 
-Cryptography is coming to the browser. While there is a lot that can and has
+Cryptography is coming to the DOM. While there is a lot that can and has
 been said about cryptography in an environment running untrusted code (the
 browser),
 [Mozilla](https://bugzilla.mozilla.org/show_bug.cgi?id=865789),
@@ -23,7 +23,7 @@ future web.
 
 I wrote a series of blog posts to show how the WebCrypto API can be used to
 provide integrity, authenticity and secrecy for any kind of data. I will assume
-that the reader is somewhat familiar with cryptography, its primitives, and some
+that the reader is somewhat familiar with cryptography, its primitives, and the
 terminology around it.
 
 If you want to refresh your cryptography chops, I would really like to encourage
