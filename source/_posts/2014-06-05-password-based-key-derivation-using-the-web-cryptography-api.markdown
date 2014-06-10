@@ -36,7 +36,7 @@ var promisePasswordKey = window.crypto.subtle.importKey(
   "raw", data, {name: "PBKDF2"}, false, ["deriveKey"]);
 {% endcodeblock %}
 
-The `password` variable's value as seen above would be coming from the user.
+The `password` variable's value as seen above would be supplied by the user.
 Note that per spec you could also use the algorithm's `generateKey()` method
 to open a native prompt querying for a password.
 
@@ -48,8 +48,8 @@ var promisePasswordKey = window.crypto.subtle.generateKey(
 // Note: Not supported by any browser, yet :(
 {% endcodeblock %}
 
-Using the new key the next step is starting the actual key derivation that will
-result in a new key usable for cryptographic operations:
+The next step is starting the actual key derivation that will result in a new
+key usable for cryptographic operations:
 
 {% codeblock lang:js %}
 var promiseDerivedKey = promisePasswordKey.then(function (pwKey) {
@@ -64,6 +64,7 @@ var promiseDerivedKey = promisePasswordKey.then(function (pwKey) {
     iterations: 100000
   };
 
+  // The newly generated key will be used to compute an HMAC.
   var algoHMAC = {
     name: "HMAC",
     hash: {name: "SHA-256"}
@@ -77,7 +78,8 @@ var promiseDerivedKey = promisePasswordKey.then(function (pwKey) {
 
 ## Choosing good parameters
 
-The PBKDF2 algorithm applies the desired hash function to the given password
+`algoKDF` is a [Pbkdf2Params](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html#pbkdf2-params)
+object. The algorithm applies the desired hash function to the given password
 along with the `salt` value repeatedly. The number of `iterations` should be
 chosen such that the work required to derive a key is large enough to
 practically slow down password cracking attempts.
@@ -115,7 +117,8 @@ The computed MAC could now be stored along with the authenticated but
 unencrypted data on the user's hard disk (e.g. an Indexed DB store). Given
 that the user chose a good password it is infeasible for an attacker to compute
 a valid MAC for a modified version of the unencrypted data. Using
-`window.crypto.subtle.verify()` we can thus ensure authenticity for stored data.
+`window.crypto.subtle.verify()` we can thus ensure authenticity for stored
+data.
 
 ## Encrypting data using derived keys
 
@@ -123,7 +126,6 @@ Computing MACs is a simple example but in the real world we might be interested
 in not only integrity and authenticity, but also secrecy.
 
 See my next post about how you can use the WebCrypto API to encrypt data using
-the [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) block
-cipher.
+the [AES block cipher](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard).
 
 [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)

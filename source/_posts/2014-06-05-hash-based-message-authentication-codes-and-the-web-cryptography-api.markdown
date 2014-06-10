@@ -69,14 +69,16 @@ Here is a short reminder of what the HMAC construction looks like:
 HMAC(k, m) = H((k ⊕ opad) | H((k ⊕ ipad) | m))
 {% endcodeblock %}
 
-`|ipad|` and `|opad|` are exactly the block size of `H` - for SHA-256 as used
-above that is 64 bytes. To xor the secret key with those pads we need to ensure
-it has exactly the same size and thus pad it to the right with zeros if it is
-too short.
+The lengths of the inner and outer paddings `|ipad|` and `|opad|` are exactly
+the block size of `H` (the hash function) - for SHA-256 as used above that is
+64 bytes. To xor the secret key with those pads we might need to pad a given
+key to the right with zeros if it is too short.
 
-It is thus very important to ensure you use a key that is *at least* as big as
-the hash function's block size. Using an even bigger key is fine, it will be
-fed into the hash function once before xor-ing.
+The minimum recommended key size is the hash function's output size (32 bytes
+for SHA-256). You should ideally pass a key as long as the hash function's
+block size to achieve the largest possible key space. If the given key is
+longer than the block size it will be fed into the hash function once before
+xor-ing.
 
 ## Verification
 
@@ -103,9 +105,10 @@ i.e. if you do not care about leaking the message contents but you do care
 about the identity of the sender - assuming that only the right person has the
 shared secret key.
 
-Keyed-hash message authentication codes are used by PBKDF2, a key derivation
-function that derives keys usable for cryptographic operations from low-entropy
-keys like user-typed passwords.
+Keyed-hash message authentication codes are used by
+[PBKDF2](https://en.wikipedia.org/wiki/PBKDF2), a key derivation function that
+derives keys usable for cryptographic operations from low-entropy keys like
+user-typed passwords.
 
 See my next post about how you can use the WebCrypto API to derive
 cryptographic keys from unsecure keys using a
