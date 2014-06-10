@@ -9,7 +9,8 @@ published: false
 >
 > [→ Part 1: Hashing](/blog/2014/06/hashing-using-the-web-cryptography-api/)  
 > [→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  
-> [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)
+> [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)  
+> [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)
 
 In the [previous post](/blog/2014/06/hashing-using-the-web-cryptography-api/)
 I talked about cryptographic hash functions and how those are exposed by the
