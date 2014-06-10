@@ -12,20 +12,17 @@ published: false
 > [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)  
 > [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)
 
-Cryptography is coming to the browser. While there is a lot that can and has
-been said about cryptography in an environment running untrusted code (the
-browser),
-[Mozilla](https://bugzilla.mozilla.org/show_bug.cgi?id=865789),
-[Google](https://code.google.com/p/chromium/issues/detail?id=245025), and
-[Apple](https://bugs.webkit.org/show_bug.cgi?id=122679) are already working on
-implementing the WebCrypto API. It will inevitably be an important part of the
-future web.
+Let us start exploring the WebCrypto API with a very simple example - hashing.
+[Cryptographic hash functions](https://en.wikipedia.org/wiki/Cryptographic_hash_function)
+are an important building block of popular and secure cryptographic constructions.
 
 ## Computing a message digest
 
-Let us start exploring the WebCrypto API with a very simple example - hashing.
-Hash functions are an important building block of popular and secure
-cryptographic constructions.
+The WebCrypto API exposes two main interfaces,
+[Crypto](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html#crypto-interface)
+provided by `window.crypto` and
+[SubtleCrypto](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html#subtlecrypto-interface)
+provided by `window.crypto.subtle`.
 
 {% codeblock lang:js %}
 var msg = "The quick brown fox jumps over the lazy dog";
