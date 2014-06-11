@@ -123,7 +123,7 @@ data.
 ## Encrypting data using derived keys
 
 Computing MACs is a simple example but in the real world we might be interested
-in not only integrity and authenticity, but also secrecy.
+in not only integrity and authenticity, but also confidentiality.
 
 See my next post about how you can use the WebCrypto API to encrypt data using
 the [AES block cipher](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard).

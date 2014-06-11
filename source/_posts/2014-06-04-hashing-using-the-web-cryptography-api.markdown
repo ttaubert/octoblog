@@ -12,7 +12,7 @@ published: false
 > [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)  
 > [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)
 
-Let us start exploring the WebCrypto API with a very simple example - hashing.
+Let us start exploring the WebCrypto API with a very simple example — hashing.
 [Cryptographic hash functions](https://en.wikipedia.org/wiki/Cryptographic_hash_function)
 are an important building block of popular and secure cryptographic constructions.
 

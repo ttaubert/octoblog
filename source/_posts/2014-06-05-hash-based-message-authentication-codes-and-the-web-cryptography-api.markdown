@@ -70,15 +70,17 @@ HMAC(k, m) = H((k ⊕ opad) | H((k ⊕ ipad) | m))
 {% endcodeblock %}
 
 The lengths of the inner and outer paddings `|ipad|` and `|opad|` are exactly
-the block size of `H` (the hash function) - for SHA-256 as used above that is
-64 bytes. To xor the secret key with those pads we might need to pad a given
-key to the right with zeros if it is too short.
+the block size of `H` (64 bytes for SHA-256). In general, to compute `x ⊕ y`
+both `x` and `y` must have the same length. To xor the secret key with those
+pads we might thus need to pad a given key to the right with zeros if it is
+too short.
 
-The minimum recommended key size is the hash function's output size (32 bytes
-for SHA-256). You should ideally pass a key as long as the hash function's
-block size to achieve the largest possible key space. If the given key is
-longer than the block size it will be fed into the hash function once before
-xor-ing.
+The most common attack against HMACs is brute force to uncover the secret key
+so you should ideally pass a key as long as the hash function's block size to
+achieve the largest possible key space. If the given key is longer than the
+block size it will be fed into the hash function once before xor-ing. The
+minimum recommended key size is the hash function's output size (32 bytes
+for SHA-256).
 
 ## Verification
 
@@ -98,12 +100,30 @@ crypto.subtle.verify({name: "HMAC"}, key, mac, data)
 // true
 {% endcodeblock %}
 
+With the secret key it is easy to find out whether someone has tampered with
+`data` or `mac` while they were transmitted. Passing all parameters to
+`verify()` must now resolve to `false`.
+
+{% codeblock lang:js %}
+// Change the first character of the plaintext to a white space.
+data[0] = 32;
+
+// The verification must fail now.
+crypto.subtle.verify({name: "HMAC"}, key, mac, data)
+  .then(function (verified) {
+    console.log(verified);
+  });
+
+// Output:
+// false
+{% endcodeblock %}
+
 ## HMAC applications
 
-MACs are great when all you need is integrity and authenticity but not secrecy,
-i.e. if you do not care about leaking the message contents but you do care
-about the identity of the sender - assuming that only the right person has the
-shared secret key.
+MACs are great when all you need is integrity and authenticity but not
+confidentiality, i.e. if you do not care about leaking the message contents but
+you do care about the identity of the sender — assuming that only the right
+person has the shared secret key.
 
 Keyed-hash message authentication codes are used by
 [PBKDF2](https://en.wikipedia.org/wiki/PBKDF2), a key derivation function that

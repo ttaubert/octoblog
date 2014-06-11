@@ -22,9 +22,9 @@ implementing the WebCrypto API. It will inevitably be an important part of the
 future web.
 
 I wrote a series of blog posts to show how the WebCrypto API can be used to
-provide integrity, authenticity and secrecy for any kind of data. I will assume
-that the reader is somewhat familiar with cryptography, its primitives, and the
-terminology around it.
+provide integrity, authenticity and confidentiality for any kind of data. I
+will assume that the reader is somewhat familiar with cryptography, its
+primitives, and the terminology around it.
 
 If you want to refresh your cryptography chops, I would really like to encourage
 you to join [Dan Boneh's course](https://www.coursera.org/course/crypto) or watch
