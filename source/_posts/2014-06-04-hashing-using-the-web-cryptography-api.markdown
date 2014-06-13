@@ -1,8 +1,7 @@
 ---
 layout: post
 title: "Hashing using the Web Cryptography API"
-date: 2014-06-12 18:00
-published: false
+date: 2014-06-13 18:00
 ---
 
 > This is a multi-part blog post series on the [Web Cryptography API](http://www.w3.org/TR/WebCryptoAPI/):
@@ -10,19 +9,21 @@ published: false
 > [→ Part 1: Hashing](/blog/2014/06/hashing-using-the-web-cryptography-api/)  
 > [→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  
 > [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)  
-> [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)
+> [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)  
 
-Let us start exploring the WebCrypto API with a very simple example — hashing.
+Let us start exploring the WebCrypto API with a simple example — hashing.
 [Cryptographic hash functions](https://en.wikipedia.org/wiki/Cryptographic_hash_function)
-are an important building block of popular and secure cryptographic constructions.
+are an important building block of popular and secure cryptographic
+constructions.
 
 ## Computing a message digest
 
 The WebCrypto API exposes two main interfaces,
-[Crypto](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html#crypto-interface)
+[Crypto](http://www.w3.org/TR/WebCryptoAPI/#crypto-interface)
 provided by `window.crypto` and
-[SubtleCrypto](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html#subtlecrypto-interface)
-provided by `window.crypto.subtle`.
+[SubtleCrypto](http://www.w3.org/TR/WebCryptoAPI/#subtlecrypto-interface)
+provided by `window.crypto.subtle`. Computing a hash for some given data is
+straightforward:
 
 {% codeblock lang:js %}
 var msg = "The quick brown fox jumps over the lazy dog";
@@ -75,9 +76,9 @@ Yes! I think this is a great part of spec. It further promotes the use of
 incentive for browser vendors to implement and ship them. Cryptographic
 operations can be rather expensive and you would not want to let them block
 the UI thread. Making the WebCrypto API asynchronous thus allows implementors
-to move all crypto operations to a worker thread. Returning a promise that
-resolves when that operation has finished or failed is a great way to make an
-easy to work with API.
+to move all crypto operations to a different thread or process. Returning a
+promise that resolves when that operation has finished or failed is a great way
+to make an easy to work with API.
 
 ## Applications for hash functions
 
@@ -90,7 +91,7 @@ Cryptographically secure hash functions are the basis of HMACs, a message
 authentication code that can be used to both provide integrity and
 authenticity at the same time.
 
-See my next post about how you can use the WebCrypto API to compute
+See the next post about how to use the WebCrypto API to compute
 [hash-based message authentication codes (HMACs)](https://en.wikipedia.org/wiki/Hash-based_message_authentication_code).
 
 [→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  

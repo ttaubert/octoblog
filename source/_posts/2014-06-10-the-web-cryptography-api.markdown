@@ -1,8 +1,7 @@
 ---
 layout: post
 title: "The Web Cryptography API"
-date: 2014-06-12 17:00
-published: false
+date: 2014-06-13 17:00
 ---
 
 > This is a multi-part blog post series on the [Web Cryptography API](http://www.w3.org/TR/WebCryptoAPI/):
@@ -10,7 +9,7 @@ published: false
 > [→ Part 1: Hashing](/blog/2014/06/hashing-using-the-web-cryptography-api/)  
 > [→ Part 2: Hash-based message authentication codes](/blog/2014/06/hash-based-message-authentication-codes-and-the-web-cryptography-api/)  
 > [→ Part 3: Password-based key derivation](/blog/2014/06/password-based-key-derivation-using-the-web-cryptography-api/)  
-> [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)
+> [→ Part 4: Secret-key encryption](/blog/2014/06/secret-key-encryption-using-the-web-cryptography-api/)  
 
 Cryptography is coming to the DOM. While there is a lot that can and has
 been said about cryptography in an environment running untrusted code (the
@@ -21,10 +20,10 @@ browser),
 implementing the WebCrypto API. It will inevitably be an important part of the
 future web.
 
-I wrote a series of blog posts to show how the WebCrypto API can be used to
-provide integrity, authenticity and confidentiality for any kind of data. I
-will assume that the reader is somewhat familiar with cryptography, its
-primitives, and the terminology around it.
+This series of blog posts will show how the WebCrypto API can be used to
+provide integrity, authenticity and confidentiality for any kind of data.
+The reader should be somewhat familiar with cryptography, its primitives,
+and the terminology around it.
 
 If you want to refresh your cryptography chops, I would really like to encourage
 you to join [Dan Boneh's course](https://www.coursera.org/course/crypto) or watch
