@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Talk: Keeping secrets with JavaScript - An Introduction to the WebCrypto API"
-date: 2014-09-14 12:00
+date: 2014-09-13 16:00
 ---
 
 With the web slowly maturing as a platform the demand for cryptography in the
