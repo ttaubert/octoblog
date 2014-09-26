@@ -35,7 +35,7 @@ Now is the time to download the virtual machine containing our development
 environment ready to modify and build Firefox. You can get it here:
 
 [http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova](http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova)  
-(sha1 = 9b9e6f3e7044289a8c93c5433f98e19a587a0d5f)
+(sha1 = 2bc7ea3d831163e507129353b0c5306ab30f18aa)
 
 Downloading ~2.8 GB might take a while if you are on a slow connection, sorry.
 
