@@ -1,0 +1,76 @@
+==================================================================
+https://keybase.io/ttaubert
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://timtaubert.de
+  * I am ttaubert (https://keybase.io/ttaubert) on keybase.
+  * I have a public key with fingerprint B1CB F850 F25E 7B7B 8C91  9AA6 4DD9 6198 4B92 E4F2
+
+To claim this, I am signing this object:
+
+{
+    "body": {
+        "key": {
+            "fingerprint": "b1cbf850f25e7b7b8c919aa64dd961984b92e4f2",
+            "host": "keybase.io",
+            "key_id": "4dd961984b92e4f2",
+            "uid": "01f900db853fed98753efae889bb7700",
+            "username": "ttaubert"
+        },
+        "revoke": {
+            "sig_ids": [
+                "e47ee38df2d46c13c772692e5f4dabaeadb73b83639763432ab77712dfe276410f"
+            ]
+        },
+        "service": {
+            "hostname": "timtaubert.de",
+            "protocol": "https:"
+        },
+        "type": "web_service_binding",
+        "version": 1
+    },
+    "ctime": 1413622892,
+    "expire_in": 157680000,
+    "prev": "d6fd7638436bf124a653924a6944fca000cc31f7e8f6aa0e6094716cd03cd66e",
+    "seqno": 17,
+    "tag": "signature"
+}
+
+with the aforementioned key, yielding the PGP signature:
+
+-----BEGIN PGP MESSAGE-----
+Version: GnuPG v1
+
+owFtkm1QVFUYx3eXDIUBBAJkBoku0IuscN/2vmyotB8SI2SaJGUUl3PvPXf38rK7
+3L1AsIHGKNEbC+qENuIkRQ7sINJUKqGMMLxp1EyJ1hQTDQVik5QOJUMNncvot86X
+M+c5/+f3/58zT3NYkMFkzP0eHM858std47V5wbDLZvb5MMEtVWNWH1YCVzdZcTmg
+6lEVl4ZZMYEQBZmz4DJpgazACpzIEzwADC1JPEPwHC3wJKRlEjNjTrdX70AYAXhh
+uuJGNXSwKxKq/o++YvUCJ2QexyWBs1AylHiOtVBQBpDjeEFgWRzXhV6oukAZRGpN
+AxUCVDWs1oypsNJdAvXIXsWBXLyYdS8GaRZCipNkUqIZkaBEliUZZGmRaQkIAAJJ
+YCmBoxiKZxmKpkiAXFiClGRIsgxN4DJWiNjIsVIRV+H6sx66K2UP/NMliIJ5VLfm
+Ft2l6MqpaR6vVY+lVXt0bRUU7A8odkFxSehXUUclVL2K24VZCaQUEQ9JCZqgGJLk
+eNKMwVc9igrtiq6wsAyHo6X7wEqElBhZQqE5mmIEmSBpwFgoXt94mpZFgKSiSBEy
+CzmZAQCHDM7TLMGIEk6JEsPoib2w3OVGbBbljAQOBEV/5wJahQqx2pA3TQmPGIwm
+w6NrTPpoGELWrX84L8GnI1bKzp5t2lkXnbonsrerJ7F3dkGxT8fk/ZtU3Rg0HppR
+8/pEd3zrpejG9MV5yT8eOG0YMG4xj/gWNoS3Zp/MPv/pUPGfLUMtzzZNtOxu/nbo
+wh/V5ae+a/qyvaFtaClV9byzMfxW8crCG50ff6OQEdqwoVYpeCq9N+Evv/VSUhRo
+zlCLDyV05jpXgqP9GWIWu/1ucOAtJn5u6mL9EzV9X/WDd2MtPnwgKH9T8dvPfWQT
++HUFmztXXjuTJ4Q25SzNKHsjqhLXNs7fazg2WowxXdkHA4Spo/DwlavvN+cvtuGf
+nAhwa31jd0JGR2601kw4ToH+yV2zmf2329m/E3am0C+Co5ZnwppPDP6gbSndYJvL
+Ezsau+37k/HYmZbD88e6foqdG7hdfuHloZKonKma+4OZRzfPwqy0fc6ljvG4Kzv6
+DuROx/1qHKubetxaQPcNbsr6PS/489jSyzfA5Cj3fKGzfXdR0ljqgbH9UeHLyexy
+n/PqZfCSvPVmSSAyM+XMuaeT6fvG2BiFXzYvhHXOuNtutQTKxov+OTj3c+/2OWWi
+IP2LNUv1ad4Z9fqP4XeSXjnZ81jSoRcmE3Ou+7bNvNd470Oj4YPP/Hs2ThypqhuN
+64xsSIE28uvhPpe//mL9ND0b3tMTKqQt2m6azh2PqjR2U1tjhultmY7fnvTvy3MU
+nb8WNpIf/x8=
+=dMn2
+-----END PGP MESSAGE-----
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/ttaubert
+
+==================================================================
