@@ -79,7 +79,7 @@ private key or going the "legal" way to obtain it. This can be prevented by
 using short-lived (ephemeral) keys for TLS connections that the server will
 throw away after a short period.
 
-### Choosing cipher suites
+### Diffie-Hellman key exchanges
 
 Using RSA with your certificate's private and public keys for key exchanges is
 now off the table. We could in theory keep using RSA and generate short-lived
@@ -109,19 +109,44 @@ encrypted with a secret key only known to the server.
 Now you might notice that this might violate Forward Secrecy as a compromised
 secret key would reveal all communication for a session. It is thus important
 that your web server supports session tickets protected by an ephemeral key.
-If the web server generates those once when the daemon starts then it would
+If the web server generates those once when the daemon starts (Apache) it would
 use the same key for months. To properly support forward secrecy you need to
 either disable session tickets or ensure that key rotation happens often.
 
-Apache does currently not seem to support session tickets that would not
-violate forward secrecy. The only option would be to manually rotate the secret
-key specified by `SSLCertificateKeyFile`. If no key file is given then `mod_ssl`
-generates a secret at startup and would probably use the same key for months.
+> Note: A web server using multiple workers needs to provide a shared session
+> ticket cache to enable resuming a TLS session that was started on a different
+> worker. When using multiple physical web servers you might want to deploy
+> memcached to support resuming a TLS session that was started on a different
+> physical machine.
 
-> Please note that a web server using multiple workers needs to provide a shared
-> session ticket cache. When using multiple web servers you might want to deploy
-> memcached to support a client resuming a TLS session they started on a
-> different physical machine.
+## Choosing algorithms
+
+[Mozilla's guide on server side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)
+provides a great list of modern cipher suites that needs to be put in your web
+server's configuration. The combinations below are unfortunately supported by
+only modern browser, for broader client support you might want to consider
+using the "intermediate" list.
+
+{% codeblock lang:text %}
+ECDHE-RSA-AES128-GCM-SHA256: \
+ECDHE-ECDSA-AES128-GCM-SHA256: \
+ECDHE-RSA-AES256-GCM-SHA384: \
+ECDHE-ECDSA-AES256-GCM-SHA384: \
+DHE-RSA-AES128-GCM-SHA256: \
+DHE-DSS-AES128-GCM-SHA256: \
+[...]
+!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK
+{% endcodeblock %}
+
+All these cipher suites start with (EC)DHE wich means they only support
+ephemeral Diffie-Hellman key exchanges for forward secrecy. The last line
+discards non-authenticated DH key exchanges, null-encryption (cleartext),
+legacy weak ciphers marked exportable by US law, weak ciphers (3)DES and RC4,
+weak MD5 signatures, and lastly pre-shared keys.
+
+> Note: To ensure that the order of cipher suites is respected you need to set
+> `ssl_prefer_server_ciphers on` for Nginx or `SSLHonorCipherOrder on` for
+> Apache.
 
 ## HTTP Strict Transport Security (HSTS)
 
@@ -144,8 +169,7 @@ why?
 how? stapled certs
 not the root cert
 
-## algorithms
-
-no rc4
-
 ## more resources
+
+disable sslv3
+tls, gzip compression
