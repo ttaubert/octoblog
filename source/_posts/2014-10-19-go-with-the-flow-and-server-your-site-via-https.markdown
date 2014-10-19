@@ -44,9 +44,9 @@ certificate.
 
 The example below shows how you can use OpenSSL on the command line to generate
 a secret key for your domain. Simply replace `example.com` with the domain of
-your website. The certificate will expire after 365 days because StartSSL's
-free tier will refuse to sign certificates that live longer than that. Yes,
-this means having to generate a new certificate every year.
+your website. The certificate will expire after 365 days as StartSSL's free
+tier does not support longer lifetimes. Yes, this means having to generate a
+new certificate every year.
 
 {% codeblock lang:text %}
 openssl req -new -newkey rsa:4096 -days 365 -nodes -sha256 \
