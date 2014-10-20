@@ -45,11 +45,13 @@ CA.
 
 The example below shows how you can use OpenSSL on the command line to generate
 a key for your domain. Simply replace `example.com` with the domain of your
-website. The certificate will expire after 365 days as StartSSL's free tier
-does not support longer lifetimes.
+website. `example.com.key` will be your new RSA key and `example.com.csr` will
+be the
+[Certificate Signing Request](https://en.wikipedia.org/wiki/Certificate_signing_request)
+that StartSSL needs to generate your certificate.
 
 {% codeblock lang:text %}
-openssl req -new -newkey rsa:4096 -days 365 -nodes -sha256 \
+openssl req -new -newkey rsa:4096 -nodes -sha256 \
   -keyout example.com.key -out example.com.csr
 {% endcodeblock %}
 
@@ -212,9 +214,8 @@ not the root cert
 
 why?
 only your cert not any in the chain
-backup cert (with 2 years?)
+backup cert
 two pins
-one year expiration of startssl
 
 ## more resources
 
