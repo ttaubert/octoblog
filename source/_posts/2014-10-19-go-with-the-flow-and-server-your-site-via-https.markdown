@@ -1,59 +1,59 @@
 ---
 layout: post
-title: "Go with the flow: Serve your site via TLS"
+title: "Go with the flow: How to securely deploy TLS"
 date: 2014-10-19 17:07
 ---
 
-This weekend I finally took some time to finally cross something off my todo
-list that has been there for quite a while: serve my blog via HTTPS. It wasn't
-straightforward (not that I expected that) and I hit a frew road blocks. I had
-to read multiple blog posts and wiki pages that told me mostly how but not why
-to do things. Someone not acquainted with how TLS works might be left puzzled
-and inscecure. In this post I will try to convey what you need to know to
-securely convert your site to HTTPS and give some background information so
-that you can hopefully make some informed decisions.
+I finally deployed TLS for `timtaubert.de`. I decided to write up what I
+learned on the way and hope that it will make the whole process easier for you.
+I want to provide some background information on why certain things are a good
+idea and so you can make informed decisions when deploying TLS yourselves.
 
-## Abstract
-
-Assume you have a dedicated server (either root or virtual) that serves your
-small company's web page or even just your personal blog. You want to encrypt
-traffic between your server and your visitors and you want to ensure that the
-content delivered to the visitor is genuine, i.e. your website is authenticated.
+I will assume you have a dedicated server (either root or virtual) that serves
+your small company's web page or even just your personal blog. You want to
+encrypt traffic between your server and your visitors and you want to ensure
+that the content delivered to the visitor is genuine, i.e. your website is
+authenticated.
 
 ## The certificate
 
 In order to serve your site via TLS the most basic part you need is a
-certificate. The TLS protocol can encrypt traffic between two parties even
-without a certificate but the certificate provides the necessary authentication
-towards your visitors. Without a certificate a visitor could securely talk to
-either you, the NSA, or a different attacker but they probably want to talk to
-you. The certificate ensures by cryptographic means that they established a
-connection to your server.
+certificate. The TLS protocol can encrypt traffic between two parties just fine
+but the certificate provides the necessary authentication towards your visitors.
+Without a certificate a visitor could securely talk to either you, the NSA, or
+a different attacker but they probably want to talk to you. The certificate
+ensures by cryptographic means that they established a connection to *your*
+server.
 
-### Selecting a Certificate Authority
+### Selecting a Certificate Authority (CA)
 
 If you want a cheap certificate, have no specific needs, and only a single
 subdomain (e.g. www) then StartSSL is an easy option. Do of course feel free
-to take a look at different CAs.
+to take a look at different authorities - their services and prices will vary
+heavily.
 
-You need an authority because that will establish a chain of trust: browsers
-trust CAs, CAs trust you, and so in the end the browser will trust your
-certificate.
+In the chain of trust the CA plays an important role: by verifying that you are
+the rightful owner of your domain and signing your certificate it will let
+browsers trust your certificate. The browsers do not want to do all this
+verification themselves so they defer it to the CAs.
+
+For your certificate you will need an RSA key pair, a public and private key.
+The public key will be included in your certificate and thus also signed by the
+CA.
 
 ### Generating an RSA key and a certificate signing request
 
 The example below shows how you can use OpenSSL on the command line to generate
-a secret key for your domain. Simply replace `example.com` with the domain of
-your website. The certificate will expire after 365 days as StartSSL's free
-tier does not support longer lifetimes. Yes, this means having to generate a
-new certificate every year.
+a key for your domain. Simply replace `example.com` with the domain of your
+website. The certificate will expire after 365 days as StartSSL's free tier
+does not support longer lifetimes.
 
 {% codeblock lang:text %}
 openssl req -new -newkey rsa:4096 -days 365 -nodes -sha256 \
   -keyout example.com.key -out example.com.csr
 {% endcodeblock %}
 
-We will use a SHA-256 based signature to ensure integrity.
+We will use a SHA-256 based signature for integrity as
 [Firefox and Chrome will phase out support for SHA-1 based certificates soon](https://blog.mozilla.org/security/2014/09/23/phasing-out-certificates-with-sha-1-based-signature-algorithms/).
 The RSA keys used to authenticate your website will use a 4096 bit modulus. If
 you need to handle a lot of traffic or your server has a weak CPU you might
@@ -62,9 +62,9 @@ considered insecure nowadays.
 
 ### Let StartSSL sign your public key to generate a certificate
 
-sign up
-verify that you own your domain
-submit the CSR containing your public key
+sign up  
+verify that you own your domain  
+submit the CSR containing your public key  
 download the certificate
 
 ## (Perfect) Forward Secrecy
@@ -74,7 +74,7 @@ To properly deploy TLS you will want
 Without forward secrecy TLS still seems to secure your communication today, it
 might however not if your private key is compromised in the future. If a
 powerful adversary (think NSA) records all communication between a visitor and
-your server, it can decrypt all this traffic years later by stealing your
+your server, they can decrypt all this traffic years later by stealing your
 private key or going the "legal" way to obtain it. This can be prevented by
 using short-lived (ephemeral) keys for TLS connections that the server will
 throw away after a short period.
@@ -83,7 +83,7 @@ throw away after a short period.
 
 Using RSA with your certificate's private and public keys for key exchanges is
 now off the table. We could in theory keep using RSA and generate short-lived
-keys for every connection but generating a 2048+ bit prime takes way too long.
+keys for every connection but generating a 2048+ bit prime is very expensive.
 We thus need switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites.
 For DH you can generate parameters once, choosing a private key afterwards is
 cheap.
@@ -109,9 +109,10 @@ encrypted with a secret key only known to the server.
 Now you might notice that this might violate Forward Secrecy as a compromised
 secret key would reveal all communication for a session. It is thus important
 that your web server supports session tickets protected by an ephemeral key.
-If the web server generates those once when the daemon starts (Apache) it would
-use the same key for months. To properly support forward secrecy you need to
-either disable session tickets or ensure that key rotation happens often.
+If the web server generates this private key only once when the daemon starts
+(like Apache does) it would use the same key for months. To properly support
+forward secrecy you thus need to either disable session tickets or ensure that
+key rotation happens often.
 
 > Note: A web server using multiple workers needs to provide a shared session
 > ticket cache to enable resuming a TLS session that was started on a different
@@ -150,26 +151,73 @@ weak MD5 signatures, and lastly pre-shared keys.
 
 ## HTTP Strict Transport Security (HSTS)
 
-why?
+Now that your server is configured to accept TLS connections you still want to
+support HTTP connections on port 80 to redirect old links and folks typing
+`example.com` in the URL bar to your shiny new HTTPS site.
+
+At this point however a [Man-In-The-Middle](https://en.wikipedia.org/wiki/Man-in-the-middle_attack)
+(or Woman-In-The-Middle) attack can easily intercept and modify traffic to
+deliver a forged HTTP version of your site to a visitor. The poor visitor might
+never know because they did not realize you offer TLS connections now.
+
+To ensure your users are secured when visiting your site the next time you
+want to send a HSTS header to enforce
+[strict transport security](https://tools.ietf.org/html/rfc6797).
+By sending this header the browser will not try to establish a HTTP connection
+next time but directly connect to your website via TLS.
+
+{% codeblock lang:text %}
+(Nginx)
+add_header Strict-Transport-Security \
+  'max-age=15768000; includeSubDomains; preload';
+
+(Apache)
+Header set Strict-Transport-Security \
+  "max-age=15768000; includeSubDomains; preload"
+{% endcodeblock %}
+
+Sending these headers over a HTTPS connection (they will be ignored via HTTP)
+lets the browser remember that this domain wants strict transport security for
+the next six months (~15768000 seconds). The `includeSubDomains` directive
+enforces TLS connections for every subdomain of your domain and the
+non-standard `preload` token will be required for the next section.
 
 ## HSTS Preload List
 
-why?
+If after deploying TLS the very first connection of a visitor is a genuine one
+we are fine. Your server will send the HSTS header over TLS and the visitor's
+browser remembers to use TLS in the future. The very first connection and every
+connection after the HSTS header expires however are still vulnerable to a
+{M,W}ITM attack.
 
-## HTTP Public Key Pinning (HPKP)
+To prevent this Firefox and Chrome share a
+[HSTS Preload List](https://chromium.googlesource.com/chromium/src/net/+/master/http/transport_security_state_static.json)
+that basically includes HSTS headers for all pages that would send that header
+when visiting anyway. So before connecting to a host Firefox and Chrome check
+whether that domain is in the list and if so would not even try using an
+insecure HTTP connection.
 
-why?
-only your cert not any in the chain
-backup cert
-two pins
+Including your page in that list is easy, just submit your domain using the
+[HSTS Preload List submission form](http://hstspreload.appspot.com/). Your
+HSTS header must be set up correctly and contain the `includeSubDomains` and
+`preload` tokens to be accepted.
 
-## OCSP
+## OCSP Stapling
 
 why?
 how? stapled certs
 not the root cert
 
+## HTTP Public Key Pinning (HPKP)
+
+why?
+only your cert not any in the chain
+backup cert (with 2 years?)
+two pins
+one year expiration of startssl
+
 ## more resources
 
-disable sslv3
-tls, gzip compression
+disable sslv3  
+tls, gzip compression  
+mozilla wiki pages
