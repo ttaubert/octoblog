@@ -4,16 +4,21 @@ title: "Go with the flow: How to securely deploy TLS"
 date: 2014-10-19 17:07
 ---
 
-I finally deployed TLS for `timtaubert.de`. I decided to write up what I
-learned on the way and hope that it will make the whole process easier for you.
-I want to provide some background information on why certain things are a good
-idea and so you can make informed decisions when deploying TLS yourselves.
+Last weekend I finally deployed TLS for `timtaubert.de`. I decided to write up
+what I learned on the way and hope that it will be useful for anyone doing the
+same. Instead of only giving you a few buzz words I want to provide some
+background information on how TLS and certain HTTP extensions work and why you
+should use them or configure TLS in a certain way. This will hopefully enable
+you to make informed decisions when deploying yourselves.
 
 I will assume you have a dedicated server (either root or virtual) that serves
-your small company's web page or even just your personal blog. You want to
-encrypt traffic between your server and your visitors and you want to ensure
-that the content delivered to the visitor is genuine, i.e. your website is
-authenticated.
+your small company's web page or even just your personal blog. The goal is to
+encrypt traffic between your server and its visitors and to ensure that the
+content delivered to visitors is genuine, i.e. your website is authenticated.
+
+## How does TLS work?
+
+When establishing a TLS connection to a web server the browser will first
 
 ## The certificate
 
@@ -122,7 +127,7 @@ key rotation happens often.
 > memcached to support resuming a TLS session that was started on a different
 > physical machine.
 
-## Choosing algorithms
+## Choosing the right cipher suites
 
 [Mozilla's guide on server side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)
 provides a great list of modern cipher suites that needs to be put in your web
