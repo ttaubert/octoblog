@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Go with the flow: How to securely deploy TLS"
+title: "Go with the flow and deploy TLS"
 date: 2014-10-19 17:07
 ---
 
@@ -15,6 +15,18 @@ I will assume you have a dedicated server (either root or virtual) that serves
 your small company's web page or even just your personal blog. The goal is to
 encrypt traffic between your server and its visitors and to ensure that the
 content delivered to visitors is genuine, i.e. your website is authenticated.
+
+## But didn't Andy say this is all shit?
+
+I read [Andy Wingo's blog post](http://wingolog.org/archives/2014/10/17/ffs-ssl)
+too and I really liked it. Everything he says in there is true. But what is
+also true is that TLS with the few add-ons is all we have nowadays and we
+better make the folks working for the NSA earn their money instead of not
+trying to encrypt traffic at all.
+
+After you finished reading this page, maybe go back to Andy's post and read it
+again. You probably have a better understanding of what he is ranting about
+than you had before if the details of TLS are still dark matter to you.
 
 ## How does TLS work?
 
