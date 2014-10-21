@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Go with the flow and deploy TLS"
-date: 2014-10-19 17:07
+date: 2014-10-21 17:07
 ---
 
 Last weekend I finally deployed TLS for `timtaubert.de`. I decided to write up
@@ -30,7 +30,46 @@ than you had before if the details of TLS are still dark matter to you.
 
 ## How does TLS work?
 
-When establishing a TLS connection to a web server the browser will first
+When establishing a TLS connection both parties will start by sharing their
+supported TLS versions and cipher suites. As the next step the server sends its
+certificate to the client.
+
+### Checking the server's certificate
+
+The browser then needs to perform the following checks:
+
+* Does the server's hostname match any of the ones listed in the certificate?
+* Was the certificate issued by a CA that is in my list of trusted CAs?
+* Does the certificate's signature verify using the CA's public key?
+* Has the certificate expired already?
+* Was the certificate revoked?
+
+All of these are very obvious crucial checks to ensure authentiticy. To check
+a certificate's revokation status the browser will use the
+[Online Certificate Status Protocol (OCSP)](https://tools.ietf.org/html/rfc6960)
+which I will describe in more detail in a later section.
+
+### Key Exchange using RSA
+
+A simple key exchange would be to let the client generate a "master secret"
+and encrypt that with the server's public key found in the certificate. Both
+client and server would then use that master secret to derive symmetric
+encryption keys that will be used to encrypt/decrypt for this TLS session. An
+attacker could however simply record the handshake and session and steal the
+server's private key at any time in the future to recover the whole
+conversation.
+
+### Key Exchange using (EC)DHE
+
+When using (Elliptic Curve)
+[Diffie-Hellman](https://en.wikipedia.org/wiki/Diffie-Hellman_key_exchange) as
+the key exchange mechanism both sides have to collaborate to generate master
+secret. They both generate DH key pairs (which is *a lot* cheaper than
+generating RSA keys) and send their public key to the other party. With the
+private key and other party's public key the shared master secret can be
+calculated and then again be used to derive session keys. We can provide
+[Forward Secrecy](https://en.wikipedia.org/wiki/Forward_secrecy) when using
+ephemeral DH key pairs. See the section below on how to enable it.
 
 ## The certificate
 
@@ -101,9 +140,9 @@ throw away after a short period.
 ### Diffie-Hellman key exchanges
 
 Using RSA with your certificate's private and public keys for key exchanges is
-now off the table. We could in theory keep using RSA and generate short-lived
-keys for every connection but generating a 2048+ bit prime is very expensive.
-We thus need switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites.
+off the table. We could in theory keep using RSA and generate short-lived keys
+for every connection but generating a 2048+ bit prime is very expensive. We
+thus need switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites.
 For DH you can generate parameters once, choosing a private key afterwards is
 cheap.
 
@@ -115,6 +154,15 @@ Simply upload `dhparam.pem` to your server and instruct the web server to use
 those parameters for Diffie-Hellman key exchanges. When using ECDH the
 predefined elliptic curve represents those parameters and we thus do not need
 to generate any.
+
+{% codeblock lang:text %}
+(Nginx)
+ssl_dhparam /path/to/ssl/dhparam.pem;
+{% endcodeblock %}
+
+Apache does unfortunately not support custom DH parameters, it is always set to
+1024 bit and is not user configurable. This might hopefully be fixed in future
+versions.
 
 ### Session Tickets
 
@@ -223,9 +271,33 @@ HSTS header must be set up correctly and contain the `includeSubDomains` and
 
 ## OCSP Stapling
 
-why?
-how? stapled certs
-not the root cert
+OCSP - using an external server provided by the CA to check whether the
+certificate given by the server was revoked - might sound like a great idea at
+first. On the second thought it actually sounds rather terrible. First, the CA
+providing the OCSP server suddenly has to be able to handle a lot of requests:
+every client opening a connection to your server will want to know whether
+your certificate was revoked before talking to you.
+
+Second, the browser contacting a CA and passing the certificate is an easy way
+to monitor a user's browsing behavior. If all CAs worked together they probably
+could come up with a nice data set of TLS sites that people visit, when and in
+what order (not that I know of any plans they actually wanted to do that).
+
+### Let the server do the work for your visitors
+
+[OCSP Stapling](https://en.wikipedia.org/wiki/OCSP_stapling) is a TLS extension
+that enables the server to query its certificate's revokation status at regular
+intervals in the background and sends an OCSP response with the TLS handshake.
+The stapled response itself cannot be faked as it needs to be signed with the
+CA's private key. Enabling OCSP stapling thus improves performance and privacy
+for your visitors immediately.
+
+You need to create a certificate file that contains your CA's root certificate
+prepended by any intermediate certificates that might be in your CA's chain.
+StartSSL has an intermediate certificate for Class 1 (the free tier) - make
+sure to use the one having the SHA-256 signature. Pass the file to Nginx using
+the `ssl_trusted_certificate` directive and to Apache using the
+`SSLCACertificateFile` directive.
 
 ## HTTP Public Key Pinning (HPKP)
 
