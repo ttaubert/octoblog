@@ -1,8 +1,17 @@
 ---
 layout: post
-title: "Go with the flow and deploy TLS"
-date: 2014-10-21 17:07
+title: "Deploying TLS the hard way"
+date: 2014-10-22 17:07
 ---
+
+> 1. [How does TLS work?](#tls)
+> 2. [The certificate](#the-cert)
+> 3. [(Perfect) Forward Secrecy](#pfs)
+> 4. [Choosing the right cipher suites](#cipher-suites)
+> 5. [HTTP Strict Transport Security](#hsts)
+> 6. [HSTS Preload List](#hsts-preload)
+> 7. [OCSP Stapling](#ocsp-stapling)
+> 8. [HTTP Public Key Pinning](#hpkp)
 
 Last weekend I finally deployed TLS for `timtaubert.de`. I decided to write up
 what I learned on the way and hope that it will be useful for anyone doing the
@@ -16,6 +25,10 @@ your small company's web page or even just your personal blog. The goal is to
 encrypt traffic between your server and its visitors and to ensure that the
 content delivered to visitors is genuine, i.e. your website is authenticated.
 
+TODO mention required crypto knowledge
+
+TODO mention that I wanted more information
+
 ## But didn't Andy say this is all shit?
 
 I read [Andy Wingo's blog post](http://wingolog.org/archives/2014/10/17/ffs-ssl)
@@ -28,7 +41,7 @@ After you finished reading this page, maybe go back to Andy's post and read it
 again. You probably have a better understanding of what he is ranting about
 than you had before if the details of TLS are still dark matter to you.
 
-## How does TLS work?
+## <a name="tls"></a> How does TLS work?
 
 When establishing a TLS connection both parties will start by sharing their
 supported TLS versions and cipher suites. As the next step the server sends its
@@ -38,7 +51,7 @@ certificate to the client.
 
 The browser then needs to perform the following checks:
 
-* Does the server's hostname match any of the ones listed in the certificate?
+* Does the certificate contain the server's hostname?
 * Was the certificate issued by a CA that is in my list of trusted CAs?
 * Does the certificate's signature verify using the CA's public key?
 * Has the certificate expired already?
@@ -71,7 +84,7 @@ calculated and then again be used to derive session keys. We can provide
 [Forward Secrecy](https://en.wikipedia.org/wiki/Forward_secrecy) when using
 ephemeral DH key pairs. See the section below on how to enable it.
 
-## The certificate
+## <a name="the-cert"></a> The certificate
 
 In order to serve your site via TLS the most basic part you need is a
 certificate. The TLS protocol can encrypt traffic between two parties just fine
@@ -120,12 +133,14 @@ considered insecure nowadays.
 
 ### Let StartSSL sign your public key to generate a certificate
 
+TODO (not startssl specific?)
+
 sign up  
 verify that you own your domain  
 submit the CSR containing your public key  
 download the certificate
 
-## (Perfect) Forward Secrecy
+## <a name="pfs"></a> (Perfect) Forward Secrecy
 
 To properly deploy TLS you will want
 [(Perfect) Forward Secrecy](http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html).
@@ -187,7 +202,7 @@ key rotation happens often.
 > memcached to support resuming a TLS session that was started on a different
 > physical machine.
 
-## Choosing the right cipher suites
+## <a name="cipher-suites"></a> Choosing the right cipher suites
 
 [Mozilla's guide on server side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)
 provides a great list of modern cipher suites that needs to be put in your web
@@ -196,12 +211,12 @@ only modern browser, for broader client support you might want to consider
 using the "intermediate" list.
 
 {% codeblock lang:text %}
-ECDHE-RSA-AES128-GCM-SHA256: \
+ECDHE-RSA-AES128-GCM-SHA256:   \
 ECDHE-ECDSA-AES128-GCM-SHA256: \
-ECDHE-RSA-AES256-GCM-SHA384: \
+ECDHE-RSA-AES256-GCM-SHA384:   \
 ECDHE-ECDSA-AES256-GCM-SHA384: \
-DHE-RSA-AES128-GCM-SHA256: \
-DHE-DSS-AES128-GCM-SHA256: \
+DHE-RSA-AES128-GCM-SHA256:     \
+DHE-DSS-AES128-GCM-SHA256:     \
 [...]
 !aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK
 {% endcodeblock %}
@@ -216,7 +231,7 @@ weak MD5 signatures, and lastly pre-shared keys.
 > `ssl_prefer_server_ciphers on` for Nginx or `SSLHonorCipherOrder on` for
 > Apache.
 
-## HTTP Strict Transport Security (HSTS)
+## <a name="hsts"></a> HTTP Strict Transport Security (HSTS)
 
 Now that your server is configured to accept TLS connections you still want to
 support HTTP connections on port 80 to redirect old links and folks typing
@@ -234,13 +249,8 @@ By sending this header the browser will not try to establish a HTTP connection
 next time but directly connect to your website via TLS.
 
 {% codeblock lang:text %}
-(Nginx)
-add_header Strict-Transport-Security \
-  'max-age=15768000; includeSubDomains; preload';
-
-(Apache)
-Header set Strict-Transport-Security \
-  "max-age=15768000; includeSubDomains; preload"
+Strict-Transport-Security:
+  max-age=15768000; includeSubDomains; preload
 {% endcodeblock %}
 
 Sending these headers over a HTTPS connection (they will be ignored via HTTP)
@@ -249,7 +259,7 @@ the next six months (~15768000 seconds). The `includeSubDomains` directive
 enforces TLS connections for every subdomain of your domain and the
 non-standard `preload` token will be required for the next section.
 
-## HSTS Preload List
+## <a name="hsts-preload"></a> HSTS Preload List
 
 If after deploying TLS the very first connection of a visitor is a genuine one
 we are fine. Your server will send the HSTS header over TLS and the visitor's
@@ -269,7 +279,7 @@ Including your page in that list is easy, just submit your domain using the
 HSTS header must be set up correctly and contain the `includeSubDomains` and
 `preload` tokens to be accepted.
 
-## OCSP Stapling
+## <a name="ocsp-stapling"></a> OCSP Stapling
 
 OCSP - using an external server provided by the CA to check whether the
 certificate given by the server was revoked - might sound like a great idea at
@@ -285,12 +295,12 @@ what order (not that I know of any plans they actually wanted to do that).
 
 ### Let the server do the work for your visitors
 
-[OCSP Stapling](https://en.wikipedia.org/wiki/OCSP_stapling) is a TLS extension
-that enables the server to query its certificate's revokation status at regular
-intervals in the background and sends an OCSP response with the TLS handshake.
-The stapled response itself cannot be faked as it needs to be signed with the
-CA's private key. Enabling OCSP stapling thus improves performance and privacy
-for your visitors immediately.
+[OCSP Stapling](https://tools.ietf.org/html/rfc6066#section-8) is a TLS
+extension that enables the server to query its certificate's revokation status
+at regular intervals in the background and sends an OCSP response with the TLS
+handshake. The stapled response itself cannot be faked as it needs to be
+signed with the CA's private key. Enabling OCSP stapling thus improves
+performance and privacy for your visitors immediately.
 
 You need to create a certificate file that contains your CA's root certificate
 prepended by any intermediate certificates that might be in your CA's chain.
@@ -299,15 +309,98 @@ sure to use the one having the SHA-256 signature. Pass the file to Nginx using
 the `ssl_trusted_certificate` directive and to Apache using the
 `SSLCACertificateFile` directive.
 
-## HTTP Public Key Pinning (HPKP)
+### OCSP Must Staple
 
-why?
-only your cert not any in the chain
-backup cert
-two pins
+OCSP however is unfortunately not a silver bullet. Even with stapling there
+still are a few attack vectors left as
+[Adam Langley explains in great detail](https://www.imperialviolet.org/2014/04/19/revchecking.html).
+
+One solution might be the proposed
+[OCSP Must Staple Extension](https://tools.ietf.org/html/draft-hallambaker-muststaple-00).
+This would add another field to the certificate issue by the CA that says a
+server *must* provide a stapled OCSP response. The problem here is that the
+origin proposal expired and in practice it would take years for CAs to support
+that.
+
+Another solution would be to implement
+[a header similar to HSTS](https://bugzilla.mozilla.org/show_bug.cgi?id=901698),
+that lets the browser remember to require a stapled OCSP response when
+connecting next time. This however has the same problems on first connection
+just like HSTS, and we might have to maintain a "OCSP-Must-Staple Preload List".
+As of today there is unfortunately no immediate solution in sight.
+
+## <a name="hpkp"></a> HTTP Public Key Pinning (HPKP)
+
+Even with all those security checks when receiving the server's certificate
+we would still be completely out of luck in case your
+[CA's private key is compromised](http://en.wikipedia.org/wiki/DigiNotar) or
+your [CA simply fucks up](http://nakedsecurity.sophos.com/2013/01/08/the-turktrust-ssl-certificate-fiasco-what-happened-and-what-happens-next/).
+We can prevent these kinds of attacks with anrHTTP extension called
+[Public Key Pinning](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21).
+
+Key pinning is a trust-on-first-use (TOFU) mechanism. The first time a browser
+connects to a host it lacks the the information necessary to perform "pin
+validation" so it will not be able to detect and thwart a {M,W}ITM attack. This
+feature only allows detection of these kinds of attacks after the first
+connection.
+
+### Generating a HPKP header
+
+Creating an HPKP header is easy, all you need to do is to compute the
+base64-encoded "SPKI fingerprint" of your RSA key pair whose public key is
+given by the TLS certificate. An SPKI fingerprint is the output of a applying
+SHA-256 to the public key information contained in your certificate.
+
+{% codeblock lang:text %}
+openssl req -inform pem -pubkey -noout < example.com.csr |
+  openssl pkey -pubin -outform der |
+  openssl dgst -sha256 -binary |
+  base64
+{% endcodeblock %}
+
+The output of the above command can be directly used as the *pin-sha256* values
+for the *Public-Key-Pins* header as shown below:
+
+{% codeblock lang:text %}
+Public-Key-Pins:
+  pin-sha256="GRAH5Ex+kB4cCQi5gMU82urf+6kEgbVtzfCSkw55AGk=";
+  pin-sha256="lERGk61FITjzyKHcJ89xpc6aDwtRkOPAU0jdnUqzW2s=";
+  max-age=15768000; includeSubDomains
+{% endcodeblock %}
+
+Upon receiving this header the browser knows that it has to store the pins
+given by the header and discard any certificates whose SPKI fingerprints do
+not match for the next six months (max-age=15768000). We specified to
+`includeSubDomains` token so the browser will verify pins when connecting
+to any subdomain.
+
+### Include the pin of a backup key
+
+It is considered good practice to include at least a second pin, the SPKI
+fingerprint of a backup RSA key that you can generate exactly as the original
+one:
+
+{% codeblock lang:text %}
+openssl req -new -newkey rsa:4096 -nodes -sha256 \
+  -keyout example.com.backup.key -out example.com.backup.csr
+{% endcodeblock %}
+
+In case your private key is compromised you might need to revoke your
+current certificate and request the CA to issue a new one. The old pin however
+would still be stored in browsers for six months which means they would not
+be able to connect to your site. By sending two *pin-sha256* values the browser
+will later accept a TLS connection when any of the stored fingerprints match
+the given certificate.
+
+## BEAST/BREACH/CRIME
+
+tls, gzip compression
+
+## POODLE
+
+disable sslv3
 
 ## more resources
 
-disable sslv3  
-tls, gzip compression  
 mozilla wiki pages
+more links
