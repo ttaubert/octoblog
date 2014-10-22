@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Deploying TLS the hard way"
-date: 2014-10-22 17:07
+date: 2014-10-25 18:00
 ---
 
 > 1. [How does TLS work?](#tls)
@@ -132,18 +132,32 @@ you need to handle a lot of traffic or your server has a weak CPU you might
 want to use 2048 bit. Never go below that as keys smaller than 2048 bit are
 considered insecure nowadays.
 
-### Let StartSSL sign your public key to generate a certificate
+### Get a signed certificate
 
-TODO (not startssl specific?)
+Sign up with the CA you chose and depending on how the CA handles this process
+you probably will have to first verify that you are the rightful owner of the
+domain that you claim to be. StartSSL will do that by sending a token to
+`postmaster@example.com` (or similar) and then ask you to confirm the receipt
+of that token.
 
-sign up  
-verify that you own your domain  
-submit the CSR containing your public key  
-download the certificate
+Now that you are signed up and are the verified owner of `example.com` you
+simply submit the `example.com.csr` file to request the generation of a
+certificate for your domain. The CA will sign your public key and the other
+information contained in the CSR with their private key and you can finally
+download the certificate to `example.com.crt`.
+
+You can now simply upload the .crt and .key files to your webserver. Be aware
+that any intermediate certificate in the CA's chain must be included in the
+.crt file as well - you can just `cat` them together. StartSSL's free tier
+has an intermediate Class 1 certificate - make sure to include
+[the SHA-256 version](http://www.startssl.com/certs/class1/sha2/pem/sub.class1.server.sha2.ca.pem)
+of it. Make sure the files are owned by root and can't be read by anyone else.
+Configure your webserver to use those and you should probably have TLS running
+configured out-of-the-box.
 
 ## <a name="pfs"></a> (Perfect) Forward Secrecy
 
-To properly deploy TLS you will want
+To properly deploy TLS you will want to provide
 [(Perfect) Forward Secrecy](http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html).
 Without forward secrecy TLS still seems to secure your communication today, it
 might however not if your private key is compromised in the future. If a
@@ -441,6 +455,6 @@ more about setting up TLS, the Mozilla Wiki page on
 [Server-Side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS) has more
 information and proposed web server configurations.
 
-I hope you have a much better understanding of TLS' current state and most of
-its weaknesses. I am not an expert in any of this so please let me know of any
-mistakes and I will correct them as soon as possible!
+I hope you now have a much better understanding of TLS' current state and most
+of its weaknesses. I am not an expert in any of this so please let me know of
+any mistakes and I will correct them as soon as possible!
