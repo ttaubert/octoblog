@@ -12,22 +12,23 @@ date: 2014-10-22 17:07
 > 6. [HSTS Preload List](#hsts-preload)
 > 7. [OCSP Stapling](#ocsp-stapling)
 > 8. [HTTP Public Key Pinning](#hpkp)
+> 9. [Known attacks](#attacks)
 
 Last weekend I finally deployed TLS for `timtaubert.de`. I decided to write up
 what I learned on the way and hope that it will be useful for anyone doing the
 same. Instead of only giving you a few buzz words I want to provide some
 background information on how TLS and certain HTTP extensions work and why you
-should use them or configure TLS in a certain way. This will hopefully enable
-you to make informed decisions when deploying yourselves.
+should use them or configure TLS in a certain way.
 
-I will assume you have a dedicated server (either root or virtual) that serves
-your small company's web page or even just your personal blog. The goal is to
-encrypt traffic between your server and its visitors and to ensure that the
-content delivered to visitors is genuine, i.e. your website is authenticated.
+One thing that bugged me was that most posts were only describing what to do
+but not necessarily why to do it. I hope you appreciate me going into a little
+more detail to end up with the bigger picture of what TLS currently is, so that
+you will be able to make informed decisions when deploying yourselves.
 
-TODO mention required crypto knowledge
-
-TODO mention that I wanted more information
+To follow this post you will sometimes need basic cryptography knowledge.
+Whenever you do not know or understand a concept you should probably just head
+over to Wikipedia and take a few minutes or just do it later and maybe re-read
+the whole thing.
 
 ## But didn't Andy say this is all shit?
 
@@ -38,8 +39,8 @@ better make the folks working for the NSA earn their money instead of not
 trying to encrypt traffic at all.
 
 After you finished reading this page, maybe go back to Andy's post and read it
-again. You probably have a better understanding of what he is ranting about
-than you had before if the details of TLS are still dark matter to you.
+again. You might have a better understanding of what he is ranting about than
+you had before if the details of TLS are still dark matter to you.
 
 ## <a name="tls"></a> How does TLS work?
 
@@ -392,15 +393,54 @@ be able to connect to your site. By sending two *pin-sha256* values the browser
 will later accept a TLS connection when any of the stored fingerprints match
 the given certificate.
 
-## BEAST/BREACH/CRIME
+## <a name="attacks"></a> Known attacks
 
-tls, gzip compression
+In the past years (and especially the last year) a few attacks on SSL/TLS were
+published. Some of those attacks can be worked around on the protocol or crypto
+library level so that you basically do not have to worry as long as your web
+server is up to date and the visitor is using a modern browser. A few attacks
+however need to be thwarted by configuring your server properly.
 
-## POODLE
+### BEAST (Browser Exploit Against SSL/TLS)
 
-disable sslv3
+[BEAST](http://blog.cryptographyengineering.com/2011/09/brief-diversion-beast-attack-on-tlsssl.html)
+is an attack that only affects TLSv1.0. Exploiting this vulnerability is
+possible but rather difficult. You can either disable TLSv1.0 completely -
+which is certainly the preferred solution although you might neglect folks
+with old browsers on old operating systems - or you can just not worry. All
+major browsers have implemented workarounds so that it should not be an issue
+anymore in practice.
 
-## more resources
+### BREACH (Browser Reconnaissance and Exfiltration via Adaptive Compression of Hypertext)
 
-mozilla wiki pages
-more links
+[BREACH](https://en.wikipedia.org/wiki/BREACH_%28security_exploit%29) is a
+security exploit against HTTPS when using HTTP compression. Breach is based
+on [CRIME](https://en.wikipedia.org/wiki/CRIME) but unlike CRIME - which can be
+successfully defended by turning off TLS compression (which is the default
+for Nginx and Apache nowadays) - BREACH can only be prevented by turning off
+HTTP compression. Another method to mitigate this would be to use
+[cross-site request forgery (CSRF)](https://en.wikipedia.org/wiki/Cross-site_request_forgery)
+protection or
+[disable HTTP compression selectively based on headers](https://community.qualys.com/blogs/securitylabs/2013/08/07/defending-against-the-breach-attack)
+sent by the application.
+
+### POODLE (Padding Oracle On Downgraded Legacy Encryption)
+
+[POODLE](https://en.wikipedia.org/wiki/POODLE)
+is yet another
+[padding oracle attack](https://en.wikipedia.org/wiki/Padding_oracle_attack) on
+TLS. Luckily it only affects the predecessor of TLS which is SSLv3. The only
+solution when deploying a new server is to just disable SSLv3 completely.
+Firefox 34 will ship with SSLv3 disabled by default, Chrome and others will
+hopefully follow soon.
+
+## Further reading
+
+Thanks for reading and I am glad you made it that far! If you want to read even
+more about setting up TLS, the Mozilla Wiki page on
+[Server-Side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS) has more
+information and proposed web server configurations.
+
+I hope you have a much better understanding of TLS' current state and most of
+its weaknesses. I am not an expert in any of this so please let me know of any
+mistakes and I will correct them as soon as possible!
