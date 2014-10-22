@@ -16,19 +16,19 @@ date: 2014-10-25 18:00
 
 Last weekend I finally deployed TLS for `timtaubert.de`. I decided to write up
 what I learned on the way and hope that it will be useful for anyone doing the
-same. Instead of only giving you a few buzz words I want to provide some
-background information on how TLS and certain HTTP extensions work and why you
-should use them or configure TLS in a certain way.
+same. Instead of only giving you a few buzz words I want to provide background
+information on how TLS and certain HTTP extensions work and why you should use
+them or configure TLS in a certain way.
 
-One thing that bugged me was that most posts were only describing what to do
-but not necessarily why to do it. I hope you appreciate me going into a little
-more detail to end up with the bigger picture of what TLS currently is, so that
-you will be able to make informed decisions when deploying yourselves.
+One thing that bugged me was that most posts only describe what to do but not
+necessarily why to do it. I hope you appreciate me going into a little more
+detail to end up with the bigger picture of what TLS currently is, so that you
+will be able to make informed decisions when deploying yourselves.
 
-To follow this post you will sometimes need basic cryptography knowledge.
-Whenever you do not know or understand a concept you should probably just head
-over to Wikipedia and take a few minutes or just do it later and maybe re-read
-the whole thing.
+To follow this post you will need some basic cryptography knowledge. Whenever
+you do not know or understand a concept you should probably just head over to
+Wikipedia and take a few minutes or just do it later and maybe re-read the
+whole thing.
 
 ## But didn't Andy say this is all shit?
 
@@ -44,13 +44,14 @@ you had before if the details of TLS are still dark matter to you.
 
 ## <a name="tls"></a> How does TLS work?
 
-When establishing a TLS connection both parties will start by sharing their
-supported TLS versions and cipher suites. As the next step the server sends its
-certificate to the client.
+Every TLS connection starts with both parties sharing their supported TLS
+versions and cipher suites. As the next step the server sends its
+[X.509 certificate](https://en.wikipedia.org/wiki/X.509#Structure_of_a_certificate)
+to the browser.
 
 ### Checking the server's certificate
 
-The browser then needs to perform the following checks:
+The following certificate checks need to be performed:
 
 * Does the certificate contain the server's hostname?
 * Was the certificate issued by a CA that is in my list of trusted CAs?
@@ -63,14 +64,19 @@ a certificate's revokation status the browser will use the
 [Online Certificate Status Protocol (OCSP)](https://tools.ietf.org/html/rfc6960)
 which I will describe in more detail in a later section.
 
+After the certificate checks are done and the browser ensured it is talking to
+the right host both sides need to agree on secret keys they will use to
+communicate with each other.
+
 ### Key Exchange using RSA
 
 A simple key exchange would be to let the client generate a "master secret"
-and encrypt that with the server's public key found in the certificate. Both
-client and server would then use that master secret to derive symmetric
-encryption keys that will be used to encrypt/decrypt for this TLS session. An
-attacker could however simply record the handshake and session and steal the
-server's private key at any time in the future to recover the whole
+and encrypt that with the server's public
+[RSA](https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29) key given by the
+certificate. Both client and server would then use that master secret to derive
+symmetric encryption keys that will be used to encrypt/decrypt for this TLS
+session. An attacker could however simply record the handshake and session and
+steal the server's private key at any time in the future to recover the whole
 conversation.
 
 ### Key Exchange using (EC)DHE
@@ -80,16 +86,25 @@ When using (Elliptic Curve)
 the key exchange mechanism both sides have to collaborate to generate master
 secret. They both generate DH key pairs (which is *a lot* cheaper than
 generating RSA keys) and send their public key to the other party. With the
-private key and other party's public key the shared master secret can be
+private key and the other party's public key the shared master secret can be
 calculated and then again be used to derive session keys. We can provide
 [Forward Secrecy](https://en.wikipedia.org/wiki/Forward_secrecy) when using
 ephemeral DH key pairs. See the section below on how to enable it.
 
+### After the handshake
+
+Now that both sides have agreed on session keys the TLS handshake is done and
+they can finally start to communicate using symmetric encryption algorithms
+like [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) that are
+*much* faster than asymmetric algorithms.
+
 ## <a name="the-cert"></a> The certificate
 
-In order to serve your site via TLS the most basic part you need is a
-certificate. The TLS protocol can encrypt traffic between two parties just fine
-but the certificate provides the necessary authentication towards your visitors.
+Now that we understand authenticity is an integral part of TLS we know that in
+order to serve your site via TLS you first need a certificate. The TLS protocol
+can encrypt traffic between two parties just fine but the certificate
+provides the necessary authentication towards your visitors.
+
 Without a certificate a visitor could securely talk to either you, the NSA, or
 a different attacker but they probably want to talk to you. The certificate
 ensures by cryptographic means that they established a connection to *your*
