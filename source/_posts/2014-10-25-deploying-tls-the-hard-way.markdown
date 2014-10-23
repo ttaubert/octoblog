@@ -215,30 +215,55 @@ Apache does unfortunately not support custom DH parameters, it is always set to
 1024 bit and is not user configurable. This might hopefully be fixed in future
 versions.
 
-### Session Tickets
+### Session IDs
 
 One of the most important mechanisms to improve TLS performance is
-[Session Resumption](http://tools.ietf.org/html/rfc5077).
-Instead of a full handshake a client can just send a "ticket" from its last
-TLS session to the server when connecting. The session ticket contains the
-state of the last session (including the negotiated master secret) and is
-encrypted with a secret key only known to the server.
+[Session Resumption](https://en.wikipedia.org/wiki/Transport_Layer_Security#Resumed_TLS_handshake).
+In a full handshake the server sends a *Session ID* as part of the "hello"
+message. On a subsequent connection the client can use this session ID and
+pass it to the server when connecting. Because both the server and the client
+have saved the last session's "secret state" under the session ID they can
+simply resume the TLS session where they left off.
 
-Now you might notice that this might violate Forward Secrecy as a compromised
-secret key would reveal all communication for a session. It is thus important
-that your web server supports session tickets protected by an ephemeral key.
-If the web server generates this private key only once when the daemon starts
-(like Apache does) it would use the same key for months. To properly support
-forward secrecy you thus need to either disable session tickets or ensure that
-key rotation happens often.
+Now you might notice that this could violate Forward Secrecy as a compromised
+server might reveal the secret state for all session IDs if the cache is just
+large enough. The forward secrecy of a connection is thus bounded by how long
+the session information is retained on the server. Ideally, your server would
+use a medium-sized in-memory cache that is purged daily.
 
-> Note: A web server using multiple workers needs to provide a shared session
-> ticket cache to enable resuming a TLS session that was started on a different
-> worker. When using multiple physical web servers you might want to deploy
-> memcached to support resuming a TLS session that was started on a different
-> physical machine.
+Apache lets you configure that using the `SSLSessionCache` directive and you
+should use the high-performance cyclic buffer `shmcd`. Nginx has the
+`ssl_session_cache` directive and you should use a `shared` cache that is
+shared between workers. The right size of those caches would depend on the
+amount of traffic your server handles. You want browsers to resume TLS sessions
+but also get rid of old ones about daily.
 
-### Session IDs (TODO)
+### Session Tickets
+
+The second mechanism to resume a TLS session are
+[Session Tickets](http://tools.ietf.org/html/rfc5077). This extension transmits
+the server's secret state to the client, encrypted with a key only known to the
+server. That ticket key is protecting the TLS connection now and in the future.
+
+This might as well violate Forward Secrecy if the key used to encrypt session
+tickets is compromised. The ticket (just as the session cache) contains all of
+the server's secret state and would allow an attacker to reveal the whole
+conversation.
+
+Nginx and Apache by default generate a session ticket key at startup and do
+unfortunately provide no way to rotate it. If your server is running for months
+without a restart then you will use that same session ticket key for months and
+breaking into your server could reveal every recorded TLS conversation since
+the web server was started.
+
+Neither Nginx nor Apache have a sane way to work around this, Nginx might be able to
+[rotate the key by reloading the server config](http://forum.nginx.org/read.php?2,229538,230872#msg-230872)
+which is rather easy to implement with a cron job. Make sure to test that this
+actually works before relying on it though.
+
+Thus if you really want to provide forward secrecy you should disable session
+tickets using `ssl_session_tickets off` for Nginx and `SSLOpenSSLConfCmd
+Options -SessionTicket` for Apache.
 
 ## <a name="cipher-suites"></a> Choosing the right cipher suites
 
