@@ -28,7 +28,8 @@ will be able to make informed decisions when deploying yourselves.
 To follow this post you will need some basic cryptography knowledge. Whenever
 you do not know or understand a concept you should probably just head over to
 Wikipedia and take a few minutes or just do it later and maybe re-read the
-whole thing.
+whole thing. I am not an "expert" so please let me know of any mistakes and I
+will correct them as soon as possible.
 
 ## But didn't Andy say this is all shit?
 
@@ -59,8 +60,8 @@ The following certificate checks need to be performed:
 * Has the certificate expired already?
 * Was the certificate revoked?
 
-All of these are very obvious crucial checks to ensure authentiticy. To check
-a certificate's revokation status the browser will use the
+All of these are very obvious crucial checks. To query a certificate's
+revokation status the browser will use the
 [Online Certificate Status Protocol (OCSP)](https://tools.ietf.org/html/rfc6960)
 which I will describe in more detail in a later section.
 
@@ -83,13 +84,19 @@ conversation.
 
 When using (Elliptic Curve)
 [Diffie-Hellman](https://en.wikipedia.org/wiki/Diffie-Hellman_key_exchange) as
-the key exchange mechanism both sides have to collaborate to generate master
-secret. They both generate DH key pairs (which is *a lot* cheaper than
-generating RSA keys) and send their public key to the other party. With the
-private key and the other party's public key the shared master secret can be
-calculated and then again be used to derive session keys. We can provide
+the key exchange mechanism both sides have to collaborate to generate a master
+secret. They generate DH key pairs (which is *a lot* cheaper than generating
+RSA keys) and send their public key to the other party. With the private key
+and the other party's public key the shared master secret can be calculated and
+then again be used to derive session keys. We can provide
 [Forward Secrecy](https://en.wikipedia.org/wiki/Forward_secrecy) when using
 ephemeral DH key pairs. See the section below on how to enable it.
+
+We could in theory also provide forward secrecy with an RSA key exchange if
+the server would generate an ephemeral RSA key pair, share its public key and
+would then wait for the master secret to be sent by the client. As hinted above
+RSA key generation is very expensive and does not scale in practice. That is
+why RSA key exchanges are not a practical option for providing forward secrecy.
 
 ### After the handshake
 
@@ -133,7 +140,7 @@ a key for your domain. Simply replace `example.com` with the domain of your
 website. `example.com.key` will be your new RSA key and `example.com.csr` will
 be the
 [Certificate Signing Request](https://en.wikipedia.org/wiki/Certificate_signing_request)
-that StartSSL needs to generate your certificate.
+that your CA needs to generate your certificate.
 
 {% codeblock lang:text %}
 openssl req -new -newkey rsa:4096 -nodes -sha256 \
@@ -145,28 +152,28 @@ We will use a SHA-256 based signature for integrity as
 The RSA keys used to authenticate your website will use a 4096 bit modulus. If
 you need to handle a lot of traffic or your server has a weak CPU you might
 want to use 2048 bit. Never go below that as keys smaller than 2048 bit are
-considered insecure nowadays.
+considered insecure.
 
 ### Get a signed certificate
 
-Sign up with the CA you chose and depending on how the CA handles this process
-you probably will have to first verify that you are the rightful owner of the
+Sign up with the CA you chose and depending on how they handle this process you
+probably will have to first verify that you are the rightful owner of the
 domain that you claim to be. StartSSL will do that by sending a token to
 `postmaster@example.com` (or similar) and then ask you to confirm the receipt
 of that token.
 
-Now that you are signed up and are the verified owner of `example.com` you
-simply submit the `example.com.csr` file to request the generation of a
-certificate for your domain. The CA will sign your public key and the other
-information contained in the CSR with their private key and you can finally
-download the certificate to `example.com.crt`.
+Now that you signed up and are the verified owner of `example.com` you simply
+submit the `example.com.csr` file to request the generation of a certificate
+for your domain. The CA will sign your public key and the other information
+contained in the CSR with their private key and you can finally download the
+certificate to `example.com.crt`.
 
 You can now simply upload the .crt and .key files to your webserver. Be aware
 that any intermediate certificate in the CA's chain must be included in the
 .crt file as well - you can just `cat` them together. StartSSL's free tier
 has an intermediate Class 1 certificate - make sure to include
 [the SHA-256 version](http://www.startssl.com/certs/class1/sha2/pem/sub.class1.server.sha2.ca.pem)
-of it. Make sure the files are owned by root and can't be read by anyone else.
+of it. All files should be owned by root and must not be read by anyone else.
 Configure your webserver to use those and you should probably have TLS running
 configured out-of-the-box.
 
@@ -175,9 +182,10 @@ configured out-of-the-box.
 To properly deploy TLS you will want to provide
 [(Perfect) Forward Secrecy](http://vincent.bernat.im/en/blog/2011-ssl-perfect-forward-secrecy.html).
 Without forward secrecy TLS still seems to secure your communication today, it
-might however not if your private key is compromised in the future. If a
-powerful adversary (think NSA) records all communication between a visitor and
-your server, they can decrypt all this traffic years later by stealing your
+might however not if your private key is compromised in the future.
+
+If a powerful adversary (think NSA) records all communication between a visitor
+and your server, they can decrypt all this traffic years later by stealing your
 private key or going the "legal" way to obtain it. This can be prevented by
 using short-lived (ephemeral) keys for TLS connections that the server will
 throw away after a short period.
@@ -185,10 +193,9 @@ throw away after a short period.
 ### Diffie-Hellman key exchanges
 
 Using RSA with your certificate's private and public keys for key exchanges is
-off the table. We could in theory keep using RSA and generate short-lived keys
-for every connection but generating a 2048+ bit prime is very expensive. We
-thus need switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites.
-For DH you can generate parameters once, choosing a private key afterwards is
+off the table as generating a 2048+ bit prime is very expensive. We thus need
+switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites. For DH you
+can generate a 2048 bit parameter once, choosing a private key afterwards is
 cheap.
 
 {% codeblock lang:text %}
@@ -196,9 +203,8 @@ openssl dhparam -out dhparam.pem 2048
 {% endcodeblock %}
 
 Simply upload `dhparam.pem` to your server and instruct the web server to use
-those parameters for Diffie-Hellman key exchanges. When using ECDH the
-predefined elliptic curve represents those parameters and we thus do not need
-to generate any.
+it for Diffie-Hellman key exchanges. When using ECDH the predefined elliptic
+curve represents those parameters and no further action is needed.
 
 {% codeblock lang:text %}
 (Nginx)
@@ -232,6 +238,8 @@ key rotation happens often.
 > memcached to support resuming a TLS session that was started on a different
 > physical machine.
 
+### Session IDs (TODO)
+
 ## <a name="cipher-suites"></a> Choosing the right cipher suites
 
 [Mozilla's guide on server side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)
@@ -253,9 +261,9 @@ DHE-DSS-AES128-GCM-SHA256:     \
 
 All these cipher suites start with (EC)DHE wich means they only support
 ephemeral Diffie-Hellman key exchanges for forward secrecy. The last line
-discards non-authenticated DH key exchanges, null-encryption (cleartext),
-legacy weak ciphers marked exportable by US law, weak ciphers (3)DES and RC4,
-weak MD5 signatures, and lastly pre-shared keys.
+discards non-authenticated key exchanges, null-encryption (cleartext), legacy
+weak ciphers marked exportable by US law, weak ciphers (3)DES and RC4, weak MD5
+signatures, and pre-shared keys.
 
 > Note: To ensure that the order of cipher suites is respected you need to set
 > `ssl_prefer_server_ciphers on` for Nginx or `SSLHonorCipherOrder on` for
@@ -311,12 +319,13 @@ HSTS header must be set up correctly and contain the `includeSubDomains` and
 
 ## <a name="ocsp-stapling"></a> OCSP Stapling
 
-OCSP - using an external server provided by the CA to check whether the
-certificate given by the server was revoked - might sound like a great idea at
-first. On the second thought it actually sounds rather terrible. First, the CA
-providing the OCSP server suddenly has to be able to handle a lot of requests:
-every client opening a connection to your server will want to know whether
-your certificate was revoked before talking to you.
+[OCSP](https://en.wikipedia.org/wiki/Online_Certificate_Status_Protocol) -
+using an external server provided by the CA to check whether the certificate
+given by the server was revoked - might sound like a great idea at first. On
+the second thought it actually sounds rather terrible. First, the CA providing
+the OCSP server suddenly has to be able to handle a lot of requests: every
+client opening a connection to your server will want to know whether your
+certificate was revoked before talking to you.
 
 Second, the browser contacting a CA and passing the certificate is an easy way
 to monitor a user's browsing behavior. If all CAs worked together they probably
@@ -327,7 +336,7 @@ what order (not that I know of any plans they actually wanted to do that).
 
 [OCSP Stapling](https://tools.ietf.org/html/rfc6066#section-8) is a TLS
 extension that enables the server to query its certificate's revokation status
-at regular intervals in the background and sends an OCSP response with the TLS
+at regular intervals in the background and send an OCSP response with the TLS
 handshake. The stapled response itself cannot be faked as it needs to be
 signed with the CA's private key. Enabling OCSP stapling thus improves
 performance and privacy for your visitors immediately.
@@ -335,9 +344,10 @@ performance and privacy for your visitors immediately.
 You need to create a certificate file that contains your CA's root certificate
 prepended by any intermediate certificates that might be in your CA's chain.
 StartSSL has an intermediate certificate for Class 1 (the free tier) - make
-sure to use the one having the SHA-256 signature. Pass the file to Nginx using
-the `ssl_trusted_certificate` directive and to Apache using the
-`SSLCACertificateFile` directive.
+sure to use
+[the one having the SHA-256 signature](http://www.startssl.com/certs/class1/sha2/pem/sub.class1.server.sha2.ca.pem).
+Pass the file to Nginx using the `ssl_trusted_certificate` directive and to
+Apache using the `SSLCACertificateFile` directive.
 
 ### OCSP Must Staple
 
@@ -365,7 +375,7 @@ Even with all those security checks when receiving the server's certificate
 we would still be completely out of luck in case your
 [CA's private key is compromised](http://en.wikipedia.org/wiki/DigiNotar) or
 your [CA simply fucks up](http://nakedsecurity.sophos.com/2013/01/08/the-turktrust-ssl-certificate-fiasco-what-happened-and-what-happens-next/).
-We can prevent these kinds of attacks with anrHTTP extension called
+We can prevent these kinds of attacks with an HTTP extension called
 [Public Key Pinning](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21).
 
 Key pinning is a trust-on-first-use (TOFU) mechanism. The first time a browser
@@ -377,9 +387,9 @@ connection.
 ### Generating a HPKP header
 
 Creating an HPKP header is easy, all you need to do is to compute the
-base64-encoded "SPKI fingerprint" of your RSA key pair whose public key is
-given by the TLS certificate. An SPKI fingerprint is the output of a applying
-SHA-256 to the public key information contained in your certificate.
+base64-encoded "SPKI fingerprint" of your server's certificate. An SPKI
+fingerprint is the output of a applying SHA-256 to the public key information
+contained in your certificate.
 
 {% codeblock lang:text %}
 openssl req -inform pem -pubkey -noout < example.com.csr |
@@ -400,7 +410,7 @@ Public-Key-Pins:
 
 Upon receiving this header the browser knows that it has to store the pins
 given by the header and discard any certificates whose SPKI fingerprints do
-not match for the next six months (max-age=15768000). We specified to
+not match for the next six months (max-age=15768000). We specified the
 `includeSubDomains` token so the browser will verify pins when connecting
 to any subdomain.
 
@@ -443,7 +453,7 @@ anymore in practice.
 ### BREACH (Browser Reconnaissance and Exfiltration via Adaptive Compression of Hypertext)
 
 [BREACH](https://en.wikipedia.org/wiki/BREACH_%28security_exploit%29) is a
-security exploit against HTTPS when using HTTP compression. Breach is based
+security exploit against HTTPS when using HTTP compression. BREACH is based
 on [CRIME](https://en.wikipedia.org/wiki/CRIME) but unlike CRIME - which can be
 successfully defended by turning off TLS compression (which is the default
 for Nginx and Apache nowadays) - BREACH can only be prevented by turning off
@@ -465,11 +475,12 @@ hopefully follow soon.
 
 ## Further reading
 
-Thanks for reading and I am glad you made it that far! If you want to read even
+Thanks for reading and I am really glad you made it that far! I hope this post
+did not discourage you from deploying TLS - after all getting your setup right
+is the most important thing. And it certainly is better to to know what you are
+getting yourselves into than leaving your visitors unprotected.
+
+If you want to read even
 more about setting up TLS, the Mozilla Wiki page on
 [Server-Side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS) has more
 information and proposed web server configurations.
-
-I hope you now have a much better understanding of TLS' current state and most
-of its weaknesses. I am not an expert in any of this so please let me know of
-any mistakes and I will correct them as soon as possible!
