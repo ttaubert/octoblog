@@ -376,9 +376,12 @@ Apache using the `SSLCACertificateFile` directive.
 
 ### OCSP Must Staple
 
-OCSP however is unfortunately not a silver bullet. Even with stapling there
-still are a few attack vectors left as
-[Adam Langley explains in great detail](https://www.imperialviolet.org/2014/04/19/revchecking.html).
+OCSP however is unfortunately not a silver bullet. If a browser does not know
+in advance it will receive a stapled response then the attacker might as well
+redirect HTTPS traffic to their server and block any traffic to the OCSP server
+(in which case browsers soft-fail).
+[Adam Langley explains](https://www.imperialviolet.org/2014/04/19/revchecking.html)
+all possible attack vectors in great detail.
 
 One solution might be the proposed
 [OCSP Must Staple Extension](https://tools.ietf.org/html/draft-hallambaker-muststaple-00).
