@@ -43,7 +43,7 @@ After you finished reading this page, maybe go back to Andy's post and read it
 again. You might have a better understanding of what he is ranting about than
 you had before if the details of TLS are still dark matter to you.
 
-## <a name="tls"></a> How does TLS work?
+## <a name="tls"></a> So how does TLS work?
 
 Every TLS connection starts with both parties sharing their supported TLS
 versions and cipher suites. As the next step the server sends its
@@ -75,9 +75,9 @@ A simple key exchange would be to let the client generate a "master secret"
 and encrypt that with the server's public
 [RSA](https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29) key given by the
 certificate. Both client and server would then use that master secret to derive
-symmetric encryption keys that will be used to encrypt/decrypt for this TLS
-session. An attacker could however simply record the handshake and session and
-steal the server's private key at any time in the future to recover the whole
+symmetric encryption keys that will be used throughout this TLS session. An
+attacker could however simply record the handshake and session and steal the
+server's private key at any time in the future to recover the whole
 conversation.
 
 ### Key Exchange using (EC)DHE
@@ -171,11 +171,11 @@ certificate to `example.com.crt`.
 You can now simply upload the .crt and .key files to your webserver. Be aware
 that any intermediate certificate in the CA's chain must be included in the
 .crt file as well - you can just `cat` them together. StartSSL's free tier
-has an intermediate Class 1 certificate - make sure to include
+has an intermediate Class 1 certificate - make sure to use
 [the SHA-256 version](http://www.startssl.com/certs/class1/sha2/pem/sub.class1.server.sha2.ca.pem)
-of it. All files should be owned by root and must not be read by anyone else.
-Configure your webserver to use those and you should probably have TLS running
-configured out-of-the-box.
+of it. All files should be owned by root and must not be readable by anyone
+else. Configure your webserver to use those and you should probably have TLS
+running configured out-of-the-box.
 
 ## <a name="pfs"></a> (Perfect) Forward Secrecy
 
@@ -187,7 +187,7 @@ might however not if your private key is compromised in the future.
 If a powerful adversary (think NSA) records all communication between a visitor
 and your server, they can decrypt all this traffic years later by stealing your
 private key or going the "legal" way to obtain it. This can be prevented by
-using short-lived (ephemeral) keys for TLS connections that the server will
+using short-lived (ephemeral) keys for key exchanges that the server will
 throw away after a short period.
 
 ### Diffie-Hellman key exchanges
@@ -204,7 +204,7 @@ openssl dhparam -out dhparam.pem 2048
 
 Simply upload `dhparam.pem` to your server and instruct the web server to use
 it for Diffie-Hellman key exchanges. When using ECDH the predefined elliptic
-curve represents those parameters and no further action is needed.
+curve represents this parameter and no further action is needed.
 
 {% codeblock lang:text %}
 (Nginx)
@@ -225,7 +225,7 @@ pass it to the server when connecting. Because both the server and the client
 have saved the last session's "secret state" under the session ID they can
 simply resume the TLS session where they left off.
 
-Now you might notice that this could violate Forward Secrecy as a compromised
+Now you might notice that this could violate forward secrecy as a compromised
 server might reveal the secret state for all session IDs if the cache is just
 large enough. The forward secrecy of a connection is thus bounded by how long
 the session information is retained on the server. Ideally, your server would
@@ -245,7 +245,7 @@ The second mechanism to resume a TLS session are
 the server's secret state to the client, encrypted with a key only known to the
 server. That ticket key is protecting the TLS connection now and in the future.
 
-This might as well violate Forward Secrecy if the key used to encrypt session
+This might as well violate forward secrecy if the key used to encrypt session
 tickets is compromised. The ticket (just as the session cache) contains all of
 the server's secret state and would allow an attacker to reveal the whole
 conversation.
