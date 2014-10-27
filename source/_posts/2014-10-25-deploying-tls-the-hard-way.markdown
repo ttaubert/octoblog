@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Deploying TLS the hard way"
-date: 2014-10-27 18:00
+date: 2014-10-27 19:00
 ---
 
 > 1. [How does TLS work?](#tls)
@@ -14,8 +14,8 @@ date: 2014-10-27 18:00
 > 8. [HTTP Public Key Pinning](#hpkp)
 > 9. [Known attacks](#attacks)
 
-Last weekend I finally deployed TLS for `timtaubert.de`. I decided to write up
-what I learned on the way and hope that it will be useful for anyone doing the
+Last weekend I finally deployed TLS for `timtaubert.de` and decided to write up
+what I learned on the way hoping that it would be useful for anyone doing the
 same. Instead of only giving you a few buzz words I want to provide background
 information on how TLS and certain HTTP extensions work and why you should use
 them or configure TLS in a certain way.
@@ -31,7 +31,7 @@ Wikipedia and take a few minutes or just do it later and maybe re-read the
 whole thing.
 
 > Disclaimer: I am not a security expert or cryptographer but did my best to
-> research this post thouroughly. Please [let me know](https://twitter.com/ttaubert)
+> research this post thoroughly. Please [let me know](https://twitter.com/ttaubert)
 > of any mistakes I might have made and I will correct them as soon as possible.
 
 ## But didn't Andy say this is all shit?
@@ -64,7 +64,7 @@ The following certificate checks need to be performed:
 * Was the certificate revoked?
 
 All of these are very obvious crucial checks. To query a certificate's
-revokation status the browser will use the
+revocation status the browser will use the
 [Online Certificate Status Protocol (OCSP)](https://tools.ietf.org/html/rfc6960)
 which I will describe in more detail in a later section.
 
@@ -102,23 +102,21 @@ would then wait for the master secret to be sent by the client. As hinted above
 RSA key generation is very expensive and does not scale in practice. That is
 why RSA key exchanges are not a practical option for providing forward secrecy.
 
-### After the handshake
-
-Now that both sides have agreed on session keys the TLS handshake is done and
-they can finally start to communicate using symmetric encryption algorithms
-like [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) that are
+After both sides have agreed on session keys the TLS handshake is done and they
+can finally start to communicate using symmetric encryption algorithms like
+[AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) that are
 *much* faster than asymmetric algorithms.
 
 ## <a name="the-cert"></a> The certificate
 
 Now that we understand authenticity is an integral part of TLS we know that in
-order to serve your site via TLS you first need a certificate. The TLS protocol
-can encrypt traffic between two parties just fine but the certificate
-provides the necessary authentication towards your visitors.
+order to serve a site via TLS we first need a certificate. The TLS protocol
+can encrypt traffic between two parties just fine but the certificate provides
+the necessary authentication towards visitors.
 
-Without a certificate a visitor could securely talk to either you, the NSA, or
-a different attacker but they probably want to talk to you. The certificate
-ensures by cryptographic means that they established a connection to *your*
+Without a certificate a visitor could securely talk to either us, the NSA, or
+a different attacker but they probably want to talk to us. The certificate
+ensures by cryptographic means that they established a connection to *our*
 server.
 
 ### Selecting a Certificate Authority (CA)
@@ -172,13 +170,13 @@ for your domain. The CA will sign your public key and the other information
 contained in the CSR with their private key and you can finally download the
 certificate to `example.com.crt`.
 
-You can now simply upload the .crt and .key files to your webserver. Be aware
-that any intermediate certificate in the CA's chain must be included in the
-.crt file as well - you can just `cat` them together. StartSSL's free tier
-has an intermediate Class 1 certificate - make sure to use
+Upload the .crt and .key files to your web server. Be aware that any
+intermediate certificate in the CA's chain must be included in the .crt file as
+well - you can just `cat` them together. StartSSL's free tier has an
+intermediate Class 1 certificate - make sure to use
 [the SHA-256 version](http://www.startssl.com/certs/class1/sha2/pem/sub.class1.server.sha2.ca.pem)
 of it. All files should be owned by root and must not be readable by anyone
-else. Configure your webserver to use those and you should probably have TLS
+else. Configure your web server to use those and you should probably have TLS
 running configured out-of-the-box.
 
 ## <a name="pfs"></a> (Perfect) Forward Secrecy
@@ -274,7 +272,7 @@ Options -SessionTicket` for Apache.
 [Mozilla's guide on server side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)
 provides a great list of modern cipher suites that needs to be put in your web
 server's configuration. The combinations below are unfortunately supported by
-only modern browser, for broader client support you might want to consider
+only modern browsers, for broader client support you might want to consider
 using the "intermediate" list.
 
 {% codeblock lang:text %}
@@ -288,7 +286,7 @@ DHE-DSS-AES128-GCM-SHA256:     \
 !aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK
 {% endcodeblock %}
 
-All these cipher suites start with (EC)DHE wich means they only support
+All these cipher suites start with (EC)DHE which means they only support
 ephemeral Diffie-Hellman key exchanges for forward secrecy. The last line
 discards non-authenticated key exchanges, null-encryption (cleartext), legacy
 weak ciphers marked exportable by US law, weak ciphers (3)DES and RC4, weak MD5
@@ -322,21 +320,21 @@ Strict-Transport-Security:
 
 Sending these headers over a HTTPS connection (they will be ignored via HTTP)
 lets the browser remember that this domain wants strict transport security for
-the next six months (~15768000 seconds). The `includeSubDomains` directive
-enforces TLS connections for every subdomain of your domain and the
-non-standard `preload` token will be required for the next section.
+the next six months (~15768000 seconds). The `includeSubDomains` token enforces
+TLS connections for every subdomain of your domain and the non-standard
+`preload` token will be required for the next section.
 
 ## <a name="hsts-preload"></a> HSTS Preload List
 
-If after deploying TLS the very first connection of a visitor is a genuine one
-we are fine. Your server will send the HSTS header over TLS and the visitor's
-browser remembers to use TLS in the future. The very first connection and every
+If after deploying TLS the very first connection of a visitor is genuine we are
+fine. Your server will send the HSTS header over TLS and the visitor's browser
+remembers to use TLS in the future. The very first connection and every
 connection after the HSTS header expires however are still vulnerable to a
 {M,W}ITM attack.
 
 To prevent this Firefox and Chrome share a
 [HSTS Preload List](https://chromium.googlesource.com/chromium/src/net/+/master/http/transport_security_state_static.json)
-that basically includes HSTS headers for all pages that would send that header
+that basically includes HSTS headers for all sites that would send that header
 when visiting anyway. So before connecting to a host Firefox and Chrome check
 whether that domain is in the list and if so would not even try using an
 insecure HTTP connection.
@@ -364,7 +362,7 @@ what order (not that I know of any plans they actually wanted to do that).
 ### Let the server do the work for your visitors
 
 [OCSP Stapling](https://tools.ietf.org/html/rfc6066#section-8) is a TLS
-extension that enables the server to query its certificate's revokation status
+extension that enables the server to query its certificate's revocation status
 at regular intervals in the background and send an OCSP response with the TLS
 handshake. The stapled response itself cannot be faked as it needs to be
 signed with the CA's private key. Enabling OCSP stapling thus improves
@@ -389,10 +387,9 @@ all possible attack vectors in great detail.
 
 One solution might be the proposed
 [OCSP Must Staple Extension](https://tools.ietf.org/html/draft-hallambaker-muststaple-00).
-This would add another field to the certificate issue by the CA that says a
+This would add another field to the certificate issued by the CA that says a
 server *must* provide a stapled OCSP response. The problem here is that the
-origin proposal expired and in practice it would take years for CAs to support
-that.
+proposal expired and in practice it would take years for CAs to support that.
 
 Another solution would be to implement
 [a header similar to HSTS](https://bugzilla.mozilla.org/show_bug.cgi?id=901698),
@@ -430,8 +427,8 @@ openssl req -inform pem -pubkey -noout < example.com.csr |
   base64
 {% endcodeblock %}
 
-The output of the above command can be directly used as the *pin-sha256* values
-for the *Public-Key-Pins* header as shown below:
+The result of running the above command can be directly used as the
+*pin-sha256* values for the *Public-Key-Pins* header as shown below:
 
 {% codeblock lang:text %}
 Public-Key-Pins:
