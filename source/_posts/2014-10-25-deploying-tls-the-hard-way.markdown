@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Deploying TLS the hard way"
-date: 2014-10-25 18:00
+date: 2014-10-27 18:00
 ---
 
 > 1. [How does TLS work?](#tls)
@@ -28,8 +28,11 @@ will be able to make informed decisions when deploying yourselves.
 To follow this post you will need some basic cryptography knowledge. Whenever
 you do not know or understand a concept you should probably just head over to
 Wikipedia and take a few minutes or just do it later and maybe re-read the
-whole thing. I am not an "expert" so please let me know of any mistakes and I
-will correct them as soon as possible.
+whole thing.
+
+> Disclaimer: I am not a security expert or cryptographer but did my best to
+> research this post thouroughly. Please [let me know](https://twitter.com/ttaubert)
+> of any mistakes I might have made and I will correct them as soon as possible.
 
 ## But didn't Andy say this is all shit?
 
@@ -71,13 +74,14 @@ communicate with each other.
 
 ### Key Exchange using RSA
 
-A simple key exchange would be to let the client generate a "master secret"
+A simple key exchange would be to let the client generate a *master secret*
 and encrypt that with the server's public
 [RSA](https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29) key given by the
 certificate. Both client and server would then use that master secret to derive
 symmetric encryption keys that will be used throughout this TLS session. An
-attacker could however simply record the handshake and session and steal the
-server's private key at any time in the future to recover the whole
+attacker could however simply record the handshake and session for later, when
+breaking the key has become feasible or the machine is suspect to a
+vulnerability. They may then use the server's private key to recover the whole
 conversation.
 
 ### Key Exchange using (EC)DHE
@@ -158,7 +162,7 @@ considered insecure.
 
 Sign up with the CA you chose and depending on how they handle this process you
 probably will have to first verify that you are the rightful owner of the
-domain that you claim to be. StartSSL will do that by sending a token to
+domain that you claim to possess. StartSSL will do that by sending a token to
 `postmaster@example.com` (or similar) and then ask you to confirm the receipt
 of that token.
 
@@ -194,9 +198,9 @@ throw away after a short period.
 
 Using RSA with your certificate's private and public keys for key exchanges is
 off the table as generating a 2048+ bit prime is very expensive. We thus need
-switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites. For DH you
-can generate a 2048 bit parameter once, choosing a private key afterwards is
-cheap.
+to switch to ephemeral (Elliptic Curve) Diffie-Hellman cipher suites. For DH
+you can generate a 2048 bit parameter once, choosing a private key afterwards
+is cheap.
 
 {% codeblock lang:text %}
 openssl dhparam -out dhparam.pem 2048
@@ -414,10 +418,10 @@ connection.
 
 ### Generating a HPKP header
 
-Creating an HPKP header is easy, all you need to do is to compute the
-base64-encoded "SPKI fingerprint" of your server's certificate. An SPKI
-fingerprint is the output of a applying SHA-256 to the public key information
-contained in your certificate.
+[Creating an HPKP header is easy](https://developer.mozilla.org/en-US/docs/Web/Security/Public_Key_Pinning),
+all you need to do is to compute the base64-encoded "SPKI fingerprint" of your
+server's certificate. An SPKI fingerprint is the output of a applying SHA-256
+to the public key information contained in your certificate.
 
 {% codeblock lang:text %}
 openssl req -inform pem -pubkey -noout < example.com.csr |
@@ -498,8 +502,9 @@ is yet another
 [padding oracle attack](https://en.wikipedia.org/wiki/Padding_oracle_attack) on
 TLS. Luckily it only affects the predecessor of TLS which is SSLv3. The only
 solution when deploying a new server is to just disable SSLv3 completely.
-Firefox 34 will ship with SSLv3 disabled by default, Chrome and others will
-hopefully follow soon.
+Fortunately, we already excluded SSLv3 in our list of preferred ciphers
+previously. Firefox 34 will ship with SSLv3 disabled by default, Chrome and
+others will hopefully follow soon.
 
 ## Further reading
 
@@ -512,3 +517,6 @@ If you want to read even
 more about setting up TLS, the Mozilla Wiki page on
 [Server-Side TLS](https://wiki.mozilla.org/Security/Server_Side_TLS) has more
 information and proposed web server configurations.
+
+> Thanks a lot to [Frederik Braun](https://frederik-braun.com/) for taking the
+> time to proof-read this post and helping to clarify a few things!
