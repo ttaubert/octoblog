@@ -1,0 +1,3 @@
+[submodule "plugins/jekyll_alias_generator"]
+	path = plugins/jekyll_alias_generator
+	url = git@github.com:tsmango/jekyll_alias_generator
