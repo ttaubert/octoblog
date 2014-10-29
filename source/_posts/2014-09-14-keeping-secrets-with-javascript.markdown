@@ -1,7 +1,8 @@
 ---
 layout: post
 title: "Talk: Keeping secrets with JavaScript - An Introduction to the WebCrypto API"
-date: 2014-09-13 16:00
+alias: /blog/2014/09/keeping-secrets-with-javascript
+date: 2014-10-29 17:00
 ---
 
 With the web slowly maturing as a platform the demand for cryptography in the
@@ -9,6 +10,10 @@ browser has risen, especially in a post-Snowden era. Many of us have heard
 about the upcoming Web Cryptography API but at the time of writing there seem
 to be no good introductions available. We will take a look at the proposed W3C
 spec and its current state of implementation.
+
+## Video
+
+<iframe width="660" height="372" src="//www.youtube.com/embed/yf4m9LdO1zI" frameborder="0" allowfullscreen></iframe>
 
 ## Slides
 
