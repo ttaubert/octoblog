@@ -417,7 +417,7 @@ connection.
 
 [Creating an HPKP header is easy](https://developer.mozilla.org/en-US/docs/Web/Security/Public_Key_Pinning),
 all you need to do is to compute the base64-encoded "SPKI fingerprint" of your
-server's certificate. An SPKI fingerprint is the output of a applying SHA-256
+server's certificate. An SPKI fingerprint is the output of applying SHA-256
 to the public key information contained in your certificate.
 
 {% codeblock lang:text %}
