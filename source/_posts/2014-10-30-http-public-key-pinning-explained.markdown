@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Why including a backup pin in your Public-Key-Pinning header is a good idea"
+title: "HTTP Public-Key-Pinning explained"
+alias: /blog/2014/10/why-including-a-backup-pin-in-your-hpkp-header-is-a-good-idea/
 date: 2014-10-30 14:00
 ---
 
