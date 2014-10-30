@@ -69,9 +69,10 @@ hostname and other details.
 The whole purpose of public key pinning is to detect when the public key of a
 certificate for a specific host has changed. That may happen when an attacker
 compromises a CA such that they are able to issue valid certificates for *any*
-domain. An attacker intercepting a connection from a visitor to your server
-with a forged certificate can only be prevented by detecting that the public
-key has changed.
+domain. A foreign CA might also just be the attacker, think of state-owned CAs
+that you do not want to be able to {M,W}ITM your site. Any attacker intercepting
+a connection from a visitor to your server with a forged certificate can only
+be prevented by detecting that the public key has changed.
 
 After the server sent a TLS certificate with the handshake, the browser will
 look up any stored pins for the given hostname and check whether any of those
@@ -101,7 +102,7 @@ not signed by a trusted third-party.
 ## What if your certificate was revoked?
 
 If your server was compromised and an attacker obtained your private key you
-have to revoke your certificate as the attacker obviously can fully intercept
+have to revoke your certificate as the attacker can obviously fully intercept
 any TLS connection to your server and record every conversation. If your HPKP
 header contained only a single *pin-sha256* token you are out of luck until the
 *max-age* directive given in the header lets those pins expire in your
@@ -139,8 +140,8 @@ your certificate when necessary is to include the pin of a second public key:
 your backup key. This backup RSA key should in no way be related to your first
 key, just generate a new one.
 
-A good advice is to keep this backup key pair (especially the private key) on
-your machine until you need it. Uploading it to the server is dangerous: when
+A good advice is to keep this backup key pair (especially the private key) in
+a safe place until you need it. Uploading it to the server is dangerous: when
 your server is compromised you lose both keys at once and have no backup key
 left.
 
