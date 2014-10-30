@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Why including a backup pin in your Public-Key-Pinning header is a good idea"
-date: 2014-10-29 20:00
+date: 2014-10-30 14:00
 ---
 
 In my last post
@@ -20,16 +20,14 @@ Public-Key-Pins:
 {% endcodeblock %}
 
 You can see that it specifies two *pin-sha256* values, that is the pins of two
-different public keys. One is the public key of your currently valid
-certificate and I also suggested including the pin of a backup key in case you
-have to revoke your certificate.
+public keys. One is the public key of your currently valid certificate and the
+other is a backup key in case you have to revoke your certificate.
 
-I received a few questions as to why including a backup pin would be a good
-idea and what the requirements for a backup key would be. I will try to answer
-all of those with a more detailed overview of how public key pinning and TLS
-certificates work.
+I received a few questions as to why I suggest including a backup pin and what
+the requirements for a backup key would be. I will try to answer those with a
+more detailed overview of how public key pinning and TLS certificates work.
 
-## What represents an RSA key?
+## How are RSA keys represented?
 
 Let us go back to the beginning and start by taking a closer look at
 [RSA](https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29) keys:
@@ -50,8 +48,8 @@ A common misconception when learning about keys and certificates is that the
 RSA key itself for a given certificate expires. RSA keys however never expire -
 after all they are just three numbers. Only the certificate containing the
 public key can expire and only the certificate can be revoked. Keys "expire" or
-are "revoked" when there are no valid certificates using them left and you
-decide to throw them away and stop using them.
+are "revoked" as soon as there are no more valid certificates using the public
+key, and you threw away the keys and stopped using them altogether.
 
 ## What does the TLS certificate contain?
 
@@ -72,12 +70,12 @@ hostname and other details.
 
 The whole purpose of public key pinning is to detect when the public key of a
 certificate for a specific host has changed. That may happen when an attacker
-compromises a CA such that they are able to issue valid certificates for any
+compromises a CA such that they are able to issue valid certificates for *any*
 domain. An attacker intercepting a connection from a visitor to your server
-with a forged certificate can only be prevented by detecting that its public
+with a forged certificate can only be prevented by detecting that the public
 key has changed.
 
-After the server sent its TLS certificate with the handshake, the browser will
+After the server sent a TLS certificate with the handshake, the browser will
 look up any stored pins for the given hostname and check whether any of those
 stored pins match any of the
 [SPKI fingerprints](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21#section-2.4)
@@ -151,11 +149,11 @@ left.
 Generate a pin for the backup key exactly as you did for the current key and
 include both *pin-sha256* values as shown above in the HPKP header. In case the
 current key is compromised make sure all vulnerabilities are patched and then
-remove the compromised pin. Generate a CSR for the backup key, let your CA
-issue a new certificate, and revoke the old one. Upload the new certificate
-to your server and you are done.
+remove the revoked pin. Generate a CSR for the backup key, let your CA issue a
+new certificate, and revoke the old one. Upload the new certificate to your
+server and you are done.
 
 Finally, do not forget to generate a new backup key and include that pin in
 your HPKP header again. Once a browser successfully establishes a TLS
-connection the next time, it will see your updated HPKP header and discard any
-stored pins and store the new ones.
+connection the next time, it will see your updated HPKP header and replace any
+stored pins with the new ones.
