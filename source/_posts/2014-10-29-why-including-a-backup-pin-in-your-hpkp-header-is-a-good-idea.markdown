@@ -40,9 +40,7 @@ The above command generates a 4096 bit RSA key and prints it to the console.
 Although it says `-----BEGIN RSA PRIVATE KEY-----` it does not only return the
 private key but an
 [ASN.1](https://en.wikipedia.org/wiki/Abstract_Syntax_Notation_One) structure
-that also contains the public key and the modulus. We thus actually generated
-an RSA key pair with the public key being `(public exponent, modulus)` and the
-private key being `(private exponent, modulus)`.
+that also contains the public key - we thus actually generated an RSA key pair.
 
 A common misconception when learning about keys and certificates is that the
 RSA key itself for a given certificate expires. RSA keys however never expire -
