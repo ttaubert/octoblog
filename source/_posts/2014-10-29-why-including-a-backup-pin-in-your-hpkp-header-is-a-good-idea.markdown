@@ -47,10 +47,11 @@ an RSA key pair with the public key being `(public exponent, modulus)` and the
 private key being `(private exponent, modulus)`.
 
 A common misconception when learning about keys and certificates is that the
-RSA key for a given certificate expires. RSA keys however never expire - after
-all they are just three numbers. Only the certificate containing the public key
-can expire. You can easily use the same RSA key pair to get a new valid
-certificate again and again.
+RSA key itself for a given certificate expires. RSA keys however never expire -
+after all they are just three numbers. Only the certificate containing the
+public key can expire and only the certificate can be revoked. Keys "expire" or
+are "revoked" when there are no valid certificates using them left and you
+decide to throw them away and stop using them.
 
 ## What does the TLS certificate contain?
 
@@ -65,7 +66,7 @@ render the certificate invalid immediately.
 For simplicity I left out a few other fields that
 [X.509 certificates](https://en.wikipedia.org/wiki/X.509#Structure_of_a_certificate)
 contain to properly authenticate TLS connections, for example your server's
-hostname and other technical details.
+hostname and other details.
 
 ## How does public key pinning work?
 
@@ -76,51 +77,53 @@ domain. An attacker intercepting a connection from a visitor to your server
 with a forged certificate can only be prevented by detecting that its public
 key has changed.
 
-After the server sent its TLS certificate with the handshake the browser will
-check whether it has any saved pins for the given hostname and if so will check
-whether any of the stored pins match any of the "SPKI fingerprints" (the output
-of applying SHA-256 to the public key information) in the certificate chain.
-The connection must be terminated immediately if pin validation fails.
+After the server sent its TLS certificate with the handshake, the browser will
+look up any stored pins for the given hostname and check whether any of those
+stored pins match any of the
+[SPKI fingerprints](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21#section-2.4)
+(the output of applying SHA-256 to the public key information) in the
+certificate chain. The connection must be terminated immediately if pin
+validation fails.
 
-If the browser does not have any stored pins for the current hostname then it
+If the browser does not find any stored pins for the current hostname then it
 will directly continue with the usual certificate checks. This might happen if
 the site does not support public key pinning and does not send any HPKP headers
 at all, or if this is the first time visiting and the server has not seen the
 HPKP header yet in a previous visit.
 
-Pin validation should happen as soon as possible if implemented correctly and
-thus before any basic certificate checks are performed. An expired or revoked
-certificate will be happily accepted at the pin validation stage early in the
-handshake when any of the SPKI fingerprints of its chain match a stored pin.
-Only a little later the browser will see that the certificate already expired
-or was revoked and will reject it.
+[Pin validation](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21#section-2.6)
+should happen as soon as possible and thus before any basic certificate checks
+are performed. An expired or revoked certificate will be happily accepted at
+the pin validation stage early in the handshake when any of the SPKI
+fingerprints of its chain match a stored pin. Only a little later the browser
+will see that the certificate already expired or was revoked and will reject it.
 
-Pin validation thus also works for self-signed certificates, but they will of
-course raise the same warning as usual as soon as the browser determined it was
+Pin validation also works for self-signed certificates, but they will of course
+raise the same warnings as usual as soon as the browser determined they were
 not signed by a trusted third-party.
 
 ## What if your certificate was revoked?
 
 If your server was compromised and an attacker obtained your private key you
 have to revoke your certificate as the attacker obviously can fully intercept
-any TLS connection to your server now and record every conversation. If your
-HPKP header contained only a single *pin-sha256* token then you are out of luck
-until the *max-age* directive given in the header lets those pins expire in
-your visitors' browsers.
+any TLS connection to your server and record every conversation. If your HPKP
+header contained only a single *pin-sha256* token you are out of luck until the
+*max-age* directive given in the header lets those pins expire in your
+visitors' browsers.
 
 Pin validation requires checking the SPKI fingerprints of all certificates in
 the chain. When for example StartSSL signed your certificate you have another
 intermediate Class 1 or 2 certificate and their root certificate in the chain.
 The browser trusts only the root certificate but the intermediate ones are
-signed with the root certificate. The intermediate certificate in turn signs
-the certificate deployed on your server and that is called a chain of trust.
+signed by the root certificate. The intermediate certificate in turn signs the
+certificate deployed on your server and that is called a chain of trust.
 
 To prevent getting stuck after your only pinned key was compromised, you could
-for example only include the SPKI fingerprint of StartSSL's Class 1
-intermediate certificate.  An attacker would now have to somehow get a
-certificate issued by StartSSL's Class 1 tier to successfully impersonate you.
-You are however again out of luck should you decide to upgrade to Class 2 in a
-month because you decided to start paying for a certificate.
+for example provide the SPKI fingerprint of StartSSL's Class 1 intermediate
+certificate. An attacker would now have to somehow get a certificate issued by
+StartSSL's Class 1 tier to successfully impersonate you. You are however again
+out of luck should you decide to upgrade to Class 2 in a month because you
+decided to start paying for a certificate.
 
 Pinning StartSSL's root certificate would let you switch Classes any time and
 the attacker would still have to get a certificate issued by StartSSL for your
@@ -130,15 +133,15 @@ however the attacker would be able to get a valid certificate for your domain
 that passes pin validation. After the attack was discovered StartSSL would
 quickly revoke all currently issued certificates, generate a new key pair for
 their root certificate and issue new certificates. And again we would be out of
-luck because suddenly pin validations fail and no browser will connect to our
+luck because suddenly pin validation fails and no browser will connect to our
 site.
 
 ## Include the pin of a backup key
 
 The safest way to pin your certificate's public key and be prepared to revoke
-your certificate when necessary is thus to include the pin of a second public
-key: your backup key. This backup RSA key should in no way be related to your
-first key, just generate a new one.
+your certificate when necessary is to include the pin of a second public key:
+your backup key. This backup RSA key should in no way be related to your first
+key, just generate a new one.
 
 A good advice is to keep this backup key pair (especially the private key) on
 your machine until you need it. Uploading it to the server is dangerous: when
@@ -153,4 +156,6 @@ issue a new certificate, and revoke the old one. Upload the new certificate
 to your server and you are done.
 
 Finally, do not forget to generate a new backup key and include that pin in
-your HPKP header again.
+your HPKP header again. Once a browser successfully establishes a TLS
+connection the next time, it will see your updated HPKP header and discard any
+stored pins and store the new ones.
