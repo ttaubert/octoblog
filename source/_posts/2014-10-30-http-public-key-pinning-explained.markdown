@@ -45,12 +45,12 @@ that also contains the public key - we thus actually generated an RSA key pair.
 
 A common misconception when learning about keys and certificates is that the
 RSA key itself for a given certificate expires. RSA keys however never expire -
-after all they are just three numbers. Only the certificate containing the
-public key can expire and only the certificate can be revoked. Keys "expire" or
-are "revoked" as soon as there are no more valid certificates using the public
-key, and you threw away the keys and stopped using them altogether.
+after all they are just numbers. Only the certificate containing the public key
+can expire and only the certificate can be revoked. Keys "expire" or are
+"revoked" as soon as there are no more valid certificates using the public key,
+and you threw away the keys and stopped using them altogether.
 
-## What does the TLS certificate contain?
+## What does the certificate contain?
 
 By submitting the
 [Certificate Signing Request (CSR)](https://en.wikipedia.org/wiki/Certificate_signing_request)
