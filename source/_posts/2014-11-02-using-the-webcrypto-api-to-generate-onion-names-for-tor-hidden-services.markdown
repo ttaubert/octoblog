@@ -8,8 +8,7 @@ You have probably read that
 [Facebook unveiled its hidden service](https://www.facebook.com/notes/protect-the-graph/making-connections-to-facebook-more-secure/1526085754298237)
 that lets users access their website more safely via Tor. While there are lots
 of opinions about whether this is good or bad I think that
-[the Tor project described best](https://blog.torproject.org/blog/facebook-hidden-services-and-https-certs)
-why that is not as crazy as it seems.
+the Tor project described best [why that is not as crazy as it seems](https://blog.torproject.org/blog/facebook-hidden-services-and-https-certs).
 
 The most interesting part to me however is that
 [Facebook brute-forced a custom hidden service address](https://lists.torproject.org/pipermail/tor-talk/2014-October/035412.html)
@@ -28,7 +27,7 @@ key pair and then computes the [SHA-1](https://en.wikipedia.org/wiki/SHA-1)
 digest of the public key. The .onion name will be the
 [Base32](http://en.wikipedia.org/wiki/Base32)-encoded first half of that digest.
 
-By using a hash of the public key to as the URL to contact a hidden service you
+By using a hash of the public key as the URL to contact a hidden service you
 can easily authenticate it and bypass the existing CA structure. This 80 bit
 URL is sufficient to prevent collisions, even with
 a [birthday attack](http://en.wikipedia.org/wiki/Birthday_attack) (and thus an
@@ -217,6 +216,6 @@ Lastly, the current implementation does not perform any safety checks that Tor
 might run on the generated key. All of these points would be great reasons for
 a follow-up post.
 
-> **Important**: You should use the keys generated with this code to run a hidden
-> service only if you trust the host that serves it. Getting your keys off of
-> someone else's web server is a terrible idea. Do not be that guy or gal.
+> **Important**: You should use the keys generated with this code to run a
+> hidden service only if you trust the host that serves it. Getting your keys
+> off of someone else's web server is a terrible idea. Do not be *that* guy or gal.
