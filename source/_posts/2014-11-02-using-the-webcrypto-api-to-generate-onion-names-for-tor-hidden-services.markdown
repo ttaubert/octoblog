@@ -216,3 +216,7 @@ If it does not we can just continue.
 Lastly, the current implementation does not perform any safety checks that Tor
 might run on the generated key. All of these points would be great reasons for
 a follow-up post.
+
+> **Important**: You should use the keys generated with this code to run a hidden
+> service only if you trust the host that serves it. Getting your keys off of
+> someone else's web server is a terrible idea. Do not be that guy or gal.
