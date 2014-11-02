@@ -204,12 +204,15 @@ necessary).
 
 ## The pitfalls
 
-As said before, the approach shown above is quite naive and thus very slow. We
-can speed up finding keys by not regenerating the whole RSA key every loop
-iteration but instead increasing the public exponent by two (starting from 3)
-until we find a match and then check whether that produces a valid key pair.
+As said before, the approach shown above is quite naive and thus very slow. The
+easiest optimization to implement might be to spawn multiple web workers and
+let them search in parallel.
+
+We could also speed up finding keys by not regenerating the whole RSA key every
+loop iteration but instead increasing the public exponent by two (starting from
+3) until we find a match and then check whether that produces a valid key pair.
 If it does not we can just continue.
 
-I also did not take a closer look at any possible checks Tor might run on the
-generated key to make sure it is safe. Both of these points would be great
-reasons for a follow-up post.
+Lastly, the current implementation does not perform any safety checks that Tor
+might run on the generated key. All of these points would be great reasons for
+a follow-up post.
