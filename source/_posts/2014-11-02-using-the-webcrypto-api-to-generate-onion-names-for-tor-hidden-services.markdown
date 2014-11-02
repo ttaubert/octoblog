@@ -209,8 +209,8 @@ easiest optimization to implement might be to spawn multiple web workers and
 let them search in parallel.
 
 We could also speed up finding keys by not regenerating the whole RSA key every
-loop iteration but instead increasing the public exponent by two (starting from
-3) until we find a match and then check whether that produces a valid key pair.
+loop iteration but instead increasing the public exponent by 2 (starting from 3)
+until we find a match and then check whether that produces a valid key pair.
 If it does not we can just continue.
 
 Lastly, the current implementation does not perform any safety checks that Tor
