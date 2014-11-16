@@ -92,10 +92,12 @@ that is supported. We start with Apache.
 ### Configuring Session IDs
 
 The Apache HTTP Server offers the
-[SSLSessionCache directive](httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessioncache)
+[SSLSessionCache directive](http://httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessioncache)
 to configure the cache that contains the session IDs of previous TLS sessions
 along with their secret state. You should use `shmcb` as the storage type, that is
-a high-performance cyclic buffer inside a shared memory segment in RAM.
+a high-performance cyclic buffer inside a shared memory segment in RAM. It will
+be shared between all threads or processes and allow session resumption no
+matter which of those handles the visitor's request.
 
 {% codeblock lang:text %}
 SSLSessionCache shmcb:/usr/local/apache/logs/ssl_gcache_data(512000)
@@ -121,7 +123,7 @@ is purged even when there have not been any requests in a while.
 ### Configuring Session Tickets
 
 While Apache offers the
-[SSLSessionTicketKeyFile directive](httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessionticketkeyfile)
+[SSLSessionTicketKeyFile directive](http://httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessionticketkeyfile)
 to specify a key file that should contain 48 random bytes, it is recommended to
 not specify one at all. Apache will simply generate a random key on startup and
 use that to encrypt session tickets for as long as it is running.
@@ -160,15 +162,50 @@ generate a new random key and override the old one daily.
 
 ## Configuring Nginx
 
-nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_ticket_key
-http://forum.nginx.org/read.php?2,229538,230872#msg-230872
-might be fixable due config reload
+Another very popular web server is Nginx. Let us see how that compares to
+Apache when it comes to setting up session resumption.
 
-### Disabling Session Tickets for Nginx
+### Configuring Session IDs
 
-ssl_session_tickets off
+Nginx offers the [ssl_session_cache directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_cache)
+to configure the TLS session cache. The type of the cache should be `shared` to
+share it between multiple workers.
 
-only versions greater than 1.4?
+{% codeblock lang:text %}
+ssl_session_cache shared:SSL:10m;
+{% endcodeblock %}
+
+The above line establishes an in-memory cache with a size of 10 MB. We again
+have no real idea whether 10 MB is the right size for the cache to turn over
+daily. Just as Apache, Nginx should provide a configuration directive to allow
+cache entries to be purged automatically after a certain time.
+
+> You guessed right, the `ssl_session_timeout` directive again only applies
+> when trying to resume a session at the beginning of a connection. No entries
+> will be purged after the given timeout automatically.
+
+### Configuring Session Tickets
+
+Like Apache, Nginx allows to specify a session ticket file using the
+[ssl_session_ticket_key directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_ticket_key),
+and again you are probably better off by not specifying one and letting the
+service generate a random key on startup. The session ticket key will never be
+rotated and might be used to encrypt session tickets for months, if not years.
+
+Nginx, too, provides no way to automatically rotate keys. Reloading its
+configuration daily using a cron job [might work](http://forum.nginx.org/read.php?2,229538,230872#msg-230872)
+but does again not come close to a real solution.
+
+### Disabling Session Tickets
+
+The best you can do to provide forward secrecy to visitors is thus again switch
+off session ticket support until a proper solution is available. This would be
+a directive allowing to specify a maximum lifetime for session ticket keys
+and rotate them periodically.
+
+{% codeblock lang:text %}
+ssl_session_tickets off;
+{% endcodeblock %}
 
 ## Configuring HAproxy
 
