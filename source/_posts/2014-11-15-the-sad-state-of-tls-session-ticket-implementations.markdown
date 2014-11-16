@@ -18,9 +18,9 @@ information of previous sessions and reusing those when connecting to a host
 the next time.
 
 Enabling session resumption in web servers and proxies can however easily
-compromise (Perfect) Forward Secrecy. To understand how this can happen and how
-to avoid it let us take a closer look at PFS, and the current implementation of
-session resumption features.
+compromise forward secrecy. To understand how this can happen and how to avoid
+it let us take a closer look at forward secrecy, and the current implementation
+of session resumption features.
 
 ## What is (Perfect) Forward Secrecy?
 
@@ -83,17 +83,80 @@ To achieve this we want to ensure that the key used to encrypt the tickets is
 rotated about daily. It should just as the session cache not live on a
 persistent storage to prevent leaving any traces.
 
+## Apache configuration
+
 Now that we determined how session resumption features should be configured we
 should take a look at a popular web servers and proxies to see how and whether
-that is supported.
+that is supported. We start with Apache.
 
-## Configuring the Apache HTTP Server
+### Configuring Session IDs
 
-httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessionticketkeyfile
+The Apache HTTP Server offers the
+[SSLSessionCache directive](httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessioncache)
+to configure the cache that contains the session IDs of previous TLS sessions
+along with their secret state. You should use `shmcb` as the storage type, that is
+a high-performance cyclic buffer inside a shared memory segment in RAM.
 
-### Disabling Session Tickets for Apache
+{% codeblock lang:text %}
+SSLSessionCache shmcb:/usr/local/apache/logs/ssl_gcache_data(512000)
+{% endcodeblock %}
 
+The example shown above establishes an in-memory cache via the path
+`/usr/local/apache/logs/ssl_gcache_data` with a size of 512 KiB. Depending on
+the amount of daily visitors the cache size might be too small (i.e. a high
+turnover rate) or too big (i.e. a low turnover rate).
+
+We ideally want a cache that turns over daily and there is no really good way
+to determine the right session cache size. What we really need is a way to tell
+Apache the maximum time an entry is allowed to stay in the cache before it gets
+overriden. This must happen regardless of whether the cyclic buffer has actually
+cycled around or not and must be a periodic background job to ensure the cache
+is purged even when there have not been any requests in a while.
+
+> You might wonder whether the `SSLSessionCacheTimeout` directive can be of any
+> help here - unfortunately no. The timeout is only checked when a session ID
+> is given at the start of a TLS connection. It does not cause entries to be
+> purged from the session cache.
+
+### Configuring Session Tickets
+
+While Apache offers the
+[SSLSessionTicketKeyFile directive](httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessionticketkeyfile)
+to specify a key file that should contain 48 random bytes, it is recommended to
+not specify one at all. Apache will simply generate a random key on startup and
+use that to encrypt session tickets for as long as it is running.
+
+The good thing about this is that the session ticket key will not touch
+persistent storage, the bad thing is that it will never be rotated. Generated
+once on startup it is only discarded when Apache restarts. For most of the
+servers out there that means they use the same key for months, if not years.
+
+To provide forward secrecy we need to rotate the session ticket key about daily
+and current Apache versions provide no way of doing that. The only way to
+achieve that might be use a cron job to
+[gracefully restart Apache daily](http://mail-archives.apache.org/mod_mbox/httpd-dev/201309.mbox/%3C522339E0.2040005@opensslfoundation.com%3E)
+to ensure a new key is generated. That does not sound like a real solution
+though.
+
+Changing the key file while Apache is running does not do it either, you would
+still need to gracefully restart the service to apply the new key. An do not
+forget that if you use a key file it should be stored on a temporary file
+system like `tmpfs`.
+
+### Disabling Session Tickets
+
+Although disabling session tickets will undoubtly have a negative performance
+impact, for the moment being you will need to do that in order to provide
+forward secrecy. The following line will do:
+
+{% codeblock lang:text %}
 SSLOpenSSLConfCmd Options -SessionTicket
+{% endcodeblock %}
+
+To securely support session resumption via tickets Apache should provide a
+configuration directive to specify the maximum lifetime for session ticket
+keys, at least if auto-generated on startup. That would allow us to simply
+generate a new random key and override the old one daily.
 
 ## Configuring Nginx
 
