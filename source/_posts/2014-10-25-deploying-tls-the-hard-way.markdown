@@ -234,7 +234,7 @@ the session information is retained on the server. Ideally, your server would
 use a medium-sized in-memory cache that is purged daily.
 
 Apache lets you configure that using the `SSLSessionCache` directive and you
-should use the high-performance cyclic buffer `shmcd`. Nginx has the
+should use the high-performance cyclic buffer `shmcb`. Nginx has the
 `ssl_session_cache` directive and you should use a `shared` cache that is
 shared between workers. The right size of those caches would depend on the
 amount of traffic your server handles. You want browsers to resume TLS sessions
