@@ -209,13 +209,44 @@ ssl_session_tickets off;
 
 ## Configuring HAproxy
 
-https://github.com/blog/1734-improving-our-ssl-setup
+HAproxy, a popular load balancer, suffers from basically the same problems as
+Apache and Nginx. All of them rely on OpenSSL's TLS implementation.
 
-### Disabling Session Tickets for HAproxy
+### Configuring Session IDs
 
-## multiple web servers / sharing keys
+The size of the session cache can be tuned using the
+[tune.ssl.cachesize directive](http://cbonte.github.io/haproxy-dconv/configuration-1.5.html#3.2-tune.ssl.cachesize)
+that accepts a number of "blocks". The HAproxy documentation tries to be helpful
+and explain how many blocks would be needed per stored session but we cannot
+ensure an at least daily turnover. We would need a directive to automatically
+purge entries just as for Apache and Nginx.
+
+> And again, the `tune.ssl.lifetime` directive does not affect how long entries
+> are persisted in the cache.
+
+### Configuring Session Tickets
+
+HAproxy does not allow configuring session tickets parameter. It implicitly
+supports this feature only because OpenSSL enables it by default. HAproxy will
+thus always generate a session ticket key on startup and use it to encrypt
+tickets for the whole lifetime of the process.
+
+### Disabling Session Tickets
+
+Disabling session tickets cannot be easily done. Your best bet might be to
+compile HAproxy from source and try to disable session ticket support manually.
+It does unfortunately not seem to provide a compile-time flag to do that.
+
+A graceful daily restart of HAproxy might be the only way to trigger key
+rotation. This is a pure assumption, please test before using it in production.
+
+## Session Resumption with multiple servers
 
 https://blog.twitter.com/2013/forward-secrecy-at-twitter
-https://www.imperialviolet.org/2013/06/27/botchingpfs.html
 
-## The way forward
+## Further reading
+
+https://github.com/blog/1734-improving-our-ssl-setup  
+https://www.imperialviolet.org/2013/06/27/botchingpfs.html  
+http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html  
+https://www.reddit.com/r/netsec/comments/1jsser/configuring_apache_nginx_and_openssl_for_forward
