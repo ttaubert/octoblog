@@ -10,8 +10,8 @@ certainly [is not true anymore](https://istlsfastyet.com/) if configured
 correctly (even if [some companies](http://techblog.netflix.com/2014/10/message-security-layer-modern-take-on.html)
 choose to ignore that).
 
-One of the most important features to provide a great user experience for
-visitors accessing your site via TLS is session resumption.
+One of the most important features to improve user experience for visitors
+accessing your site via TLS is session resumption.
 [Session resumption](http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html)
 is the general idea of avoiding a full TLS handshake by storing the secret
 information of previous sessions and reusing those when connecting to a host
@@ -33,7 +33,7 @@ is an important part of modern TLS setups. The core of it is to use ephemeral
 server cannot use any of the keys found there to decrypt past TLS sessions they
 may have recorded previously.
 
-We must not use the server's RSA key pair, whose public key is contained in the
+We must not use a server's RSA key pair, whose public key is contained in the
 certificate, for key exchanges if we want PFS. This key pair is long-lived and
 will most likely outlive certificate expiration dates as you would just use the
 same key pair to generate a new certificate after the current expired. In case
@@ -62,9 +62,9 @@ pass it to the server when connecting. Because both server and client have
 saved the last session's "secret state" under the session ID they can simply
 resume the TLS session where they left off.
 
-To support session resumption via session IDs the server must obviously maintain
-a cache that maps past session IDs to those sessions' secret states. The cache
-itself is the main weak spot, stealing the cache contents allows to decrypt all
+To support session resumption via session IDs the server must maintain a cache
+that maps past session IDs to those sessions' secret states. The cache itself
+is the main weak spot, stealing the cache contents allows to decrypt all
 sessions whose session IDs are contained in it.
 
 The forward secrecy of a connection is thus bounded by how long the session
@@ -72,8 +72,8 @@ information is retained on the server. Ideally, your server would use a
 medium-sized cache that is purged daily. Purging your cache might however not
 help if the cache itself lives on a persistent storage as it might be feasible
 to restore deleted data from it. An in-memory storage should be more resistant
-to these kind of attacks if turns over about once a day and ensures old data is
-overridden properly.
+to these kind of attacks if it turns over about once a day and ensures old data
+is overridden properly.
 
 ### Session Tickets
 
@@ -97,8 +97,8 @@ persistent storage to not leave any trace.
 ## Apache configuration
 
 Now that we determined how we ideally want session resumption features to be
-configured we should take a look at a popular web servers and proxies to see
-whether that is supported, starting with Apache.
+configured we should take a look at a popular web servers and load balancers to
+see whether that is supported, starting with Apache.
 
 ### Configuring the Session Cache
 
@@ -122,9 +122,9 @@ high turnover rate) or too big (i.e. have a low turnover rate).
 We ideally want a cache that turns over daily and there is no really good way
 to determine the right session cache size. What we really need is a way to tell
 Apache the maximum time an entry is allowed to stay in the cache before it gets
-overriden. This must happen regardless of whether the cyclic buffer has actually
-cycled around yet and must be a periodic background job to ensure the cache is
-purged even when there have not been any requests in a while.
+overridden. This must happen regardless of whether the cyclic buffer has
+actually cycled around yet and must be a periodic background job to ensure the
+cache is purged even when there have not been any requests in a while.
 
 > You might wonder whether the `SSLSessionCacheTimeout` directive can be of any
 > help here - unfortunately no. The timeout is only checked when a session ID
@@ -149,7 +149,7 @@ and current Apache versions provide no way of doing that. The only way to
 achieve that might be use a cron job to
 [gracefully restart Apache daily](http://mail-archives.apache.org/mod_mbox/httpd-dev/201309.mbox/%3C522339E0.2040005@opensslfoundation.com%3E)
 to ensure a new key is generated. That does not sound like a real solution
-though.
+though and nothing ensures the old key is properly overridden.
 
 Changing the key file while Apache is running does not do it either, you would
 still need to gracefully restart the service to apply the new key. An do not
@@ -158,9 +158,9 @@ system like `tmpfs`.
 
 ### Disabling Session Tickets
 
-Although disabling session tickets will undoubtly have a negative performance
+Although disabling session tickets will undoubtedly have a negative performance
 impact, for the moment being you will need to do that in order to provide
-forward secrecy. The following line will do:
+forward secrecy:
 
 {% codeblock lang:text %}
 SSLOpenSSLConfCmd Options -SessionTicket
@@ -201,13 +201,13 @@ access to the server.
 
 Nginx allows to specify a session ticket file using the
 [ssl_session_ticket_key directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_ticket_key),
-and again you are probably better off by not specifying one and letting the
+and again you are probably better off by not specifying one and having the
 service generate a random key on startup. The session ticket key will never be
 rotated and might be used to encrypt session tickets for months, if not years.
 
 Nginx, too, provides no way to automatically rotate keys. Reloading its
 configuration daily using a cron job [might work](http://forum.nginx.org/read.php?2,229538,230872#msg-230872)
-but does again not come close to a real solution.
+but does not come close to a real solution either.
 
 ### Disabling Session Tickets
 
@@ -254,7 +254,7 @@ using that in production.
 
 ## Session Resumption with multiple servers
 
-If you have multiple web servers that act as frontends for a fleet of backend
+If you have multiple web servers that act as front-ends for a fleet of back-end
 servers you will unfortunately not get away with not specifying a session ticket
 key file and a dirty hack that reloads the service configuration at midnight.
 
@@ -264,9 +264,10 @@ keys, not the whole cache. Clients would take care of storing and discarding
 tickets for you.
 
 [Twitter wrote a great post](https://blog.twitter.com/2013/forward-secrecy-at-twitter)
-about how they manage multiple web frontends and distribute session ticket keys
-securely to each of their machines. I suggest to read that if you are planning
-to have a similar setup and support session tickets to improve response times.
+about how they manage multiple web front-ends and distribute session ticket
+keys securely to each of their machines. I suggest reading that if you are
+planning to have a similar setup and support session tickets to improve
+response times.
 
 Keep in mind though that Twitter had to write their own web server to handle
 forward secrecy in combination with session tickets properly and this might not
@@ -274,5 +275,5 @@ be something you want to do yourselves.
 
 It would be great if either OpenSSL or all of the popular web servers and load
 balancers would start working towards helping to provide forward secrecy by
-default and server admins could get rid of custom frontends or dirty hacks
+default and server admins could get rid of custom front-ends or dirty hacks
 to rotate keys.
