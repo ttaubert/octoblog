@@ -83,9 +83,9 @@ the server's secret state to the client, encrypted with a key only known to the
 server. That ticket key is protecting the TLS connection now and in the future
 and is the weak spot an attacker will target.
 
-The client will store its secret information for that TLS session along with
-the ticket received from the server. By transmitting that ticket at the
-beginning of the next TLS connection the server and client can resume their
+The client will store its secret information for a TLS session along with the
+ticket received from the server. By transmitting that ticket back to the server
+at the beginning of the next TLS connection both parties can resume their
 previous session, given that the server can still access the secret key that
 was used to encrypt.
 
@@ -98,9 +98,9 @@ persistent storage to not leave any trace.
 
 Now that we determined how we ideally want session resumption features to be
 configured we should take a look at a popular web servers and proxies to see
-whether that is even supported, starting with Apache.
+whether that is supported, starting with Apache.
 
-### Configuring Session IDs
+### Configuring the Session Cache
 
 The Apache HTTP Server offers the
 [SSLSessionCache directive](http://httpd.apache.org/docs/trunk/mod/mod_ssl.html#sslsessioncache)
@@ -176,7 +176,7 @@ generate a new random key and override the old one daily.
 Another very popular web server is Nginx. Let us see how that compares to
 Apache when it comes to setting up session resumption.
 
-### Configuring Session IDs
+### Configuring the Session Cache
 
 Nginx offers the [ssl_session_cache directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_cache)
 to configure the TLS session cache. The type of the cache should be `shared` to
@@ -223,16 +223,16 @@ ssl_session_tickets off;
 HAproxy, a popular load balancer, suffers from basically the same problems as
 Apache and Nginx. All of them rely on OpenSSL's TLS implementation.
 
-### Configuring Session IDs
+### Configuring the Session Cache
 
-The size of the session cache can be tuned using the
+The size of the session cache can be set using the
 [tune.ssl.cachesize directive](http://cbonte.github.io/haproxy-dconv/configuration-1.5.html#3.2-tune.ssl.cachesize)
 that accepts a number of "blocks". The HAproxy documentation tries to be helpful
-and explain how many blocks would be needed per stored session but we cannot
-ensure an at least daily turnover. We would need a directive to automatically
-purge entries just as for Apache and Nginx.
+and explain how many blocks would be needed per stored session but we again
+cannot ensure an at least daily turnover. We would need a directive to
+automatically purge entries just as for Apache and Nginx.
 
-> And again, the `tune.ssl.lifetime` directive does not affect how long entries
+> And yes, the `tune.ssl.lifetime` directive does not affect how long entries
 > are persisted in the cache.
 
 ### Configuring Session Tickets
@@ -258,9 +258,10 @@ If you have multiple web servers that act as frontends for a fleet of backend
 servers you will unfortunately not get away with not specifying a session ticket
 key file and a dirty hack that reloads the service configuration at midnight.
 
-The key advantage of using session tickets over session IDs is that multiple
-web servers "only" have to share one or more session ticket keys but not a
-whole session cache.
+Sharing a session cache between multiple machines using memcached is possible
+but using session tickets you "only" have to share one or more session ticket
+keys, not the whole cache. Clients would take care of storing and discarding
+tickets for you.
 
 [Twitter wrote a great post](https://blog.twitter.com/2013/forward-secrecy-at-twitter)
 about how they manage multiple web frontends and distribute session ticket keys
