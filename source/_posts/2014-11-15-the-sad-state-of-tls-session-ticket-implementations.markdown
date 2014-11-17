@@ -254,4 +254,24 @@ using that in production.
 
 ## Session Resumption with multiple servers
 
-https://blog.twitter.com/2013/forward-secrecy-at-twitter
+If you have multiple web servers that act as frontends for a fleet of backend
+servers you will unfortunately not get away with not specifying a session ticket
+key file and a dirty hack that reloads the service configuration at midnight.
+
+The key advantage of using session tickets over session IDs is that multiple
+web servers "only" have to share one or more session ticket keys but not a
+whole session cache.
+
+[Twitter wrote a great post](https://blog.twitter.com/2013/forward-secrecy-at-twitter)
+about how they manage multiple web frontends and distribute session ticket keys
+securely to each of their machines. I suggest to read that if you are planning
+to have a similar setup and support session tickets to improve response times.
+
+Keep in mind though that Twitter had to write their own web server to handle
+forward secrecy in combination with session tickets properly and this might not
+be something you want to do yourselves.
+
+It would be great if either OpenSSL or all of the popular web servers and load
+balancers would start working towards helping to provide forward secrecy by
+default and server admins could get rid of custom frontends or dirty hacks
+to rotate keys.
