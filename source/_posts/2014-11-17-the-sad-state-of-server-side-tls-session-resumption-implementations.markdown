@@ -167,8 +167,8 @@ SSLOpenSSLConfCmd Options -SessionTicket
 {% endcodeblock %}
 
 > [Ivan Ristic adds](https://www.reddit.com/r/netsec/comments/2mkupe/the_sad_state_of_serverside_tls_session/)
-> that to disable session tickets on Apache using `SSLOpenSSLConfCmd`, you have
-> to be running OpenSSL 1.0.2, which has not been released yet. If you want to
+> that to disable session tickets for Apache using `SSLOpenSSLConfCmd`, you have
+> to be running OpenSSL 1.0.2 which has not been released yet. If you want to
 > disable session tickets with earlier OpenSSL versions, Ivan
 > [has a few patches](https://github.com/ivanr/bulletproof-tls/tree/master/apache)
 > for the Apache 2.2.x and Apache 2.4.x branches.
