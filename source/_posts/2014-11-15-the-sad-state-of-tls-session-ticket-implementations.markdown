@@ -82,12 +82,16 @@ the server's secret state to the client, encrypted with a key only known to the
 server. That ticket key is protecting the TLS connection now and in the future
 and is the weak spot an attacker will target.
 
-**[TODO explain how tickets are submitted]**
+The client will store its secret information for that TLS session along with
+the ticket received from the server. By transmitting that ticket at the
+beginning of the next TLS connection the server and client can resume their
+previous session, given that the server can still access the secret key that
+was used to encrypt.
 
 We ideally want the same secrecy bounds for Session Tickets as for Session IDs.
 To achieve this we need to ensure that the key used to encrypt tickets is
 rotated about daily. It should just as the session cache not live on a
-persistent storage to not leave any traces.
+persistent storage to not leave any trace.
 
 ## Apache configuration
 
@@ -194,7 +198,7 @@ access to the server.
 
 ### Configuring Session Tickets
 
-Like Apache, Nginx allows to specify a session ticket file using the
+Nginx allows to specify a session ticket file using the
 [ssl_session_ticket_key directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_ticket_key),
 and again you are probably better off by not specifying one and letting the
 service generate a random key on startup. The session ticket key will never be
@@ -232,10 +236,10 @@ purge entries just as for Apache and Nginx.
 
 ### Configuring Session Tickets
 
-HAproxy does not allow configuring session tickets parameter. It implicitly
-supports this feature only because OpenSSL enables it by default. HAproxy will
-thus always generate a session ticket key on startup and use it to encrypt
-tickets for the whole lifetime of the process.
+HAproxy does not allow configuring session ticket parameters. It implicitly
+supports this feature because OpenSSL enables it by default. HAproxy will thus
+always generate a session ticket key on startup and use it to encrypt tickets
+for the whole lifetime of the process.
 
 ### Disabling Session Tickets
 
@@ -243,7 +247,7 @@ Disabling session tickets cannot be easily done. Your best bet might be to
 compile HAproxy from source and try to disable session ticket support manually.
 It does unfortunately not seem to provide a compile-time flag to do that.
 
-A graceful daily restart of HAproxy might be the only way to trigger key
+A graceful daily restart of HAproxy *might* be the only way to trigger key
 rotation. This is a *pure assumption* though, please do your own testing before
 using that in production.
 
