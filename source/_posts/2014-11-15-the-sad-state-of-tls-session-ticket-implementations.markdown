@@ -12,14 +12,15 @@ choose to ignore that).
 
 One of the most important features to provide a great user experience for
 visitors accessing your site via TLS is session resumption.
-[Session resumption](https://en.wikipedia.org/wiki/Transport_Layer_Security#Resumed_TLS_handshake)
+[Session resumption](http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html)
 is the general idea of avoiding a full TLS handshake by storing the secret
 information of previous sessions and reusing those when connecting to a host
 the next time. This drastically reduces latency and CPU usage.
 
 Enabling session resumption in web servers and proxies can however easily
-compromise forward secrecy. To find out why having a de-factor standard TLS
-library (i.e. OpenSSL) can be a bad thing and how to avoid
+[compromise forward secrecy](https://media.blackhat.com/us-13/US-13-Daigniere-TLS-Secrets-WP.pdf).
+To find out why having a de-factor standard TLS library (i.e. OpenSSL) can be a
+bad thing and how to avoid
 [botching PFS](https://www.imperialviolet.org/2013/06/27/botchingpfs.html)
 let us take a closer look at forward secrecy, and the current state of
 server-side implementation of session resumption features.
@@ -254,10 +255,3 @@ using that in production.
 ## Session Resumption with multiple servers
 
 https://blog.twitter.com/2013/forward-secrecy-at-twitter
-
-## Further reading
-
-https://github.com/blog/1734-improving-our-ssl-setup  
-https://www.imperialviolet.org/2013/06/27/botchingpfs.html  
-http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html  
-https://www.reddit.com/r/netsec/comments/1jsser/configuring_apache_nginx_and_openssl_for_forward
