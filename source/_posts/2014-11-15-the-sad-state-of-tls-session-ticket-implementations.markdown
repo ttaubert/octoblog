@@ -8,19 +8,21 @@ The probably oldest complaint about TLS is that its handshake is slow and
 together with the transport encryption has a lot of CPU overhead. This
 certainly [is not true anymore](https://istlsfastyet.com/) if configured
 correctly (even if [some companies](http://techblog.netflix.com/2014/10/message-security-layer-modern-take-on.html)
-still do not want to hear that).
+choose to ignore that).
 
 One of the most important features to provide a great user experience for
 visitors accessing your site via TLS is session resumption.
 [Session resumption](https://en.wikipedia.org/wiki/Transport_Layer_Security#Resumed_TLS_handshake)
 is the general idea of avoiding a full TLS handshake by storing the secret
 information of previous sessions and reusing those when connecting to a host
-the next time.
+the next time. This drastically reduces latency and CPU usage.
 
 Enabling session resumption in web servers and proxies can however easily
-compromise forward secrecy. To understand how this can happen and how to avoid
-it let us take a closer look at forward secrecy, and the current implementation
-of session resumption features.
+compromise forward secrecy. To find out why having a de-factor standard TLS
+library (i.e. OpenSSL) can be a bad thing and how to avoid
+[botching PFS](https://www.imperialviolet.org/2013/06/27/botchingpfs.html)
+let us take a closer look at forward secrecy, and the current state of
+server-side implementation of session resumption features.
 
 ## What is (Perfect) Forward Secrecy?
 
@@ -28,38 +30,39 @@ of session resumption features.
 is an important part of modern TLS setups. The core of it is to use ephemeral
 (short-lived) keys for key exchange so that an attacker gaining access to a
 server cannot use any of the keys found there to decrypt past TLS sessions they
-may have recorded.
+may have recorded previously.
 
-We must not use the server's RSA key pair whose public key is contained in the
-certificate for key exchanges if we want PFS. This key pair is long-lived and
+We must not use the server's RSA key pair, whose public key is contained in the
+certificate, for key exchanges if we want PFS. This key pair is long-lived and
 will most likely outlive certificate expiration dates as you would just use the
 same key pair to generate a new certificate after the current expired. In case
 the server is compromised it would be far too easy to determine the location of
-the private key on disk or in memory and use it to decrypt past TLS sessions.
+the private key on disk or in memory and use it to decrypt recorded TLS
+sessions from the past.
 
 Using [Diffie-Hellman](https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange)
 key exchanges where key generation is *a lot* cheaper we can use a key pair
 exactly once and discard it afterwards. An attacker with access to the server
 can still compromise the authentication part as shown above and {M,W}ITM
-everything from here on using the certificate's private key but past TLS
-session are inaccessible.
+everything from here on using the certificate's private key, but past TLS
+sessions stay protected.
 
-## How can Session Resumption compromise PFS?
+## How can Session Resumption botch PFS?
 
 TLS provides two session resumption features: Session IDs and Session Tickets.
-To better understand how those can be attacked it is worth to look at them in
+To better understand how those can be attacked it is worth looking at them in
 more detail.
 
 ### Session IDs
 
 In a full handshake the server sends a *Session ID* as part of the "hello"
 message. On a subsequent connection the client can use this session ID and
-pass it to the server when connecting. Because both the server and the client
-have saved the last session's "secret state" under the session ID they can
-simply resume the TLS session where they left off.
+pass it to the server when connecting. Because both server and client have
+saved the last session's "secret state" under the session ID they can simply
+resume the TLS session where they left off.
 
 To support session resumption via session IDs the server must obviously maintain
-a cache that maps past session IDs to the sessions' secret states. The cache
+a cache that maps past session IDs to those sessions' secret states. The cache
 itself is the main weak spot, stealing the cache contents allows to decrypt all
 sessions whose session IDs are contained in it.
 
@@ -68,7 +71,8 @@ information is retained on the server. Ideally, your server would use a
 medium-sized cache that is purged daily. Purging your cache might however not
 help if the cache itself lives on a persistent storage as it might be feasible
 to restore deleted data from it. An in-memory storage should be more resistant
-to these kind of attacks if turns over about once a day.
+to these kind of attacks if turns over about once a day and ensures old data is
+overridden properly.
 
 ### Session Tickets
 
@@ -78,16 +82,18 @@ the server's secret state to the client, encrypted with a key only known to the
 server. That ticket key is protecting the TLS connection now and in the future
 and is the weak spot an attacker will target.
 
+**[TODO explain how tickets are submitted]**
+
 We ideally want the same secrecy bounds for Session Tickets as for Session IDs.
-To achieve this we want to ensure that the key used to encrypt the tickets is
+To achieve this we need to ensure that the key used to encrypt tickets is
 rotated about daily. It should just as the session cache not live on a
-persistent storage to prevent leaving any traces.
+persistent storage to not leave any traces.
 
 ## Apache configuration
 
-Now that we determined how session resumption features should be configured we
-should take a look at a popular web servers and proxies to see how and whether
-that is supported. We start with Apache.
+Now that we determined how we ideally want session resumption features to be
+configured we should take a look at a popular web servers and proxies to see
+whether that is even supported, starting with Apache.
 
 ### Configuring Session IDs
 
@@ -100,20 +106,20 @@ be shared between all threads or processes and allow session resumption no
 matter which of those handles the visitor's request.
 
 {% codeblock lang:text %}
-SSLSessionCache shmcb:/usr/local/apache/logs/ssl_gcache_data(512000)
+SSLSessionCache shmcb:/path/to/ssl_gcache_data(512000)
 {% endcodeblock %}
 
 The example shown above establishes an in-memory cache via the path
-`/usr/local/apache/logs/ssl_gcache_data` with a size of 512 KiB. Depending on
-the amount of daily visitors the cache size might be too small (i.e. a high
-turnover rate) or too big (i.e. a low turnover rate).
+`/path/to/ssl_gcache_data` with a size of 512 KiB. Depending on
+the amount of daily visitors the cache size might be too small (i.e. have a
+high turnover rate) or too big (i.e. have a low turnover rate).
 
 We ideally want a cache that turns over daily and there is no really good way
 to determine the right session cache size. What we really need is a way to tell
 Apache the maximum time an entry is allowed to stay in the cache before it gets
 overriden. This must happen regardless of whether the cyclic buffer has actually
-cycled around or not and must be a periodic background job to ensure the cache
-is purged even when there have not been any requests in a while.
+cycled around yet and must be a periodic background job to ensure the cache is
+purged even when there have not been any requests in a while.
 
 > You might wonder whether the `SSLSessionCacheTimeout` directive can be of any
 > help here - unfortunately no. The timeout is only checked when a session ID
@@ -160,7 +166,7 @@ configuration directive to specify the maximum lifetime for session ticket
 keys, at least if auto-generated on startup. That would allow us to simply
 generate a new random key and override the old one daily.
 
-## Configuring Nginx
+## Nginx configuration
 
 Another very popular web server is Nginx. Let us see how that compares to
 Apache when it comes to setting up session resumption.
@@ -169,7 +175,7 @@ Apache when it comes to setting up session resumption.
 
 Nginx offers the [ssl_session_cache directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_session_cache)
 to configure the TLS session cache. The type of the cache should be `shared` to
-share it between multiple workers.
+share it between multiple workers:
 
 {% codeblock lang:text %}
 ssl_session_cache shared:SSL:10m;
@@ -178,11 +184,13 @@ ssl_session_cache shared:SSL:10m;
 The above line establishes an in-memory cache with a size of 10 MB. We again
 have no real idea whether 10 MB is the right size for the cache to turn over
 daily. Just as Apache, Nginx should provide a configuration directive to allow
-cache entries to be purged automatically after a certain time.
+cache entries to be purged automatically after a certain time. Any entries not
+purged properly could simply be read from memory by an attacker with full
+access to the server.
 
 > You guessed right, the `ssl_session_timeout` directive again only applies
-> when trying to resume a session at the beginning of a connection. No entries
-> will be purged after the given timeout automatically.
+> when trying to resume a session at the beginning of a connection. Stale
+> entries will not be removed automatically after they time out.
 
 ### Configuring Session Tickets
 
@@ -199,15 +207,13 @@ but does again not come close to a real solution.
 ### Disabling Session Tickets
 
 The best you can do to provide forward secrecy to visitors is thus again switch
-off session ticket support until a proper solution is available. This would be
-a directive allowing to specify a maximum lifetime for session ticket keys
-and rotate them periodically.
+off session ticket support until a proper solution is available.
 
 {% codeblock lang:text %}
 ssl_session_tickets off;
 {% endcodeblock %}
 
-## Configuring HAproxy
+## HAproxy configuration
 
 HAproxy, a popular load balancer, suffers from basically the same problems as
 Apache and Nginx. All of them rely on OpenSSL's TLS implementation.
@@ -238,7 +244,8 @@ compile HAproxy from source and try to disable session ticket support manually.
 It does unfortunately not seem to provide a compile-time flag to do that.
 
 A graceful daily restart of HAproxy might be the only way to trigger key
-rotation. This is a pure assumption, please test before using it in production.
+rotation. This is a *pure assumption* though, please do your own testing before
+using that in production.
 
 ## Session Resumption with multiple servers
 
