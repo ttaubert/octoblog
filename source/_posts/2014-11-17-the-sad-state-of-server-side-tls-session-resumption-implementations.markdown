@@ -249,6 +249,10 @@ supports this feature because OpenSSL enables it by default. HAproxy will thus
 always generate a session ticket key on startup and use it to encrypt tickets
 for the whole lifetime of the process.
 
+A graceful daily restart of HAproxy *might* be the only way to trigger key
+rotation. This is a *pure assumption* though, please do your own testing before
+using that in production.
+
 ### Disabling Session Tickets
 
 You can disable session ticket support in HAproxy using the
@@ -260,10 +264,6 @@ ssl-default-bind-options no-sslv3 no-tls-tickets
 
 > A previous version of the post said it would be impossible to deactivate
 > session tickets. Thanks to the HAproxy team for correcting me!
-
-A graceful daily restart of HAproxy *might* be the only way to trigger key
-rotation. This is a *pure assumption* though, please do your own testing before
-using that in production.
 
 ## Session Resumption with multiple servers
 
