@@ -251,9 +251,15 @@ for the whole lifetime of the process.
 
 ### Disabling Session Tickets
 
-Disabling session tickets cannot be easily done. Your best bet might be to
-compile HAproxy from source and try to disable session ticket support manually.
-It does unfortunately not seem to provide a compile-time flag to do that.
+You can disable session ticket support in HAproxy using the
+[no-tls-tickets directive](http://cbonte.github.io/haproxy-dconv/configuration-1.5.html#no-tls-tickets):
+
+{% codeblock lang:text %}
+ssl-default-bind-options no-sslv3 no-tls-tickets
+{% endcodeblock %}
+
+> A previous version of the post said it would be impossible to deactivate
+> session tickets. Thanks to the HAproxy team for correcting me!
 
 A graceful daily restart of HAproxy *might* be the only way to trigger key
 rotation. This is a *pure assumption* though, please do your own testing before
