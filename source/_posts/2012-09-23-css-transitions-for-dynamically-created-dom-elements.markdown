@@ -29,7 +29,7 @@ elem.style.opacity = 0;
 elem.style.opacity = 1;
 {% endcodeblock %}
 
-We dynamically insert a new \<div\> element into the DOM with its initial
+We dynamically insert a new <div\> element into the DOM with its initial
 opacity set to zero. Subsequently we want it to fade to full opacity.
 This - as you might have guessed - does of course not work that way.
 
@@ -79,6 +79,6 @@ elem.style.opacity = 1;
 
 Although it looks like we only query the current opacity value, getComputedStyle()
 in combination with accessing a property value actually flushes all pending
-style changes and forces the layout engine to compute our \<div\>'s current
+style changes and forces the layout engine to compute our <div\>'s current
 state. This workaround works in all major browsers and does not yield different
 results like the setTimeout() approach.

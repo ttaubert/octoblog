@@ -14,11 +14,11 @@ You probably have all heard of this weird new thing called [Electrolysis (a.k.a.
 
 (<https://developer.mozilla.org/en/The_message_manager>)
 
-We’re using messages to establish communication between the chrome process and the content processes. The message manager sends messages and registers message listeners. It’s also capable of injecting so-called frame scripts (or content scripts) into a content process – these send or receive messages and interact with the DOM loaded into the \<browser\>. There are four types of message managers:
+We’re using messages to establish communication between the chrome process and the content processes. The message manager sends messages and registers message listeners. It’s also capable of injecting so-called frame scripts (or content scripts) into a content process – these send or receive messages and interact with the DOM loaded into the <browser\>. There are four types of message managers:
 
 ### global messageManager
 
-This message manager sends messages to and receives them from  every \<browser\> loaded in every window. You can access it by doing:
+This message manager sends messages to and receives them from  every <browser\> loaded in every window. You can access it by doing:
 
 {% codeblock lang:js %}
 /* chrome script */
@@ -28,11 +28,11 @@ let globalMM = Cc["@mozilla.org/globalmessagemanager;1"]
 
 ### window.messageManager
 
-This message manager sends messages to and receives them from every \<browser\> loaded in the given window.
+This message manager sends messages to and receives them from every <browser\> loaded in the given window.
 
 ### browser.messageManager
 
-This message manager is specific to a single \<browser\>.
+This message manager is specific to a single <browser\>.
 
 ### Available methods
 
@@ -109,7 +109,7 @@ It’s no longer possible to work with or directly access DOM objects (window, d
 
 ### DOM Events
 
-DOMEvents are no longer propagated to the parent \<browser\> and you’re not able to call DOMElement.addEventListener(). Use addEventListener() in a content script and then send a message to a listener in the chrome process.
+DOMEvents are no longer propagated to the parent <browser\> and you’re not able to call DOMElement.addEventListener(). Use addEventListener() in a content script and then send a message to a listener in the chrome process.
 
 ### DocShell
 

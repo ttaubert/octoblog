@@ -19,7 +19,7 @@ Let us build a live green screen!
 </body>
 {% endcodeblock %}
 
-Those are the parts we need. A \<video\> element that plays the media stream
+Those are the parts we need. A <video\> element that plays the media stream
 and a canvas we will use to read and transform image data.
 
 ## The JavaScript
@@ -42,7 +42,7 @@ function startStream(stream) {
 We call [navigator.getUserMedia()](https://developer.mozilla.org/en-US/docs/WebRTC/navigator.getUserMedia)
 and pass *{video: true}* as the first argument which indicates that we want to
 receive a video stream. We assign the MediaStream to the video's *.src* property
-to connect it to the \<video\> element.
+to connect it to the <video\> element.
 
 The video starts playing (which means the camera will be activated and you will
 see your webcam's live video) and we request an animation frame using the
