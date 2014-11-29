@@ -2,7 +2,6 @@
 layout: post
 title: "Firefox Add-on: Customizable Shortcuts"
 date: 2011-04-21 14:03
-categories: [Mozilla, Firefox, Addon]
 ---
 
 As you probably know, in Firefox there is unfortunately no way to configure existing shortcuts. All I found is the [keyconfig](http://forums.mozillazine.org/viewtopic.php?t=72994) add-on, that seems really old and very hard to configure (there is no UI, only about:config). That’s why I finally decided to write an add-on with a neat UI (not only) for casual users in mind. I would love to see such a feature directly delivered with Firefox some day because it enables you not only to modify shortcuts to your needs but also to easily discover new ones you haven’t heard of, yet.

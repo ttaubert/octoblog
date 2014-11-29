@@ -2,7 +2,6 @@
 layout: post
 title: "One year at Mozilla"
 date: 2012-04-09 13:28
-categories: [Mozilla]
 ---
 
 You may already know the story of [how I became a Firefox contributor]({{ root_url }}/blog/2012/01/how-i-became-a-firefox-contributor/). Back in early April of 2011, having volunteered full-time for three months (a rather short time compared to other core contributors), I was given the opportunity to start as a paid contributor working for Mozilla.

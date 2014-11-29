@@ -2,7 +2,6 @@
 layout: post
 title: "Are we small, yet?"
 date: 2012-04-11 00:22
-categories: [Mozilla, Firefox]
 ---
 
 Lately, [Asa Dotzler](http://weblogs.mozillazine.org/asa/) [posted to dev.apps.firefox](https://groups.google.com/forum/#!topic/mozilla.dev.apps.firefox/k7fzkhdt9io) regarding the download size of Firefox:
