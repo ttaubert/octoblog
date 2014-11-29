@@ -10,9 +10,9 @@ layout: default
 
 <div class="pager">
   {% if paginator.next_page %}
-    <li class="next"><a href="{{paginator.next_page}}" title="Older posts">Older posts &rarr;</a></li>
+    <li class="next"><a href="{{paginator.next_page_path}}" title="Older posts">Older posts &rarr;</a></li>
   {% endif %}
   {% if paginator.previous_page %}
-    <li class="previous"><a href="{{paginator.previous_page}}" title="Newer posts">&larr; Newer posts</a></li>
+    <li class="previous"><a href="{{paginator.previous_page_path}}" title="Newer posts">&larr; Newer posts</a></li>
   {% endif %}
 </div>
