@@ -330,7 +330,7 @@ If after deploying TLS the very first connection of a visitor is genuine we are
 fine. Your server will send the HSTS header over TLS and the visitor's browser
 remembers to use TLS in the future. The very first connection and every
 connection after the HSTS header expires however are still vulnerable to a
-{M,W}ITM attack.
+MITM attack.
 
 To prevent this Firefox and Chrome share a
 [HSTS Preload List](https://chromium.googlesource.com/chromium/src/net/+/master/http/transport_security_state_static.json)
@@ -409,7 +409,7 @@ We can prevent these kinds of attacks with an HTTP extension called
 
 Key pinning is a trust-on-first-use (TOFU) mechanism. The first time a browser
 connects to a host it lacks the the information necessary to perform "pin
-validation" so it will not be able to detect and thwart a {M,W}ITM attack. This
+validation" so it will not be able to detect and thwart a MITM attack. This
 feature only allows detection of these kinds of attacks after the first
 connection.
 

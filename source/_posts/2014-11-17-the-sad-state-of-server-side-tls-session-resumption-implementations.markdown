@@ -44,7 +44,7 @@ sessions from the past.
 Using [Diffie-Hellman](https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange)
 key exchanges where key generation is *a lot* cheaper we can use a key pair
 exactly once and discard it afterwards. An attacker with access to the server
-can still compromise the authentication part as shown above and {M,W}ITM
+can still compromise the authentication part as shown above and MITM
 everything from here on using the certificate's private key, but past TLS
 sessions stay protected.
 

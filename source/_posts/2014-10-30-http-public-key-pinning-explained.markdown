@@ -71,7 +71,7 @@ The whole purpose of public key pinning is to detect when the public key of a
 certificate for a specific host has changed. That may happen when an attacker
 compromises a CA such that they are able to issue valid certificates for *any*
 domain. A foreign CA might also just be the attacker, think of state-owned CAs
-that you do not want to be able to {M,W}ITM your site. Any attacker intercepting
+that you do not want to be able to MITM your site. Any attacker intercepting
 a connection from a visitor to your server with a forged certificate can only
 be prevented by detecting that the public key has changed.
 
