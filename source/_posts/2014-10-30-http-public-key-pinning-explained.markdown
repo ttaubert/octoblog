@@ -125,14 +125,13 @@ decided to start paying for a certificate.
 
 Pinning StartSSL's root certificate would let you switch Classes any time and
 the attacker would still have to get a certificate issued by StartSSL for your
-domain. This is a valid approach as long as you are trusting your CA (really?)
-and as long as the CA itself is not compromised. In case of a compromise
-however the attacker would be able to get a valid certificate for your domain
-that passes pin validation. After the attack was discovered StartSSL would
-quickly revoke all currently issued certificates, generate a new key pair for
-their root certificate and issue new certificates. And again we would be out of
-luck because suddenly pin validation fails and no browser will connect to our
-site.
+domain. This is a valid approach as long as you are trusting your CA and as
+long as the CA itself is not compromised. In case of a compromise however the
+attacker would be able to get a valid certificate for your domain that passes
+pin validation. After the attack was discovered StartSSL would quickly revoke
+all currently issued certificates, generate a new key pair for their root
+certificate and issue new certificates. And again we would be out of luck
+because suddenly pin validation fails and no browser will connect to our site.
 
 ## Include the pin of a backup key
 
