@@ -14,4 +14,6 @@ my Keybase ID is [ttaubert](https://keybase.io/ttaubert).
 I'm on [LinkedIn](http://www.linkedin.com/pub/tim-taubert/43/368/703)
 but do not promise to keep that profile up-to-date.
 
+(Germany unfortunately requires me to have an [imprint](/imprint).)
+
 You can also contact me via [email](mailto:tim@timtaubert.de).
