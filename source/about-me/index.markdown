@@ -3,9 +3,7 @@ layout: page
 title: "About me"
 ---
 
-Hi, my name is Tim Taubert.
-
-I am an Engineering Manager and Senior Engineer working for Mozilla, living in Berlin.
+I work for Mozilla and live in Berlin.  
 I spend most of my time coding, reading books, or riding (motor) bikes.
 
 I post things on [Twitter](https://twitter.com/ttaubert),
