@@ -36,6 +36,7 @@ module Jekyll
 
       process_posts
       process_pages
+      process_collections
     end
 
     def process_posts
@@ -47,6 +48,14 @@ module Jekyll
     def process_pages
       @site.pages.each do |page|
         generate_aliases(page.destination('').gsub(/index\.(html|htm)$/, ''), page.data['alias'])
+      end
+    end
+
+    def process_collections
+      @site.collections.each do |name, coll|
+        coll.docs.each do |post|
+          generate_aliases(post.url, post.data['alias'])
+        end
       end
     end
 
