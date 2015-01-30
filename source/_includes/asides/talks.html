@@ -1,0 +1,8 @@
+<section class="well">
+  <h1 class="sidebar-header">Talks</h1>
+  <ul class="nav nav-list" id="recent-posts">
+    {% for talk in site.talks %}
+      <li><a href="{{ root_url }}{{ talk.url }}">{{ talk.title }}</a></li>
+    {% endfor %}
+  </ul>
+</section>
