@@ -1,43 +1,42 @@
 ---
 layout: post
-title: "Implementing the Firefox OS lock screen using the WebCrypto API"
+title: "Using the Web Cryptography API to implement the Firefox OS lock screen"
 date: 2015-02-01 13:29:09 +0100
 ---
 
-My colleague Frederik Braun recently took on to rewrite the passcode module
-storing and checking the passcode that's used for locking and unlocking your
-FirefoxOS phone.
+My colleague [Frederik Braun](https://twitter.com/freddyb), with some feedback
+from me, recently took on to rewrite the module responsible for storing and
+checking the passcode to (un)lock your Firefox OS phone. It provides a great
+example of the WebCrypto API in the wild and gives the opportunity to highlight
+a few good practices when using [PBKDF2](TODO) to derive a cryptographic key
+from a password typed by the user.
 
-It's a great example of using the WebCrypto API on a Firefox OS phone and
-provides a few practical PBKDF2 usage advices.
+## The Passcode Module
 
-not a 1:1 representation of the patch itself but a simplified version to get
-the point across and provide a good example. The post makes heavy use of ES6.
-
-let's start by looking at the basic api
-
-## The basic module
-
-basic module, setPasscode() when a new passcode is set in the settings.
-checkPasscode() when unlocking the phone.
+The lock screen application should have a minimalistic API. When setting up the
+phone for the first time - or when changing the pass code later - we call
+`store(code)` to write a new code to disk. `verify(code)` will later help us
+determine whether we should unlock the phone given a user-typed password.
+Both methods will return a Promise as all operations in the WebCrypto API are
+asynchronous.
 
 {% codeblock lang:js %}
-let PasscodeHelper = {
-  setPasscode(code) {
+let Passcode = {
+  store(code) {
     // ...
   },
 
-  checkPasscode(code) {
+  verify(code) {
     // ...
   }
 };
 {% endcodeblock %}
 
-Here's a simple usage example. It sets passcode and 
+Storing a new pass code and verifying it is as simple as shown below:
 
 {% codeblock lang:js %}
-PasscodeHelper.setPasscode("1234").then(() => {
-  return PasscodeHelper.checkPasscode("1234");
+Passcode.store("1234").then(() => {
+  return Passcode.verify("1234");
 }).then(valid => {
   console.log(valid);
 });
@@ -45,51 +44,126 @@ PasscodeHelper.setPasscode("1234").then(() => {
 // Output: true
 {% endcodeblock %}
 
-## Deriving bits
+## Deriving bits using PBKDF2
+
+The module does not store pass codes in the clear. We will use PBKDF2 to
+iterate a cryptographic hash function a few times and retrieve a result that
+looks random. An attacker that gained read access to the part of the disk
+storing the user's pass code will not be able to determine the input we fed
+into the hash function.
 
 {% codeblock lang:js %}
 function deriveBits(code) {
-  // Convert string to TypedArray.
-  let bytes = new TextEncoder("utf-8").encode(str);
+  // Convert string to a TypedArray.
+  let bytes = new TextEncoder("utf-8").encode(code);
 
   // Create the base key to derive from.
   let importKey = crypto.subtle.importKey(
     "raw", bytes, "PBKDF2", false, ["deriveBits"])
 
+  // Use 8 random bytes as the salt.
+  let salt = crypto.getRandomValues(new Uint8Array(8));
+
   return importKey.then(pwKey => {
     let params = {
       name: "PBKDF2",
       hash: "SHA-1",
-      salt: crypto.getRandomValues(new Uint8Array(8)),
+      salt: salt,
       iterations: 1000
     };
 
-    // Derive bits using PBKDF2.
+    // Derive 160 bits using PBKDF2.
     return crypto.subtle.deriveBits(params, pwKey, 160);
   });
 }
 {% endcodeblock %}
 
-There are a few issues...
+Deriving bits using PBKDF2 is straightforward but requires passing and
+choosing a number of parameters. We will go through all of the parameters one
+by one.
 
-### Choice of hash function
+### Choosing a cryptographic hash function
 
-bug 554827
+PBKDF2 does not only use a hash function but uses HMAC internally. SHA-1 as a
+cryptographic hash function is broken and should not be used anymore. As a
+building block in the HMAC-SHA-1 construction however we only rely on its PRF
+properties. Although finding SHA-1 collisions is considered feasible nowadays
+it is still considered a secure PRF.
+
+That said, it does not hurt to switch to a secure cryptogaphic hash function
+like SHA-256. Chrome supports other hash functions for PBKDF2 today, Firefox
+unfortunately still waits for an NSS fix (bug 554827) before that can be
+unlocked for the WebCrypto API.
 
 ### Random salt
 
+The salt is a random component that is fed into the HMAC function along with
+the pass code inside PBKDF2. Doing so spoils so-called Rainbow-Table attacks
+where attackers pre-compute hashes for millions of popular passwords and
+variations. Passing a *random* salt that is *sufficiently long* would require
+attackers to prepare such a table for every possible salt value.
+
+The salt is a public value and will be stored in the clear along with the
+derived key. We need the exact same salt to arrive at the exact same key later
+again. We will thus have to modify `deriveBits()` to accept the salt as an
+argument so that we can either generate a random one or read it from disk.
+
+Pass at least 8 random bytes (64 bits) as the salt, pre-computing and storing
+2^64 huge tables is nothing your average attacker will be able to accomplish.
+
 ### Number of iterations
+
+Now that Rainbow-Tables are hopefully worthless, an attacker can concentrate
+on brute-forcing the final hash value by combining the public salt value stored
+on disk with millions of popular passwords and their variations. If PBKDF2 runs
+fast it would allow to search through all those passwords rather quickly.
+
+By specifying a *sufficiently high* number of iterations we can slow down
+PBKDF2's inner computation so that an attacker with access to regular hardware
+will have to face a massive performance decrease and be able to only try a few
+thousand passwords per second instead of millions.
+
+The ideal execution time for one round of PBKDF2 should be ~80ms.
 
 ### Number of bits to derive
 
-### Should store hash and iterations
+The number of bits to derive should be chosen according to the hash function
+that will be used. The length of the resulting hash digest is the output size
+of one execution of PBKDF2. If you derive more bits than the hash function
+outputs, PBKDF2 will have to be run again until it derived the desired number
+of bits.
 
-## Deriving bits (second try)
+Derive 160 bits when using SHA-1, and derive 256 bits when using SHA-256. You
+do not want to slow down the key derivation even further by accidentally
+requiring more than one round of PBKDF2.
+
+### Do not hard-code parameters
+
+It is tempting to hard-code the name of the hash function, the number of bits
+to derive, and the number of HMAC iterations in the code. You will regret this
+decision only later when it turns out that maybe SHA-1 is not considered a
+secure PRF anymore or you want to increase the number of inner iterations.
+
+Future code can only verify old passwords with old parameters if those
+parameters are stored along with the salt and the derived key. When verifying
+the pass code we will read the name of the hash function and the number of
+iterations from disk. We can defer the number of bits to derive from the hash
+function used.
+
+## Deriving bits (pass in parameters)
+
+Let us rewrite `deriveBits()` to accept PBKDF2 parameters as arguments to make
+the Passcode module a tad more future-proof:
+
+#### getHashOutputLength(hash)
+
+Returns the digest size in bits for a given hash function. For SHA-1 it returns
+160 bits, 256 bits for SHA-256, and so on.
 
 {% codeblock lang:js %}
 function deriveBits(code, salt, hash, iterations) {
   // Convert string to TypedArray.
-  let bytes = new TextEncoder("utf-8").encode(str);
+  let bytes = new TextEncoder("utf-8").encode(code);
 
   // Create the base key to derive from.
   let importKey = crypto.subtle.importKey(
@@ -106,31 +180,23 @@ function deriveBits(code, salt, hash, iterations) {
 }
 {% endcodeblock %}
 
-### getHashOutputSize() function
+## Checking a given passcode
 
-{% codeblock lang:js %}
-function getHashOutputLength(hash) {
-  switch (hash) {
-    case "SHA-1":
-      return 160;
-    case "SHA-256":
-      return 256;
-    case "SHA-384":
-      return 384;
-    case "SHA-512":
-      return 512;
-    default:
-      throw new Error("unknown hash function");
-  }
-};
-{% endcodeblock %}
+asdf asdf asdf
 
-## checkPasscode() implementation
+#### localforage
+
+A neat little library providing a simple, promise-based API for storing and
+retrieving values. Uses IndexedDB as the backend in modern browsers.
+
+#### compare(a, b)
+
+Compares two given typed arrays byte-by-byte and returns true if they are equal.
 
 {% codeblock lang:js %}
 // <script src="localforage.min.js"/>
 
-PasscodeHelper.checkPasscode = function (code) {
+PasscodeHelper.verify = function (code) {
   let loadValues = Promise.all([
     localforage.getItem("digest"),
     localforage.getItem("salt"),
@@ -146,36 +212,31 @@ PasscodeHelper.checkPasscode = function (code) {
 };
 {% endcodeblock %}
 
-localforage
+asdf asdf asdf
 
-### compare() function
+### Does compare() have to be a constant-time operation?
 
-{% codeblock lang:js %}
-function compare(a, b) {
-  if (a.byteLength != b.byteLength) {
-    return false;
-  }
+No, `compare()` does not have to be constant-time. Even if the attacker learns
+the first byte of the final digest stored on disk she cannot easily produce
+inputs to guess the second byte - the opposite would imply knowing the
+pre-images of all those two-byte values. She cannot do better than submitting
+simple guesses that become harder the more bytes are known. For a successful
+attack all bytes have to be recovered, which in turns means a valid pre-image
+for the full final digest needs to be found.
 
-  a = new Uint8Array(a);
-  b = new Uint8Array(b);
+If it makes you feel any better, you can of course implement `compare()` as a
+constant-time operation. This might be tricky though given that all modern
+JavaScript engines optimize code heavily.
 
-  for (let i = 0; i < a.byteLength; i++) {
-    if (a[i] != b[i]) {
-      return false;
-    }
-  }
+## Storing a new passcode
 
-  return true;
-}
-{% endcodeblock %}
-
-### const-time compare
+asdf asdf
 
 {% codeblock lang:js %}
 const HASH = "SHA-1";
 const ITERATIONS = 1000;
 
-PasscodeHelper.setPasscode = function (code) {
+PasscodeHelper.store = function (code) {
   let salt = crypto.getRandomValues(new Uint8Array(8));
 
   return deriveBits(code, salt, HASH, ITERATIONS).then(bits => {
