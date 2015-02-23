@@ -4,6 +4,13 @@ title: "A ready-to-use virtual build environment for Firefox"
 date: 2014-04-07 18:00
 ---
 
+> **Note:** This post might be outdated as it has been turned into an MDN page.
+> Please refer to the MDN page for the latest information about the Firefox
+> Developer VM. It will also tell you the correct checksum to compare to after
+> downloading.
+>
+> [https://developer.mozilla.org/docs/Mozilla/Developer_guide/Using_the_VM](https://developer.mozilla.org/docs/Mozilla/Developer_guide/Using_the_VM)
+
 If you ever wondered what contributing to Firefox feels like but you never had
 the time to read and follow through our
 [instructions to setup a build environment](https://developer.mozilla.org/docs/Simple_Firefox_build)
@@ -35,7 +42,7 @@ Now is the time to download the virtual machine containing our development
 environment ready to modify and build Firefox. You can get it here:
 
 [http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova](http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova)  
-(sha1 = 2bc7ea3d831163e507129353b0c5306ab30f18aa)
+(SHA-256 = *&lt;Please see MDN page linked at the top.&gt;*)
 
 Downloading ~2.8 GB might take a while if you are on a slow connection, sorry.
 
