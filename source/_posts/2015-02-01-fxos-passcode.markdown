@@ -170,19 +170,19 @@ function deriveBits(code, salt, hash, iterations) {
     "raw", bytes, "PBKDF2", false, ["deriveBits"])
 
   return importKey.then(pwKey => {
-    // Determine the number of bits the given hash function outputs.
     let hlen = getHashOutputLength(hash);
+    let params = {name: "PBKDF2", hash, salt, iterations};
 
     // Derive bits using PBKDF2.
-    let params = {name: "PBKDF2", hash, salt, iterations};
     return crypto.subtle.deriveBits(params, pwKey, hlen);
   });
 }
 {% endcodeblock %}
 
-## Checking a given passcode
+## Verifying a given pass code
 
-asdf asdf asdf
+We are done with `deriveBits()`, the heart of the Passcode module. Implementing
+pass code verification is now basically a walk in the park:
 
 #### localforage
 
@@ -205,9 +205,9 @@ PasscodeHelper.verify = function (code) {
   ]);
 
   return loadValues.then(([digest, salt, hash, iterations]) => {
-    return deriveBits(code, salt, hash, iterations);
-  }).then(bits => {
-    return compare(bits, digest);
+    return deriveBits(code, salt, hash, iterations).then(bits => {
+      return compare(bits, digest);
+    });
   });
 };
 {% endcodeblock %}
