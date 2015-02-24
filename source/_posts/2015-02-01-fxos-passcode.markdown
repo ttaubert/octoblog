@@ -1,24 +1,25 @@
 ---
 layout: post
-title: "Using the Web Cryptography API to implement the Firefox OS lock screen"
+title: "Implementing the Firefox OS lock screen with the WebCrypto API"
 date: 2015-02-01 13:29:09 +0100
 ---
 
-My colleague [Frederik Braun](https://twitter.com/freddyb), with some feedback
-from me, recently took on to rewrite the module responsible for storing and
-checking the passcode to (un)lock your Firefox OS phone. It provides a great
-example of the WebCrypto API in the wild and gives the opportunity to highlight
-a few good practices when using [PBKDF2](TODO) to derive a cryptographic key
-from a password typed by the user.
+My colleague [Frederik Braun](https://twitter.com/freddyb) recently took on to
+rewrite the module responsible for storing and checking the passcode to
+(un)lock your Firefox OS phone. This is a great use case of the
+[WebCrypto API](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html)
+in the wild and gives the opportunity to highlight a few good practices when using
+[password-based key derivation (PBKDF2)](https://en.wikipedia.org/wiki/PBKDF2)
+to store passwords.
+
+In this post I will walk you through the example of writing a Firefox OS module
+that can be used to set and verify passcodes.
 
 ## The Passcode Module
 
-The lock screen application should have a minimalistic API. When setting up the
-phone for the first time - or when changing the pass code later - we call
-`store(code)` to write a new code to disk. `verify(code)` will later help us
-determine whether we should unlock the phone given a user-typed password.
-Both methods will return a Promise as all operations in the WebCrypto API are
-asynchronous.
+There are two operations that we need to support: setting a new passcode and
+verifying that a given passcode matches the stored one. Our API will be
+minimalistic:
 
 {% codeblock lang:js %}
 let Passcode = {
@@ -32,7 +33,13 @@ let Passcode = {
 };
 {% endcodeblock %}
 
-Storing a new pass code and verifying it is as simple as shown below:
+When setting up the phone for the first time - or when changing the passcode
+later - we call `store(code)` to write a new code to disk. `verify(code)` will
+later help us determine whether we should unlock the phone given a user-typed
+password. Both methods will return a Promise as all operations in the WebCrypto
+API are asynchronous.
+
+Storing a new passcode and verifying it is simple:
 
 {% codeblock lang:js %}
 Passcode.store("1234").then(() => {
@@ -44,13 +51,17 @@ Passcode.store("1234").then(() => {
 // Output: true
 {% endcodeblock %}
 
-## Deriving bits using PBKDF2
+## Make the passcode look "random"
 
-The module does not store pass codes in the clear. We will use PBKDF2 to
-iterate a cryptographic hash function a few times and retrieve a result that
-looks random. An attacker that gained read access to the part of the disk
-storing the user's pass code will not be able to determine the input we fed
-into the hash function.
+The module must not store passcodes in the clear. We will use PBKDF2 to iterate a
+[pseudorandom function (PRF)](https://en.wikipedia.org/wiki/Pseudorandom_function_family)
+and retrieve a result that looks random. An attacker with read access to the
+part of the disk storing the user's passcode should not be able to reveal the
+original input, assuming limited resources.
+
+`deriveBits()` is a PRF that takes a passcode and returns a Promise that then
+resolves to a random looking list of bytes. In cryptographic terms: we are
+using PBKDF2, a big PRF that internally iterates a small PRF, to derive bits.
 
 {% codeblock lang:js %}
 function deriveBits(code) {
@@ -61,16 +72,9 @@ function deriveBits(code) {
   let importKey = crypto.subtle.importKey(
     "raw", bytes, "PBKDF2", false, ["deriveBits"])
 
-  // Use 8 random bytes as the salt.
-  let salt = crypto.getRandomValues(new Uint8Array(8));
-
   return importKey.then(pwKey => {
-    let params = {
-      name: "PBKDF2",
-      hash: "SHA-1",
-      salt: salt,
-      iterations: 1000
-    };
+    let salt = crypto.getRandomValues(new Uint8Array(8));
+    let params = {name: "PBKDF2", hash: "SHA-1", salt, iterations: 1000};
 
     // Derive 160 bits using PBKDF2.
     return crypto.subtle.deriveBits(params, pwKey, 160);
@@ -78,52 +82,68 @@ function deriveBits(code) {
 }
 {% endcodeblock %}
 
-Deriving bits using PBKDF2 is straightforward but requires passing and
-choosing a number of parameters. We will go through all of the parameters one
-by one.
+PBKDF2 takes a whole bunch of parameters and might leave you confused at first.
+Choosing good values is crucial for the security of our passcode module so it
+is best to take a look at every single one of them to understand their purpose.
 
-### Choosing a cryptographic hash function
+### Selecting a cryptographic hash function
 
-PBKDF2 does not only use a hash function but uses HMAC internally. SHA-1 as a
-cryptographic hash function is broken and should not be used anymore. As a
-building block in the HMAC-SHA-1 construction however we only rely on its PRF
-properties. Although finding SHA-1 collisions is considered feasible nowadays
-it is still considered a secure PRF.
+The PRF used by PBKDF2 internally is an [HMAC](https://en.wikipedia.org/wiki/HMAC)
+construction. HMAC is fixed but you are allowed to specify the cryptographic
+hash function to use.
 
-That said, it does not hurt to switch to a secure cryptogaphic hash function
-like SHA-256. Chrome supports other hash functions for PBKDF2 today, Firefox
-unfortunately still waits for an NSS fix (bug 554827) before that can be
-unlocked for the WebCrypto API.
+The above example uses [SHA-1](https://en.wikipedia.org/wiki/SHA-1), and
+although it [considered broken](http://valerieaurora.org/hash.html) as a
+[collision-resistant](https://en.wikipedia.org/wiki/Collision_resistance) hash
+function it is still safe to use as a building block in the HMAC-SHA-1
+construction. We here only rely on its PRF properties, and while finding
+collisions is considered feasible nowadays it is still believed to be a secure
+PRF.
+
+That said, it does not hurt to switch to a secure cryptographic hash function
+like [SHA-256](https://en.wikipedia.org/wiki/SHA-2). Chrome supports other hash
+functions for PBKDF2 today, Firefox unfortunately has to wait for an
+[NSS fix](https://bugzil.la/554827) before those can be unlocked for the
+WebCrypto API.
 
 ### Random salt
 
 The salt is a random component that is fed into the HMAC function along with
-the pass code inside PBKDF2. Doing so spoils so-called Rainbow-Table attacks
-where attackers pre-compute hashes for millions of popular passwords and
-variations. Passing a *random* salt that is *sufficiently long* would require
-attackers to prepare such a table for every possible salt value.
+the passcode inside PBKDF2. This is supposed to prevent so-called
+[rainbow table](https://en.wikipedia.org/wiki/Rainbow_table) attacks where
+attackers pre-compute hashes for millions of popular passwords and variations.
+Passing a *random* salt requires attackers to prepare such a table for every
+possible salt value. The longer the random salt value, the more tables to
+pre-compute.
 
 The salt is a public value and will be stored in the clear along with the
-derived key. We need the exact same salt to arrive at the exact same key later
-again. We will thus have to modify `deriveBits()` to accept the salt as an
-argument so that we can either generate a random one or read it from disk.
+derived bits. We need the exact same salt to arrive at the exact same bits
+later again. We will thus have to modify `deriveBits()` to accept the salt as
+an argument so that we can either generate a random one or read it from disk.
 
-Pass at least 8 random bytes (64 bits) as the salt, pre-computing and storing
-2^64 huge tables is nothing your average attacker will be able to accomplish.
+You should pass at least 8 random bytes (64 bits) as the salt, pre-computing
+and storing 2^64 huge tables is nothing your average attacker will be able to
+accomplish.
 
 ### Number of iterations
 
-Now that Rainbow-Tables are hopefully worthless, an attacker can concentrate
-on brute-forcing the final hash value by combining the public salt value stored
+Now that rainbow tables are hopefully worthless, an attacker can concentrate
+on brute-forcing the final PRF output by combining the public salt value stored
 on disk with millions of popular passwords and their variations. If PBKDF2 runs
 fast it would allow to search through all those passwords rather quickly.
 
 By specifying a *sufficiently high* number of iterations we can slow down
 PBKDF2's inner computation so that an attacker with access to regular hardware
 will have to face a massive performance decrease and be able to only try a few
-thousand passwords per second instead of millions.
+thousand passwords per second instead of millions. Choosing an iteration count
+so that PBKDF2 takes 80ms to complete then a simple four-digit number can still
+be guessed in roughly 13 minutes, it will take only 7 minutes on average to
+find.
 
-The ideal execution time for one round of PBKDF2 should be ~80ms.
+For a much more secure version the UI should thus allow to not only use
+numbers but any number of characters. An additional delay of a few seconds
+after a small number of wrong guesses might increase security even more,
+assuming the attacker cannot access the PRF output stored on disk.
 
 ### Number of bits to derive
 
@@ -146,7 +166,7 @@ secure PRF anymore or you want to increase the number of inner iterations.
 
 Future code can only verify old passwords with old parameters if those
 parameters are stored along with the salt and the derived key. When verifying
-the pass code we will read the name of the hash function and the number of
+the passcode we will read the name of the hash function and the number of
 iterations from disk. We can defer the number of bits to derive from the hash
 function used.
 
@@ -179,10 +199,10 @@ function deriveBits(code, salt, hash, iterations) {
 }
 {% endcodeblock %}
 
-## Verifying a given pass code
+## Verifying a given passcode
 
 We are done with `deriveBits()`, the heart of the Passcode module. Implementing
-pass code verification is now basically a walk in the park:
+passcode verification is now basically a walk in the park:
 
 #### localforage
 
