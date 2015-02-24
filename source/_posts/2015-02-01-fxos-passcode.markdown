@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Implementing the Firefox OS lock screen with the WebCrypto API"
-date: 2015-02-01 13:29:09 +0100
+title: "Implementing a Firefox OS lock screen with the WebCrypto API"
+date: 2015-02-25 18:00:00 +0100
 ---
 
 My colleague [Frederik Braun](https://twitter.com/freddyb) recently took on to
@@ -84,7 +84,7 @@ function deriveBits(code) {
 
 PBKDF2 takes a whole bunch of parameters and might leave you confused at first.
 Choosing good values is crucial for the security of our passcode module so it
-is best to take a look at every single one of them to understand their purpose.
+is best to take a detailed look at every single one of them.
 
 ### Selecting a cryptographic hash function
 
@@ -147,28 +147,28 @@ assuming the attacker cannot access the PRF output stored on disk.
 
 ### Number of bits to derive
 
-The number of bits to derive should be chosen according to the hash function
-that will be used. The length of the resulting hash digest is the output size
-of one execution of PBKDF2. If you derive more bits than the hash function
-outputs, PBKDF2 will have to be run again until it derived the desired number
-of bits.
+PBKDF2 allows to derive an almost arbitrary number of bits. A single iteration
+will yield a number of bits that is equal to the chosen hash function's output
+size. If the number of bits to derive exceeds the hash function's output size
+the whole PBKDF2 PRF will be executed until enough bits have been derived.
 
-Derive 160 bits when using SHA-1, and derive 256 bits when using SHA-256. You
-do not want to slow down the key derivation even further by accidentally
-requiring more than one round of PBKDF2.
+Choose 160 bits for SHA-1, 256 bits for SHA-256, and so on. Slowing down the
+key derivation even further by requiring more than one round of PBKDF2 does not
+increase the security of the lock screen.
 
 ### Do not hard-code parameters
 
-It is tempting to hard-code the name of the hash function, the number of bits
-to derive, and the number of HMAC iterations in the code. You will regret this
-decision only later when it turns out that maybe SHA-1 is not considered a
-secure PRF anymore or you want to increase the number of inner iterations.
+It seems a good idea to hard-code PBKDF2's parameters - the name of the hash
+function to use in the HMAC construction, and the number of HMAC iterations.
+You might regret this decision later as soon as it turns out that maybe SHA-1
+is not considered a secure PRF anymore or you want to increase the number of
+inner iterations as computers and phones get faster quickly.
 
-Future code can only verify old passwords with old parameters if those
-parameters are stored along with the salt and the derived key. When verifying
-the passcode we will read the name of the hash function and the number of
-iterations from disk. We can defer the number of bits to derive from the hash
-function used.
+To ensure that future code can verify old passwords we need to store the
+parameters that were passed to PBKDF2 at the time, including the salt. When
+verifying the passcode we will read the hash function name, the number of
+iterations, and the salt from disk. The number of bits to derive will be the
+hash function's output size.
 
 ## Deriving bits (pass in parameters)
 
