@@ -165,14 +165,14 @@ Choose 160 bits for SHA-1, 256 bits for SHA-256, and so on. Slowing down the
 key derivation even further by requiring more than one round of PBKDF2 will not
 increase the security of the lock screen.
 
-### Do not hard-code parameters
+## Do not hard-code parameters
 
 Hard-coding PBKDF2's parameters - the name of the hash function to use in the
 HMAC construction, and the number of HMAC iterations - might seem a good idea
 at first. It is easy to see that you could regret this decision rather sooner
 than later should it for example turn out that SHA-1 cannot be considered a
 secure PRF any longer, or you need to increase the number of HMAC iterations as
-computer and phones get faster quickly.
+computer and phones get faster constantly.
 
 To ensure that future code can verify old passwords we need to store the
 parameters that were passed to PBKDF2 at the time, including the salt. When
@@ -180,53 +180,77 @@ verifying the passcode we will read the hash function name, the number of
 iterations, and the salt from disk - the number of bits to derive will be the
 hash function's output size.
 
-## Deriving bits (pass in parameters)
-
-Let us rewrite `deriveBits()` to accept PBKDF2 parameters as arguments to make
-the Passcode module a tad more future-proof:
-
 #### getHashOutputLength(hash)
 
-Returns the digest size in bits for a given hash function. For SHA-1 it returns
-160 bits, 256 bits for SHA-256, and so on.
+Returns the output length in bits for a given hash function. For SHA-1 it
+returns 160 bits, 256 bits for SHA-256, and so on.
 
 {% codeblock lang:js %}
 function deriveBits(code, salt, hash, iterations) {
-  // Convert string to TypedArray.
+  // Convert string to a TypedArray.
   let bytes = new TextEncoder("utf-8").encode(code);
 
   // Create the base key to derive from.
-  let importKey = crypto.subtle.importKey(
-    "raw", bytes, "PBKDF2", false, ["deriveBits"])
+  let importedKey = crypto.subtle.importKey(
+    "raw", bytes, "PBKDF2", false, ["deriveBits"]);
 
-  return importKey.then(pwKey => {
+  return importedKey.then(key => {
     let hlen = getHashOutputLength(hash);
     let params = {name: "PBKDF2", hash, salt, iterations};
 
-    // Derive bits using PBKDF2.
-    return crypto.subtle.deriveBits(params, pwKey, hlen);
+    // Derive |hlen| bits using PBKDF2.
+    return crypto.subtle.deriveBits(params, key, hlen);
   });
 }
 {% endcodeblock %}
 
+## Storing a new passcode
+
+Now that `deriveBits()`, the heart of the Passcode module, is done implementing
+the main API functionality is basically a walk in the park. For the sake of
+simplicity we will use [localforage](TODO) as the storage backend. It provides
+a simple, asynchronous, and Promise-based key-value store.
+
+{% codeblock lang:js %}
+// <script src="localforage.min.js"/>
+
+const HASH = "SHA-1";
+const ITERATIONS = 4096;
+
+Passcode.store = function (code) {
+  // Generate a new random salt for every new passcode.
+  let salt = crypto.getRandomValues(new Uint8Array(8));
+
+  return deriveBits(code, salt, HASH, ITERATIONS).then(bits => {
+    return Promise.all([
+      localforage.setItem("digest", bits),
+      localforage.setItem("salt", salt),
+      localforage.setItem("hash", HASH),
+      localforage.setItem("iterations", ITERATIONS)
+    ]);
+  });
+};
+{% endcodeblock %}
+
+It is important to generate a new random salt for every new passcode. The derived bits, the
+hash digest, are stored stored along with the salt, the hash function name,
+and the number of iterations. `HASH` and `ITERATIONS` are constants that
+provide default values for our PBKDF2 parameters and can be updated whenever
+desired. The Promise returned by `Passcode.store()` will resolve when all
+values have been successfully stored in the backend.
+
 ## Verifying a given passcode
 
-We are done with `deriveBits()`, the heart of the Passcode module. Implementing
-passcode verification is now basically a walk in the park:
-
-#### localforage
-
-A neat little library providing a simple, promise-based API for storing and
-retrieving values. Uses IndexedDB as the backend in modern browsers.
+To verify a passcode all values and parameters stored by `Passcode.store()`
+will have to be read from disk and passed to `deriveBits()`. Comparing the
+derived bits with the value stored on disk tells whether the passcode is valid.
 
 #### compare(a, b)
 
 Compares two given typed arrays byte-by-byte and returns true if they are equal.
 
 {% codeblock lang:js %}
-// <script src="localforage.min.js"/>
-
-PasscodeHelper.verify = function (code) {
+Passcode.verify = function (code) {
   let loadValues = Promise.all([
     localforage.getItem("digest"),
     localforage.getItem("salt"),
@@ -242,11 +266,9 @@ PasscodeHelper.verify = function (code) {
 };
 {% endcodeblock %}
 
-asdf asdf asdf
-
 ### Does compare() have to be a constant-time operation?
 
-No, `compare()` does not have to be constant-time. Even if the attacker learns
+`compare()` does *not* have to be constant-time. Even if the attacker learns
 the first byte of the final digest stored on disk she cannot easily produce
 inputs to guess the second byte - the opposite would imply knowing the
 pre-images of all those two-byte values. She cannot do better than submitting
@@ -258,32 +280,27 @@ If it makes you feel any better, you can of course implement `compare()` as a
 constant-time operation. This might be tricky though given that all modern
 JavaScript engines optimize code heavily.
 
-## Storing a new passcode
-
-asdf asdf
-
-{% codeblock lang:js %}
-const HASH = "SHA-1";
-const ITERATIONS = 1000;
-
-PasscodeHelper.store = function (code) {
-  let salt = crypto.getRandomValues(new Uint8Array(8));
-
-  return deriveBits(code, salt, HASH, ITERATIONS).then(bits => {
-    return Promise.all([
-      localforage.setItem("digest", bits),
-      localforage.setItem("salt", salt),
-      localforage.setItem("hash", HASH),
-      localforage.setItem("iterations", ITERATIONS)
-    ]);
-  });
-};
-{% endcodeblock %}
-
 ## Conclusion
 
 take upgrade into account
-security -> 80ms x 10,000 = 13,3h (max) / 6.65h (avg)
-faster with a faster device, or even ASICs or FPGAs
-would require to know the final hash value, read from the device
-with mis-calculated num of iterations, maybe even less time to find key
+
+as everything in crypto, using pbkdf2 merely buys you time
+
+the salt ensures that an attacker needs to spend the same amount of time for
+every single device she wants to know the passcode of. She has to focus on one
+device at a time and can't find multiple passcodes at once.
+
+number of iterations
+A delay would be good if the threat model is an attacker using the device to
+brute-force the passcode.
+asics fpgas when hash output known hard to beat when storing and verifying the
+passcode shouldn't take too long to not interrupt the user.
+Should enable passcodes that accept arbitrary long strings with arbitrary
+characters. Given the user picks a good password this would make finding the
+passcode a lot harder.
+
+The WebCrypto API does unfortunately not support bcrypt or scrypt that can make
+finding a passcode with asics or fpgas a lot harder and/or expensive.
+
+Do not forget to have a few peers review your module to check whether you
+implemented it securely. If possible sign your lock screen app before deploying.
