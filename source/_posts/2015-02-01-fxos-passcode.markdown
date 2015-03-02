@@ -266,9 +266,9 @@ Passcode.verify = function (code) {
 };
 {% endcodeblock %}
 
-### Does compare() have to be a constant-time operation?
+### Should compare() be a constant-time operation?
 
-`compare()` does *not* have to be constant-time. Even if the attacker learns
+`compare()` does not *have* to be constant-time. Even if the attacker learns
 the first byte of the final digest stored on disk she cannot easily produce
 inputs to guess the second byte - the opposite would imply knowing the
 pre-images of all those two-byte values. She cannot do better than submitting
@@ -282,13 +282,13 @@ JavaScript engines optimize code heavily.
 
 ## Conclusion
 
-take upgrade into account
+When using PBKDF2 it is important to select the right values for its parameters
+and take upgrading those values in the future into account. As everything in
+cryptography, PBKDF2 merely buys you time.
 
-as everything in crypto, using pbkdf2 merely buys you time
-
-the salt ensures that an attacker needs to spend the same amount of time for
-every single device she wants to know the passcode of. She has to focus on one
-device at a time and can't find multiple passcodes at once.
+The random salt ensures an attackers needs to spend the same amount of time for
+every single device she wants to find the passcode for, and will have to focus
+on one device at a time.
 
 number of iterations
 A delay would be good if the threat model is an attacker using the device to
