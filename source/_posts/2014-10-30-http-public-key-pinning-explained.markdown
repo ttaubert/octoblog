@@ -10,7 +10,7 @@ In my last post
 I explained how TLS and its extensions (as well as a few HTTP extensions) work
 and what to watch out for when enabling TLS for your server. One of the HTTP
 extensions mentioned is
-[HTTP Public-Key-Pinning (HPKP)](https://developer.mozilla.org/en-US/docs/Web/Security/Public_Key_Pinning).
+[HTTP Public-Key-Pinning (HPKP)](https://tools.ietf.org/html/rfc7469).
 As a short reminder, the header looks like this:
 
 {% codeblock lang:text %}
@@ -21,12 +21,14 @@ Public-Key-Pins:
 {% endcodeblock %}
 
 You can see that it specifies two *pin-sha256* values, that is the pins of two
-public keys. One is the public key of your currently valid certificate and the
-other is a backup key in case you have to revoke your certificate.
+public keys. One is the pin of any public key in your current certificate chain
+and the other is the pin of any public key *not* in your current certificate
+chain. The latter is a backup in case your certificate expires or has to be
+revoked.
 
-I received a few questions as to why I suggest including a backup pin and what
-the requirements for a backup key would be. I will try to answer those with a
-more detailed overview of how public key pinning and TLS certificates work.
+It is definitely not obvious which public keys you should pin and what a good
+backup pin would be. Let us answer those questions by starting with a more
+detailed overview of how public key pinning and TLS certificates work.
 
 ## How are RSA keys represented?
 
@@ -34,10 +36,10 @@ Let us go back to the beginning and start by taking a closer look at
 [RSA](https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29) keys:
 
 {% codeblock lang:text %}
-$ openssl genrsa 4096
+$ openssl genrsa 2048
 {% endcodeblock %}
 
-The above command generates a 4096 bit RSA key and prints it to the console.
+The above command generates a 2048 bit RSA key and prints it to the console.
 Although it says `-----BEGIN RSA PRIVATE KEY-----` it does not only return the
 private key but an
 [ASN.1](https://en.wikipedia.org/wiki/Abstract_Syntax_Notation_One) structure
@@ -100,14 +102,13 @@ Pin validation also works for self-signed certificates, but they will of course
 raise the same warnings as usual as soon as the browser determined they were
 not signed by a trusted third-party.
 
-## What if your certificate was revoked?
+## What if you need to replace your certificate?
 
-If your server was compromised and an attacker obtained your private key you
-have to revoke your certificate as the attacker can obviously fully intercept
-any TLS connection to your server and record every conversation. If your HPKP
-header contained only a single *pin-sha256* token you are out of luck until the
-*max-age* directive given in the header lets those pins expire in your
-visitors' browsers.
+If your certificate expires or an attacker obtained the private key you will
+have to replace (and possibly revoke) the leaf certificate. This might
+invalidate your pin, the constraints for obtaining a new valid certificate are
+the same as for an attacker that tries to impersonate you and intercept TLS
+sessions.
 
 Pin validation requires checking the SPKI fingerprints of all certificates in
 the chain. When for example StartSSL signed your certificate you have another
@@ -116,43 +117,46 @@ The browser trusts only the root certificate but the intermediate ones are
 signed by the root certificate. The intermediate certificate in turn signs the
 certificate deployed on your server and that is called a chain of trust.
 
-To prevent getting stuck after your only pinned key was compromised, you could
-for example provide the SPKI fingerprint of StartSSL's Class 1 intermediate
-certificate. An attacker would now have to somehow get a certificate issued by
-StartSSL's Class 1 tier to successfully impersonate you. You are however again
-out of luck should you decide to upgrade to Class 2 in a month because you
-decided to start paying for a certificate.
+If you pinned your leaf certificate then the only way to recover is your backup
+pin - whatever this points to must be included in your new certificate chain
+if you want to allow users that stored your pin from previous connections back
+on your server.
 
-Pinning StartSSL's root certificate would let you switch Classes any time and
-the attacker would still have to get a certificate issued by StartSSL for your
-domain. This is a valid approach as long as you are trusting your CA and as
-long as the CA itself is not compromised. In case of a compromise however the
-attacker would be able to get a valid certificate for your domain that passes
-pin validation. After the attack was discovered StartSSL would quickly revoke
-all currently issued certificates, generate a new key pair for their root
-certificate and issue new certificates. And again we would be out of luck
-because suddenly pin validation fails and no browser will connect to our site.
+An easier solution would be available if you provided the SPKI fingerprint of
+StartSSL's Class 1 intermediate certificate. To construct a new valid
+certificate chain you simply have to ask StartSSL to re-issue a new certificate
+for a new or your current key. This comes at the price of a slightly bigger
+attack surface as someone that stole the private key of the CA's intermediate
+certificate would be able to impersonate your site and pass key pinning checks.
 
-## Include the pin of a backup key
+Another possibility is pinning StartSSL's root certificate. Any certificate
+issued by StartSSL would let you construct a new valid certificate chain. Again,
+this slightly increases the attack vector as any compromised intermediate or
+root certificate would allow to impersonate your site and pass pinning checks.
 
-The safest way to pin your certificate's public key and be prepared to revoke
-your certificate when necessary is to include the pin of a second public key:
-your backup key. This backup RSA key should in no way be related to your first
-key, just generate a new one.
+## What key should I pin?
 
-A good advice is to keep this backup key pair (especially the private key) in
-a safe place until you need it. Uploading it to the server is dangerous: when
-your server is compromised you lose both keys at once and have no backup key
-left.
+Given all of the above scenarios you might ask which key would be the best to
+pin, and the answer is: it depends. You can pin one or all of the public keys
+in your certificate chain and that will work. The specification requires you to
+have at least two pins, so you must include the SPKI hash of another CA's root
+certificate, another CA's intermediate certificate (a different tier of your
+current CA would also work), or another leaf certificate. The only requirement
+is that this pin is not equal to the hash of any of the certificates in the
+current chain. The poor browser cannot tell whether you gave it a valid and
+useful backup pin so it will happily accept random values too.
 
-Generate a pin for the backup key exactly as you did for the current key and
-include both *pin-sha256* values as shown above in the HPKP header. In case the
-current key is compromised make sure all vulnerabilities are patched and then
-remove the revoked pin. Generate a CSR for the backup key, let your CA issue a
-new certificate, and revoke the old one. Upload the new certificate to your
-server and you are done.
+Pinning to a small set of CAs that you are comfortable with helps you reduce the
+risk to yourself. Pinning just your leaf certificates is only advised if you are
+really certain that this is for you. It is a little like driving without a
+seatbelt and might work most of the time. If something goes wrong it usually
+goes really wrong and you want to avoid that.
 
-Finally, do not forget to generate a new backup key and include that pin in
-your HPKP header again. Once a browser successfully establishes a TLS
-connection the next time, it will see your updated HPKP header and replace any
-stored pins with the new ones.
+Pinning only your own leaf certs also bears the risk of creating a backup key
+that adheres to ancient standards and could not be used anymore when you have
+to replace your current certificate. Assume it was three years ago, and your
+backup was a 1024-bit RSA key pair. You pin for a year, and your certificate
+expires. You go to a CA and say "Hey, re-issue my cert for Key A", and they say
+"No, your key is too small/weak". You then say "Ah, but what about my backup
+key?" - and that also gets rejected because it is too short. In effect, because
+you pinned to keys under your control you are now bricked.
