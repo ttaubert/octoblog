@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Implementing a Firefox OS lock screen with the WebCrypto API"
-date: 2015-03-02 18:00:00 +0100
+title: "Implementing a Firefox OS lock screen with the Web Cryptography API"
+date: 2015-05-01 18:00:00 +0100
 ---
 
 My colleague [Frederik Braun](https://twitter.com/freddyb) recently took on to
@@ -165,7 +165,7 @@ Choose 160 bits for SHA-1, 256 bits for SHA-256, and so on. Slowing down the
 key derivation even further by requiring more than one round of PBKDF2 will not
 increase the security of the lock screen.
 
-## Do not hard-code parameters
+## Thou shalt not not hard-code parameters
 
 Hard-coding PBKDF2's parameters - the name of the hash function to use in the
 HMAC construction, and the number of HMAC iterations - might seem a good idea
