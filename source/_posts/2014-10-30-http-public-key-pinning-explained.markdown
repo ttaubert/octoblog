@@ -104,18 +104,18 @@ not signed by a trusted third-party.
 
 ## What if you need to replace your certificate?
 
-If your certificate expires or an attacker obtained the private key you will
-have to replace (and possibly revoke) the leaf certificate. This might
-invalidate your pin, the constraints for obtaining a new valid certificate are
-the same as for an attacker that tries to impersonate you and intercept TLS
-sessions.
+If your certificate expires or an attacker stole the private key you will have
+to replace (and possibly revoke) the leaf certificate. This might invalidate
+your pin, the constraints for obtaining a new valid certificate are the same as
+for an attacker that tries to impersonate you and intercept TLS sessions.
 
 Pin validation requires checking the SPKI fingerprints of all certificates in
-the chain. When for example StartSSL signed your certificate you have another
-intermediate Class 1 or 2 certificate and their root certificate in the chain.
-The browser trusts only the root certificate but the intermediate ones are
-signed by the root certificate. The intermediate certificate in turn signs the
-certificate deployed on your server and that is called a chain of trust.
+the chain and will succeed if any of the public keys matches any of the pins.
+When for example StartSSL signed your certificate you have another intermediate
+Class 1 or 2 certificate and their root certificate in the chain. The browser
+trusts only the root certificate but the intermediate ones are signed by the
+root certificate. The intermediate certificate in turn signs the certificate
+deployed on your server and that is called a chain of trust.
 
 If you pinned your leaf certificate then the only way to recover is your backup
 pin - whatever this points to must be included in your new certificate chain
