@@ -159,4 +159,4 @@ backup was a 1024-bit RSA key pair. You pin for a year, and your certificate
 expires. You go to a CA and say "Hey, re-issue my cert for Key A", and they say
 "No, your key is too small/weak". You then say "Ah, but what about my backup
 key?" - and that also gets rejected because it is too short. In effect, because
-you pinned to keys under your control you are now bricked.
+you only pinned to keys under your control you are now bricked.
