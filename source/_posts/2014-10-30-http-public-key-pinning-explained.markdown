@@ -77,30 +77,18 @@ that you do not want to be able to MITM your site. Any attacker intercepting
 a connection from a visitor to your server with a forged certificate can only
 be prevented by detecting that the public key has changed.
 
-After the server sent a TLS certificate with the handshake, the browser will
-look up any stored pins for the given hostname and check whether any of those
-stored pins match any of the
-[SPKI fingerprints](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21#section-2.4)
+After establishing a TLS session with the server, the browser will look up any
+stored pins for the given hostname and check whether any of those stored pins
+match any of the [SPKI fingerprints](https://tools.ietf.org/html/rfc7469#section-2.4)
 (the output of applying SHA-256 to the public key information) in the
-certificate chain. The connection must be terminated immediately if pin
-validation fails.
+certificate chain. The connection must be terminated immediately if
+[pin validation](https://tools.ietf.org/html/rfc7469#section-2.6) fails.
 
-If the browser does not find any stored pins for the current hostname then it
-will directly continue with the usual certificate checks. This might happen if
-the site does not support public key pinning and does not send any HPKP headers
-at all, or if this is the first time visiting and the server has not seen the
-HPKP header yet in a previous visit.
-
-[Pin validation](https://tools.ietf.org/html/draft-ietf-websec-key-pinning-21#section-2.6)
-should happen as soon as possible and thus before any basic certificate checks
-are performed. An expired or revoked certificate will be happily accepted at
-the pin validation stage early in the handshake when any of the SPKI
-fingerprints of its chain match a stored pin. Only a little later the browser
-will see that the certificate already expired or was revoked and will reject it.
-
-Pin validation also works for self-signed certificates, but they will of course
-raise the same warnings as usual as soon as the browser determined they were
-not signed by a trusted third-party.
+A valid certificate that passed all basics checks will be accepted if the
+browser could not find any pins stored for the current hostname. This might
+happen if the site does not support public key pinning and does not send any
+HPKP headers at all, or if this is the first time visiting and the server has
+not seen the HPKP header yet in a previous visit.
 
 ## What if you need to replace your certificate?
 
