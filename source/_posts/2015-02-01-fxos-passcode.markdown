@@ -8,15 +8,14 @@ My colleague [Frederik Braun](https://twitter.com/freddyb) recently took on to
 rewrite the module responsible for storing and checking the passcode to
 (un)lock your Firefox OS phone. This is a great use case of the
 [WebCrypto API](https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html)
-in the wild and gives the opportunity to highlight a few good practices when using
+in the wild and gives the opportunity to highlight a few important points when using
 [password-based key derivation (PBKDF2)](https://en.wikipedia.org/wiki/PBKDF2)
 to store passwords.
 
 ## The Passcode Module
 
-There are two operations such a module needs to support: setting a new passcode
-and verifying that a given passcode matches the stored one. The API is quite
-minimalistic:
+The API offers the only two operations such a module needs to support: setting
+a new passcode and verifying that a given passcode matches the stored one.
 
 {% codeblock lang:js %}
 let Passcode = {
@@ -58,8 +57,8 @@ part of the disk storing the user's passcode should not be able to reveal the
 original input, assuming limited computational and financial resources.
 
 The function `deriveBits()` is a PRF that takes a passcode and returns a Promise
-resolving to a random looking sequence of bytes. In cryptographic terms: we use
-PBKDF2 to derive pseudorandom bits.
+resolving to a random looking sequence of bytes. To be a little more specific,
+it uses PBKDF2 to derive pseudorandom bits.
 
 {% codeblock lang:js %}
 function deriveBits(code) {
@@ -71,7 +70,10 @@ function deriveBits(code) {
     "raw", bytes, "PBKDF2", false, ["deriveBits"]);
 
   return importedKey.then(key => {
+    // Salt length is 64 bits.
     let salt = crypto.getRandomValues(new Uint8Array(8));
+
+    // All required PBKDF2 parameters.
     let params = {name: "PBKDF2", hash: "SHA-1", salt, iterations: 1000};
 
     // Derive 160 bits using PBKDF2.
@@ -80,30 +82,34 @@ function deriveBits(code) {
 }
 {% endcodeblock %}
 
-PBKDF2 takes a whole bunch of parameters. Choosing good values is crucial for
-the security of our passcode module so it is best to take a detailed look at
-every single one of them.
+## Choosing PBKDF2 parameters
 
-### Selecting a cryptographic hash function
+As you can see above PBKDF2 takes a whole bunch of parameters. Choosing good
+values is crucial for the security of our passcode module so it is best to take
+a detailed look at every single one of them.
+
+### Select a cryptographic hash function
 
 PBKDF2 is a *big* PRF that iterates a *small* PRF. The small PRF, iterated
-multiple times, is fixed to be an [HMAC](https://en.wikipedia.org/wiki/HMAC)
-construction; you are however allowed to specify the cryptographic hash
-function used inside HMAC itself. To understand why you need to select a hash
-function it helps to take a look at HMAC's definition, here with
-[SHA-1](https://en.wikipedia.org/wiki/SHA-1) at its core:
+multiple times (more on why this is done later), is fixed to be an
+[HMAC](https://en.wikipedia.org/wiki/HMAC) construction; you are however
+allowed to specify the cryptographic hash function used inside HMAC itself. To
+understand why you need to select a hash function it helps to take a look at
+HMAC's definition, here with [SHA-1](https://en.wikipedia.org/wiki/SHA-1) at
+its core:
 
 {% codeblock lang:text %}
 HMAC-SHA-1(k, m) = SHA-1((k ⊕ opad) + SHA-1((k ⊕ ipad) + m))
 {% endcodeblock %}
 
-The outer padding `opad` and inner padding `ipad` can be ignored for our
-purpose, the important takeaway is that the given hash function will be called
-twice combining the message `m` and the key `k`. Whereas HMAC is usually used
-to authenticate data, PBKDF2 makes use of its PRF properties.
+The outer and inner padding `opad` and `ipad` are static values that can be
+ignored for our purpose, the important takeaway is that the given hash function
+will be called twice combining the message `m` and the key `k`. Whereas HMAC is
+usually used for authentication PBKDF2 makes use of its PRF properties, that
+means its output is computationally indistinguishable from random.
 
 `deriveBits()` as defined above uses [SHA-1](https://en.wikipedia.org/wiki/SHA-1)
-as well, and although that is [considered broken](http://valerieaurora.org/hash.html)
+as well, and although it is [considered broken](http://valerieaurora.org/hash.html)
 as a [collision-resistant](https://en.wikipedia.org/wiki/Collision_resistance)
 hash function it is still a safe building block in the HMAC-SHA-1 construction.
 HMAC only relies on a hash function's PRF properties, and while finding SHA-1
@@ -115,7 +121,7 @@ functions for PBKDF2 today, Firefox unfortunately has to wait for an
 [NSS fix](https://bugzil.la/554827) before those can be unlocked for the
 WebCrypto API.
 
-### Random salt
+### Pass a random salt
 
 The salt is a random component that PBKDF2 feeds into the HMAC function along
 with the passcode. This prevents so-called
@@ -123,23 +129,28 @@ with the passcode. This prevents so-called
 attackers pre-compute hashes for millions of popular passwords and variations.
 Passing a *random* salt requires attackers to prepare such a table for every
 possible salt value. The longer the random salt value, the more rainbow tables
-to pre-compute.
+to pre-compute. You should pass at least 8 random bytes (64 bits) so an
+attacker would have to pre-compute and store 2^64 enormous tables.
 
 The salt is a public value and will be stored in the clear along with the
 derived bits. We need the exact same salt to arrive at the exact same derived
 bits later again. We will thus have to modify `deriveBits()` to accept the salt
 as an argument so that we can either generate a random one or read it from disk.
 
-You should pass at least 8 random bytes (64 bits) as the salt, pre-computing
-and storing 2^64 huge tables is nothing your average attacker will be able to
-accomplish.
+Rainbow tables today are mainly a thing from the past where password hashes
+were small enough to fit the entire output space of a given hash function in
+maybe 50 GB. As password hashes became longer people kept using salts because
+that was considered good practice, but salts merely protect against a threat
+that is largely irrelevant today.
 
-### Number of iterations
+### Specify a number of iterations
 
-Now that rainbow tables are hopefully worthless, an attacker can concentrate
-on brute-forcing the final PRF output by combining the public salt value stored
-on disk with millions of popular passwords and their variations. If PBKDF2 runs
-fast it would allow to search through all those passwords rather quickly.
+As computers became faster and rainbow table attacks infeasible due to the
+prevalent use of salts everywhere, attackers started brute-forcing passwords
+simply by taking the public salt value and passing that combined with their
+guess to the hash function until a match was found. Modern password schemes
+thus employ a "work factor" to make hashing millions of password guesses
+sufficiently slow.
 
 By specifying a *sufficiently high* number of iterations we can slow down
 PBKDF2's inner computation so that an attacker with access to regular hardware
@@ -149,15 +160,22 @@ so that PBKDF2 takes 80ms to complete means a simple four-digit number can
 still be guessed in roughly 13 minutes, it will take only 7 minutes on average
 to find.
 
+For a single-user disk or file encryption it might be acceptable if computing
+the password hash takes a few seconds. For a lock screen 300-500ms might be
+the upper limit to not interfere with user experience. Take a look at
+[this great StackExchange post](http://security.stackexchange.com/questions/3959/recommended-of-iterations-when-using-pkbdf2-sha256/3993#3993)
+for more advice on what might be the right number of iterations for your
+application and environment.
+
 For a much more secure version the UI should thus allow to not only use
 numbers but any number of characters. An additional delay of a few seconds
 after a small number of wrong guesses might increase security even more,
 assuming the attacker cannot access the PRF output stored on disk.
 
-### Number of bits to derive
+### Determine the number of bits to derive
 
-PBKDF2 allows to derive an almost arbitrary number of bits. A single execution
-will yield the number of bits that is equal to the chosen hash function's
+PBKDF2 can output an almost arbitrary amount of pseudo-random data. A single
+execution yields the number of bits that is equal to the chosen hash function's
 output size. If the number of bits to derive exceeds the hash function's output
 size PBKDF2 will be repeatedly executed until enough bits have been derived.
 
@@ -165,25 +183,20 @@ Choose 160 bits for SHA-1, 256 bits for SHA-256, and so on. Slowing down the
 key derivation even further by requiring more than one round of PBKDF2 will not
 increase the security of the lock screen.
 
-## Thou shalt not not hard-code parameters
+## Do not hard-code parameters
 
 Hard-coding PBKDF2's parameters - the name of the hash function to use in the
 HMAC construction, and the number of HMAC iterations - might seem a good idea
-at first. It is easy to see that you could regret this decision rather sooner
-than later should it for example turn out that SHA-1 cannot be considered a
-secure PRF any longer, or you need to increase the number of HMAC iterations as
-computer and phones get faster constantly.
+at first. You could however regret this decision rather sooner than later
+should it for example turn out that SHA-1 cannot be considered a secure PRF any
+longer, or you need to increase the number of HMAC iterations to keep up with
+the latest technological advancements.
 
-To ensure that future code can verify old passwords we need to store the
-parameters that were passed to PBKDF2 at the time, including the salt. When
-verifying the passcode we will read the hash function name, the number of
-iterations, and the salt from disk - the number of bits to derive will be the
-hash function's output size.
-
-#### getHashOutputLength(hash)
-
-Returns the output length in bits for a given hash function. For SHA-1 it
-returns 160 bits, 256 bits for SHA-256, and so on.
+To ensure future code can verify old passwords we need to store the parameters
+that were passed to PBKDF2 at the time, including the salt. When verifying the
+passcode we will read the hash function name, the number of iterations, and the
+salt from disk and pass those to `deriveBits()` along with the passcode itself.
+The number of bits to derive will simply be the hash function's output size.
 
 {% codeblock lang:js %}
 function deriveBits(code, salt, hash, iterations) {
@@ -195,7 +208,10 @@ function deriveBits(code, salt, hash, iterations) {
     "raw", bytes, "PBKDF2", false, ["deriveBits"]);
 
   return importedKey.then(key => {
+    // Returns the output length in bits for the given hash function.
     let hlen = getHashOutputLength(hash);
+
+    // All required PBKDF2 parameters.
     let params = {name: "PBKDF2", hash, salt, iterations};
 
     // Derive |hlen| bits using PBKDF2.
@@ -232,22 +248,18 @@ Passcode.store = function (code) {
 };
 {% endcodeblock %}
 
-It is important to generate a new random salt for every new passcode. The derived bits, the
-hash digest, are stored stored along with the salt, the hash function name,
-and the number of iterations. `HASH` and `ITERATIONS` are constants that
-provide default values for our PBKDF2 parameters and can be updated whenever
-desired. The Promise returned by `Passcode.store()` will resolve when all
-values have been successfully stored in the backend.
+We generate a new random salt for every new passcode. The derived bits are
+stored along with the salt, the hash function name, and the number of
+iterations. `HASH` and `ITERATIONS` are constants that provide default values
+for our PBKDF2 parameters and can be updated whenever desired. The Promise
+returned by `Passcode.store()` will resolve when all values have been
+successfully stored in the backend.
 
 ## Verifying a given passcode
 
 To verify a passcode all values and parameters stored by `Passcode.store()`
 will have to be read from disk and passed to `deriveBits()`. Comparing the
 derived bits with the value stored on disk tells whether the passcode is valid.
-
-#### compare(a, b)
-
-Compares two given typed arrays byte-by-byte and returns true if they are equal.
 
 {% codeblock lang:js %}
 Passcode.verify = function (code) {
