@@ -32,10 +32,10 @@ let Passcode = {
 {% endcodeblock %}
 
 When setting up the phone for the first time - or when changing the passcode
-later - we call `Passcode.store(code)` to write a new code to disk.
-`Passcode.verify(code)` will help us determine whether we should unlock the
-phone given a user-typed password. Both methods return a Promise as all
-operations exposed by the WebCrypto API are asynchronous.
+later - we call `Passcode.store()` to write a new code to disk.
+`Passcode.verify()` will help us determine whether we should unlock the phone
+given a user-typed password. Both methods return a Promise as all operations
+exposed by the WebCrypto API are asynchronous.
 
 Storing a new passcode and verifying it is simple:
 
@@ -135,7 +135,7 @@ will have to suddenly compute (and store!) 2^64 of those lookup tables and face
 8 additional random characters in the input. Even without the salt the effort
 to create even one lookup table would be hard to justify because chances are
 high you cannot reuse it to attack another target, they might be using a
-different hash function or combine two of them.
+different hash function or combine two or more of them.
 
 The same goes for [Rainbow Tables](https://en.wikipedia.org/wiki/Rainbow_table).
 A random salt included with the password would have to be incorporated
@@ -349,9 +349,9 @@ most APIs are clever enough to parse and use those parameters when verifying a
 given password.
 
 Scrypt implementations can usually securely generate a random salt, that is one
-less thing for you to care about. The most important aspect of scrypt is that
-it allows consuming a lot of memory when computing the password hash which
-makes cracking a password using ASICs or FPGAs close to impossible.
+less thing for you to care about. The most important aspect of scrypt though is
+that it allows consuming a lot of memory when computing the password hash which
+makes cracking passwords using ASICs or FPGAs close to impossible.
 
 The Web Cryptography API does unfortunately support neither of the two
 algorithms and currently there are no proposals to add those. In the case of
