@@ -126,16 +126,28 @@ WebCrypto API.
 ### Pass a random salt
 
 The salt is a random component that PBKDF2 feeds into the HMAC function along
-with the passcode. This prevents so-called
-[rainbow table](https://en.wikipedia.org/wiki/Rainbow_table) attacks where
-attackers pre-compute hashes for millions of popular passwords and variations.
-To thwart these attacks use at least 8 random bytes (64 bits) as the salt so
-the poor attacker has to prepare 2^64 variations of all her rainbow tables.
+with the passcode. This prevents an attacker from simply computing the hashes
+of for example all 8-character combinations of alphanumerics (~5.4 PetaByte of
+storage for SHA-1) and use a huge
+[lookup table](https://en.wikipedia.org/wiki/Lookup_table) to quickly reverse
+a given password hash. Specify 8 random bytes as the salt and the poor attacker
+will have to suddenly compute (and store!) 2^64 of those lookup tables and face
+8 additional random characters in the input. Even without the salt the effort
+to create even one lookup table would be hard to justify because chances are
+high you cannot reuse it to attack another target, they might be using a
+different hash function or combine two of them.
 
-The salt is a public value and will be stored in the clear along with the
-derived bits. We need the exact same salt to arrive at the exact same derived
-bits later again. We will thus have to modify `deriveBits()` to accept the salt
-as an argument so that we can either generate a random one or read it from disk.
+The same goes for [Rainbow Tables](https://en.wikipedia.org/wiki/Rainbow_table).
+A random salt included with the password would have to be incorporated
+when precomputing the hash chains and the attacker is back to square one where
+she has to compute a Rainbow Table for every possible salt value. That certainly
+works ad-hoc for a single salt value but preparing and storing 2^64 of those
+tables is impossible.
+
+The salt is public and will be stored in the clear along with the derived bits.
+We need the exact same salt to arrive at the exact same derived bits later
+again. We will thus have to modify `deriveBits()` to accept the salt as an
+argument so that we can either generate a random one or read it from disk.
 
 {% codeblock lang:js %}
 function deriveBits(code, salt) {
@@ -157,19 +169,18 @@ function deriveBits(code, salt) {
 {% endcodeblock %}
 
 Rainbow tables today are mainly a thing from the past where password hashes
-were small enough to fit the entire output space of a given hash function in
-maybe 50 GB. As password hashes became longer people kept using salts because
-that was considered good practice, but salts merely protect against a threat
-that is largely irrelevant today.
+were smaller and [shittier](http://en.wikipedia.org/wiki/LM_hash). Salts are
+the bare minimum a good password storage scheme needs, but they merely protect
+against a threat that is largely irrelevant today.
 
 ### Specify a number of iterations
 
-As computers became faster and rainbow table attacks infeasible due to the
-prevalent use of salts everywhere, attackers started brute-forcing passwords
-simply by taking the public salt value and passing that combined with their
-guess to the hash function until a match was found. Modern password schemes
-thus employ a "work factor" to make hashing millions of password guesses
-unbearably slow.
+As computers became faster and Rainbow Table attacks infeasible due to the
+prevalent use of salts everywhere, people started attacking password hashes
+with dictionaries, simply by taking the public salt value and passing that
+combined with their educated guess to the hash function until a match was found.
+Modern password schemes thus employ a "work factor" to make hashing millions of
+password guesses unbearably slow.
 
 By specifying a *sufficiently high* number of iterations we can slow down
 PBKDF2's inner computation so that an attacker with access to regular hardware
@@ -329,14 +340,20 @@ If it makes you feel any better, you can of course implement `compare()` as a
 constant-time operation. This might be tricky though given that all modern
 JavaScript engines optimize code heavily.
 
-## Conclusion
+## What about bcrypt or scrypt?
 
-When using PBKDF2 it is important to select the right values for its parameters
-and take upgrading those values in the future into account. The random salt
-ensures an attackers needs to spend the same amount of time for every single
-device she wants to find the passcode for, and will have to focus on one device
-at a time. The work factor should be high enough so that brute-forcing the
-passcode for a single device takes longer than the data on the device is worth.
+Both [bcrypt](https://en.wikipedia.org/wiki/Bcrypt) and
+[scrypt](https://en.wikipedia.org/wiki/Scrypt) are probably better alternatives
+to PBKDF2. Bcrypt automatically embeds the salt and cost factor into its output,
+most APIs are clever enough to parse and use those parameters when verifying a
+given password.
 
-The WebCrypto API does unfortunately not support bcrypt or scrypt that can make
-finding a passcode with asics or fpgas a lot harder and/or expensive.
+Scrypt implementations can usually securely generate a random salt, that is one
+less thing for you to care about. The most important aspect of scrypt is that
+it allows consuming a lot of memory when computing the password hash which
+makes cracking a password using ASICs or FPGAs close to impossible.
+
+The Web Cryptography API does unfortunately support neither of the two
+algorithms and currently there are no proposals to add those. In the case of
+scrypt it might also be somewhat controversial to allow a website to consume
+arbitrary amounts of memory and force the OS to start swapping.
