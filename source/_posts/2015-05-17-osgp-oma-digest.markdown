@@ -1,17 +1,57 @@
 ---
 layout: post
-title: "Understanding the bitwise key recovery attack on OSGP's OMA digest"
-date: 2015-05-17 21:33:45 +0200
+title: "A gentle introduction to differential cryptanalysis: a bitwise key recovery attack on OSGP's OMA digest"
+date: 2015-06-01 18:00:00 +0200
 ---
 
-mention paper and that it's not my attack
-mention who wrote it
+The recently published attacks on the "OMA digest", a home-brewed
+[message authentication code (MAC)](https://en.wikipedia.org/wiki/Message_authentication_code)
+used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
+provide a nice opportunity for a rather gentle introduction to
+[differential cryptanalysis](https://en.wikipedia.org/wiki/Differential_cryptanalysis).
+This post will dig into the bitwise key recovery attack described in the paper
+["Dumb Crypto in Smart Grids: Practical Cryptanalysis of the Open Smart Grid Protocol"](https://eprint.iacr.org/2015/428.pdf)
+published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
+[Samuel Neves](https://twitter.com/sevenps). You will soon see that "Don't
+invent your own crypto" is the probably safest advice for most of us.
 
-## The OMA digest
+## Internals of the OMA digest
 
-link to rust implementation
-explain how the digest works
-(show in rows of 8 bytes?)
+The OMA digest can handle inputs of any length but processes them in 144-byte
+blocks. The key length must be exactly 12 bytes (96 bit). While iterating
+over all given input bytes one at a time it maintains an 8-byte state that will
+eventually be the resulting output:
+
+{% img /images/oma-draft1.jpg The 8-byte internal OMA state %}
+
+For the first 144-byte block, the state is initialized to zero. For subsequent
+blocks the initial state will simply be the result of processing the previous
+block.  The algorithm will start by merging the first block byte and the first
+key bit into `a7` and then do the same for the second block byte and the second
+key bit with `a6`. Once it arrives at `a0` it will simply wrap around and
+continue from the right again.
+
+If you paid attention above you might have noticed that while there are 144
+input bytes we only have 96 key bits to combine them with. The designers of OMA
+thus simply chose to reuse the first half of the key for the last 48 input
+bytes to arrive at 144 key bits:
+
+{% img /images/oma-draft2.jpg 400 OMA reuses the first 48 key bits %}
+
+The function that combines the input byte with the key bit looks as follows,
+where `j` is the current position in the internal state:
+
+{% codeblock lang:js %}
+fn combine(ibyte, kbit, j) {
+  if (kbit == 1) {
+    state[(j + 1) % 8] + ibyte + (!(state[j] + j) <<< 1)
+  } else {
+    state[(j + 1) % 8] + ibyte - (!(state[j] + j) >>> 1)
+  }
+}
+{% endcodeblock %}
+
+https://github.com/ttaubert/osgp-oma-digest
 
 ## The key recovery attack
 
