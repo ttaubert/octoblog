@@ -12,46 +12,98 @@ provide a nice opportunity for a rather gentle introduction to
 This post will dig into the bitwise key recovery attack described in the paper
 ["Dumb Crypto in Smart Grids: Practical Cryptanalysis of the Open Smart Grid Protocol"](https://eprint.iacr.org/2015/428.pdf)
 published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
-[Samuel Neves](https://twitter.com/sevenps). You will soon see that "Don't
-invent your own crypto" is the probably safest advice for most of us.
+[Samuel Neves](https://twitter.com/sevenps).
+
+Before we can attack a digest by cryptanalysis we first have to study and
+understand its inner workings and should ideally have an implementation at hand
+to confirm our attack is working. The next section will focus on the internals
+of the algorithm itself and work towards an implementation in Rust-inspired
+pseudocode.
 
 ## Internals of the OMA digest
 
-The OMA digest can handle inputs of any length but processes them in 144-byte
+The OMA digest can handle inputs of any length and processes them in 144-byte
 blocks. The key length must be exactly 12 bytes (96 bit). While iterating
 over all given input bytes one at a time it maintains an 8-byte state that will
 eventually be the resulting output:
 
-{% img /images/oma-draft1.jpg The 8-byte internal OMA state %}
+{% img /images/oma-draft1.jpg 550 The 8-byte internal OMA state %}
 
 For the first 144-byte block, the state is initialized to zero. For subsequent
 blocks the initial state will simply be the result of processing the previous
-block.  The algorithm will start by merging the first block byte and the first
-key bit into `a7` and then do the same for the second block byte and the second
-key bit with `a6`. Once it arrives at `a0` it will simply wrap around and
-continue from the right again.
+block. The algorithm will start by combining the first block byte and the first
+key bit into `state[7]` and then do the same for the second block byte and the
+second key bit with `state[6]`. Once it arrives at `state[0]` it will wrap
+around and continue from the right again until all block bytes have been merged
+into the internal state.
 
 If you paid attention above you might have noticed that while there are 144
-input bytes we only have 96 key bits to combine them with. The designers of OMA
-thus simply chose to reuse the first half of the key for the last 48 input
-bytes to arrive at 144 key bits:
+bytes in a block we only have 96 key bits to combine them with. The designers
+of OMA thus simply chose to reuse the first half of the key for the last 48
+block bytes to arrive at 144 key bits, which does not add entropy or increases
+the effort needed to recover the key:
 
-{% img /images/oma-draft2.jpg 400 OMA reuses the first 48 key bits %}
+{% img /images/oma-draft2.jpg 500 OMA reuses the first 48 key bits %}
 
-The function that combines the input byte with the key bit looks as follows,
-where `j` is the current position in the internal state:
+148 bytes is of course more data than 148 bits, but the drawing above shows them
+nicely aligned because we will use one key bit per block byte. The function that
+updates the internal state, given a key bit, a block byte, and the current
+position in the internal state, looks as follows:
 
-{% codeblock lang:js %}
-fn combine(ibyte, kbit, j) {
-  if (kbit == 1) {
-    state[(j + 1) % 8] + ibyte + (!(state[j] + j) <<< 1)
+{% codeblock lang:rust %}
+fn update(k, b, j) {
+  // k = current key bit (0-1)
+  // b = current block byte (0-255)
+  // j = current position in the internal state (0-7)
+
+  if k == 1 {
+    state[j] = state[(j + 1) % 8] + b + !(state[j] + j) <<< 1
   } else {
-    state[(j + 1) % 8] + ibyte - (!(state[j] + j) >>> 1)
+    state[j] = state[(j + 1) % 8] + b - !(state[j] + j) >>> 1
   }
 }
 {% endcodeblock %}
 
-https://github.com/ttaubert/osgp-oma-digest
+The `update()` function may seem a little arbitrary but that is what the
+algorithm designers came up with when creating the OMA digest. The current block
+byte is added to state byte to the right of the current position in the internal
+state. If the key bit is one then the negation of adding the position `j` to the
+state byte `state[j]` will be rotated one bit to the *left* (<<< 1) and *added*
+to the previous sum, if the key bit is zero the negation of `state[j] + j` will
+be rotated one bit to the *right* (>>> 1) and *subtracted* from the previous sum.
+All additions and subtractions are performed on 1-byte integers and are expected
+to properly wrap around when over or underflowing.
+
+In Rust-inspired pseudcode, the full OMA digest implementation:
+
+{% codeblock lang:rust %}
+state = [0,0,0,0,0,0,0,0]
+
+// For each 144-byte block of the input...
+for block in input.chunks(144) {
+  // For each input byte and key bit...
+  for n in 0..144 {
+    // The current key bit.
+    k = key.get_nth_bit(n + 1)
+
+    // The current block byte.
+    b = block[n]
+
+    // Current position in the state, starts from the back.
+    j = (7 - n) % 8
+
+    // Update the state byte at position |j|.
+    update(k, b, j)
+  }
+}
+{% endcodeblock %}
+
+(You can find a real Rust implementation here:
+[github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
+
+Now that you hopefully have a solid understanding of how the OMA digest
+computes a MAC from a given key and input we can start thinking about how to
+attack it.
 
 ## The key recovery attack
 
@@ -62,6 +114,7 @@ can simply inject information by modifying the message itself
 how can we read the output to find the diff between original and modified output?
 OMA simply outputs the internal state at the end
 can use that to explore the differences
+CPA
 
 ## Injecting differences
 
