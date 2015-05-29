@@ -27,7 +27,7 @@ blocks. The key length must be exactly 12 bytes (96 bit). While iterating
 over all given input bytes one at a time it maintains an 8-byte state that will
 eventually be the resulting output:
 
-{% img /images/oma-draft1.jpg 550 The 8-byte internal OMA state %}
+{% img /images/oma-state.png The 8-byte internal OMA state %}
 
 For the first 144-byte block, the state is initialized to zero. For subsequent
 blocks the initial state will simply be the result of processing the previous
@@ -43,7 +43,7 @@ of OMA thus simply chose to reuse the first half of the key for the last 48
 block bytes to arrive at 144 key bits, which does not add entropy or increases
 the effort needed to recover the key:
 
-{% img /images/oma-draft2.jpg 500 OMA reuses the first 48 key bits %}
+{% img /images/oma-key-repeat.png OMA reuses the first 48 key bits %}
 
 148 bytes is of course more data than 148 bits, but the drawing above shows them
 nicely aligned because we will use one key bit per block byte. The function that
