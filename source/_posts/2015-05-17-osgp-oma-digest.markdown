@@ -4,6 +4,10 @@ title: "A gentle introduction to differential cryptanalysis: a bitwise key recov
 date: 2015-06-01 18:00:00 +0200
 ---
 
+> 1. [Overview of the OMA digest](#overview)
+> 2. [Internals of the OMA digest](#internals)
+> 3. [The bitwise key recovery attack](#attack)
+
 The recently published attacks on the "OMA digest", a home-brewed MAC
 used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
 provide a nice opportunity for a rather gentle introduction to
@@ -13,7 +17,7 @@ This post will dig into the bitwise key recovery attack described in the paper
 published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
 [Samuel Neves](https://twitter.com/sevenps).
 
-## Overview of the OMA digest
+## <a name="overview"></a> Overview of the OMA digest
 
 The OMA digest is a [MAC algorithm](https://en.wikipedia.org/wiki/Message_authentication_code),
 a function that will take a key and data as inputs. Only someone in possession
@@ -26,7 +30,7 @@ understand its inner workings and should ideally have an implementation at hand
 to confirm our attack is working. Let us take a high-level look at how OMA
 message authentication codes (MACs) are computed:
 
-{% img /images/oma-overview.png Overview %}
+{% img /images/oma-overview.png 500 OMA digest overview %}
 
 The digest can handle inputs of any length and processes them in 144-byte
 blocks. The state is initialized to zero and then together with the key passed
@@ -41,11 +45,11 @@ key - this will turn out to be very useful later. The next section will take
 a closer look at the inner function that computes MACs for single 144-byte
 blocks.
 
-## Internals of the OMA digest
+## <a name="internals"></a> Internals of the OMA digest
 
 For the first 144-byte block the internal state is initialized to zero:
 
-{% img /images/oma-state.png 400 The 8-byte internal OMA state %}
+{% img /images/oma-state.png 400 The initial 8-byte internal OMA state %}
 
 For subsequent blocks the initial state will simply be the result of processing
 the previous block. The algorithm will start by combining the first block byte
@@ -119,16 +123,31 @@ Now that you hopefully have a solid understanding of how the OMA digest
 computes a MAC from a given key and data we can start thinking about how to
 attack it.
 
-## The key recovery attack
+## <a name="attack"></a> The bitwise key recovery attack
 
-bitwise key recovery
-differential cryptanalysis
-we inject a difference into the digest to extract information
-can simply inject information by modifying the message itself
-how can we read the output to find the diff between original and modified output?
-OMA simply outputs the internal state at the end
-can use that to explore the differences
-CPA
+The first attack described in the paper (and the one this post is about) is a
+bitwise key recovery attack. Using
+[differential cryptanalysis](https://en.wikipedia.org/wiki/Differential_cryptanalysis)
+we will trace input differences through the transformations in the inner
+function shown above, and study how that affects output differences. Exploiting
+differential weaknesses in the OMA digest will allow us to recover the secret
+key used to compute MACs.
+
+The [chosen-plaintext attack (CPA)](https://en.wikipedia.org/wiki/Chosen-plaintext_attack)
+model assumes that an attacker can obtain the encryption of arbitrary plaintexts
+under a secret key. In the case of the OMA digest this means that she would for
+example exploit a protocol that allows to request MACs for arbitrary data,
+computed by the target with the secret key. The "only thing" left then is to
+find the secret key.
+
+{% img /images/oma-diff.png 500 Differential attack against OMA %}
+
+We start out with a random 144-byte message `m` for which we obtain a MAC `a`.
+We will then slightly tweak the original message and send `m'` back to the
+target to receive a new MAC `a'` and observe how the injected difference
+propagated into the output. As you remember, the OMA digest does not garble its
+internal state before returning - this will let us explore output differences
+easily.
 
 ## Injecting differences
 
