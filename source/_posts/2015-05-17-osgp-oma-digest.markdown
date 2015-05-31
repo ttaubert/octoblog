@@ -4,8 +4,7 @@ title: "A gentle introduction to differential cryptanalysis: a bitwise key recov
 date: 2015-06-01 18:00:00 +0200
 ---
 
-The recently published attacks on the "OMA digest", a home-brewed
-[message authentication code (MAC)](https://en.wikipedia.org/wiki/Message_authentication_code)
+The recently published attacks on the "OMA digest", a home-brewed MAC
 used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
 provide a nice opportunity for a rather gentle introduction to
 [differential cryptanalysis](https://en.wikipedia.org/wiki/Differential_cryptanalysis).
@@ -14,41 +13,57 @@ This post will dig into the bitwise key recovery attack described in the paper
 published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
 [Samuel Neves](https://twitter.com/sevenps).
 
-Before we can attack a digest by cryptanalysis we first have to study and
+## Overview of the OMA digest
+
+The OMA digest is a [MAC algorithm](https://en.wikipedia.org/wiki/Message_authentication_code),
+a function that will take a key and data as inputs. Only someone in possession
+of the correct key should be able to compute a valid MAC for any given input.
+If the key or data differ in only the slightest way the verification must fail
+in order to detect attackers tampering with traffic.
+
+Before we can attack an algorithm by cryptanalysis we first have to study and
 understand its inner workings and should ideally have an implementation at hand
-to confirm our attack is working. The next section will focus on the internals
-of the algorithm itself and work towards an implementation in Rust-inspired
-pseudocode.
+to confirm our attack is working. Let us take a high-level look at how OMA
+message authentication codes (MACs) are computed:
+
+{% img /images/oma-overview.png Overview %}
+
+The digest can handle inputs of any length and processes them in 144-byte
+blocks. The state is initialized to zero and then together with the key passed
+to the inner function that computes a MAC for a single block. After processing
+the first block the resulting state will be used as the starting point for the
+second block. The state will be passed on until we are out of blocks and the
+resulting MAC is the inner state after processing the last input block.
+
+An important property of this construction is that the internal state is not
+modified before it is returned as the MAC of the given data under the given
+key - this will turn out to be very useful later. The next section will take
+a closer look at the inner function that computes MACs for single 144-byte
+blocks.
 
 ## Internals of the OMA digest
 
-The OMA digest can handle inputs of any length and processes them in 144-byte
-blocks. The key length must be exactly 12 bytes (96 bit). While iterating
-over all given input bytes one at a time it maintains an 8-byte state that will
-eventually be the resulting output:
+For the first 144-byte block the internal state is initialized to zero:
 
-{% img /images/oma-state.png The 8-byte internal OMA state %}
+{% img /images/oma-state.png 400 The 8-byte internal OMA state %}
 
-For the first 144-byte block, the state is initialized to zero. For subsequent
-blocks the initial state will simply be the result of processing the previous
-block. The algorithm will start by combining the first block byte and the first
-key bit into `state[7]` and then do the same for the second block byte and the
-second key bit with `state[6]`. Once it arrives at `state[0]` it will wrap
-around and continue from the right again until all block bytes have been merged
-into the internal state.
+For subsequent blocks the initial state will simply be the result of processing
+the previous block. The algorithm will start by combining the first block byte
+and the first key bit into `state[7]` and then do the same for the second block
+byte and the second key bit with `state[6]`. Once it arrives at `state[0]` it
+will wrap around and continue from the right until all block bytes have been
+merged into the internal state.
 
-If you paid attention above you might have noticed that while there are 144
-bytes in a block we only have 96 key bits to combine them with. The designers
-of OMA thus simply chose to reuse the first half of the key for the last 48
-block bytes to arrive at 144 key bits, which does not add entropy or increases
-the effort needed to recover the key:
+The inner function, just as the OMA digest itself, takes a 96-bit key. This
+means that while there are 144 bytes in a block we only have 96 key bits to
+combine them with. The designers of OMA thus simply chose to reuse the first
+half of the key for the last 48 block bytes to arrive at 144 key bits (which
+neither adds entropy nor increases the effort needed to recover the key):
 
-{% img /images/oma-key-repeat.png OMA reuses the first 48 key bits %}
+{% img /images/oma-key-repeat.png 400 OMA reuses the first 48 key bits %}
 
-148 bytes is of course more data than 148 bits, but the drawing above shows them
-nicely aligned because we will use one key bit per block byte. The function that
-updates the internal state, given a key bit, a block byte, and the current
-position in the internal state, looks as follows:
+The function that updates the internal state, given a key bit, a block byte,
+and the current position in the internal state, looks as follows:
 
 {% codeblock lang:rust %}
 fn update(k, b, j) {
@@ -64,17 +79,16 @@ fn update(k, b, j) {
 }
 {% endcodeblock %}
 
-The `update()` function may seem a little arbitrary but that is what the
-algorithm designers came up with when creating the OMA digest. The current block
-byte is added to state byte to the right of the current position in the internal
-state. If the key bit is one then the negation of adding the position `j` to the
-state byte `state[j]` will be rotated one bit to the *left* (<<< 1) and *added*
-to the previous sum, if the key bit is zero the negation of `state[j] + j` will
-be rotated one bit to the *right* (>>> 1) and *subtracted* from the previous sum.
-All additions and subtractions are performed on 1-byte integers and are expected
-to properly wrap around when over or underflowing.
+The current block byte is added to the state byte to the right of the current
+position in the internal state. If the key bit is one then the negation of
+adding the position `j` to the state byte `state[j]` will be rotated one bit to
+the *left* and *added* to the previous sum, if the key bit is zero the negation
+of `state[j] + j` will be rotated one bit to the *right* and *subtracted* from
+the previous sum. All additions and subtractions are performed on 1-byte
+unsigned integers and are expected to properly wrap around when over or
+underflowing.
 
-In Rust-inspired pseudcode, the full OMA digest implementation:
+In Rust-inspired pseudocode, the full OMA digest implementation:
 
 {% codeblock lang:rust %}
 state = [0,0,0,0,0,0,0,0]
@@ -102,7 +116,7 @@ for block in input.chunks(144) {
 [github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
 
 Now that you hopefully have a solid understanding of how the OMA digest
-computes a MAC from a given key and input we can start thinking about how to
+computes a MAC from a given key and data we can start thinking about how to
 attack it.
 
 ## The key recovery attack
