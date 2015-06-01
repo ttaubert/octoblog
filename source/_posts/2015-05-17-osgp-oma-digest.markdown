@@ -7,6 +7,7 @@ date: 2015-06-01 18:00:00 +0200
 > 1. [Overview of the OMA digest](#overview)
 > 2. [Internals of the OMA digest](#internals)
 > 3. [The bitwise key recovery attack](#attack)
+> 4. [Injecting and tracing differences](#differences)
 
 The recently published attacks on the "OMA digest", a home-brewed MAC
 used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
@@ -70,15 +71,15 @@ The function that updates the internal state, given a key bit, a block byte,
 and the current position in the internal state, looks as follows:
 
 {% codeblock lang:rust %}
-fn update(k, b, j) {
+fn inner(k, b, j) {
   // k = current key bit (0-1)
   // b = current block byte (0-255)
   // j = current position in the internal state (0-7)
 
   if k == 1 {
-    state[j] = state[(j + 1) % 8] + b + !(state[j] + j) <<< 1
+    state[(j + 1) % 8] + b + !(state[j] + j) <<< 1
   } else {
-    state[j] = state[(j + 1) % 8] + b - !(state[j] + j) >>> 1
+    state[(j + 1) % 8] + b - !(state[j] + j) >>> 1
   }
 }
 {% endcodeblock %}
@@ -111,7 +112,7 @@ for block in input.chunks(144) {
     j = (7 - n) % 8
 
     // Update the state byte at position |j|.
-    update(k, b, j)
+    state[j] = inner(k, b, j)
   }
 }
 {% endcodeblock %}
@@ -149,15 +150,63 @@ propagated into the output. As you remember, the OMA digest does not garble its
 internal state before returning - this will let us explore output differences
 easily.
 
-## Injecting differences
+## <a name="differences"></a> Injecting and tracing differences
 
-Show how we would inject a difference
-That doesn't help us a lot because we know the difference
-We want to gain information about the key
-we need the digest to apply key information to our injected difference
-the difference in one message byte will propagate to the whole internal state
-we can use the nineth iteration to reveal part of the key
-as the bitshift operation depends on the value of the key bit used for the message byte
+To better explain how to inject and trace input differences we need an
+arbitrary message and its associated MAC under some unknown key. Let us take a
+look at the last 8 bytes of the message and the 8-byte internal state after
+processing all of the input that represents the MAC:
+
+{% img /images/oma-inject1.png 500 An OMA digest example %}
+
+If we now modify the last byte of the message and inject the differential `0x80`
+so that `0x43 ⊕ 0x80 = 0xc3` then this difference will always propagate to the
+first byte of the internal state and thus the first byte of the MAC:
+
+{% img /images/oma-inject2.png 500 OMA digest with injected difference 0x80 %}
+
+Even if we do not know the secret key we can predict the output, and thus
+already create a second valid MAC for a message we did not ask the attacker to
+authenticate. This is proof enough that the OMA digest is not CPA-secure. To
+understand why the value propagates to the internal state we should look at
+the inner function again:
+
+{% codeblock lang:rust %}
+  update(k, b ⊕ 0x80, j)
+
+=  state[(j + 1) % 8] + (b ⊕ 0x80) ± (FF ⊕ (state[j] + j) <<< r)
+= (state[(j + 1) % 8] +  b         ± (FF ⊕ (state[j] + j) <<< r)) ⊕ 0x80
+
+= update(k, b, j) ⊕ 0x80
+{% endcodeblock %}
+
+We replaced the negation with its equivalent `FF ⊕` and the bitwise rotation is
+now denoted by `r ∈ {1, 7}`.
+
+This does not work for any value however, `0x80` is a special value for this
+function that with probability 1 propagates to the digest's internal state. The
+theory behind finding which values are good differentials is very mathematical
+and described in the paper
+[Efficient Algorithms for Computing Differential Properties of Addition](http://eprint.iacr.org/2001/001.pdf)
+by Helger Lipmaa and Shiho Moriai.
+
+## new section
+
+So far we have managed to inject the differential `0x80` into the message and
+observed the same difference in the output. We unfortunately cannot infer any
+information about the key because we do not know anything about the previous
+state value that was negated and rotated either left or right. But what could
+we learn from a negated and rotated state value that includes our differential
+`0x80`?
+
+{% img /images/oma-inject3.png 500 TODO %}
+
+If we inject the differential into the 9th-to-last byte of the message every
+byte of the MAC will be its original value XOR 0x80. The first byte of the MAC
+however now has a value we cannot easily predict anymore as its value was
+computed using the modified internal state from the 9th-to-last update() call.
+The key bit dependant bitwise rotation `r` can be exploited to learn the value
+of the key bit used to calculate the first byte of the MAC.
 
 ## XOR-linearising the state update function
 
