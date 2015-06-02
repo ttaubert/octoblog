@@ -8,6 +8,7 @@ date: 2015-06-01 18:00:00 +0200
 > 2. [Internals of the OMA digest](#internals)
 > 3. [The bitwise key recovery attack](#attack)
 > 4. [Injecting and tracing differences](#differences)
+> 5. [Why does 0x80 always propagate?](#propagate)
 
 The recently published attacks on the "OMA digest", a home-brewed MAC
 used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
@@ -21,43 +22,45 @@ published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
 ## <a name="overview"></a> Overview of the OMA digest
 
 The OMA digest is a [MAC algorithm](https://en.wikipedia.org/wiki/Message_authentication_code),
-a function that will take a key and data as inputs. Only someone in possession
-of the correct key should be able to compute a valid MAC for any given input.
-If the key or data differ in only the slightest way the verification must fail
-in order to detect attackers tampering with traffic.
+a function that takes a key and data as inputs. Only someone in possession of
+the correct key should be able to compute a valid MAC for any data. If for a
+given MAC the key or data differ in only the slightest way, the verification
+must fail in order to detect attackers tampering with traffic.
 
 Before we can attack an algorithm by cryptanalysis we first have to study and
-understand its inner workings and should ideally have an implementation at hand
-to confirm our attack is working. Let us take a high-level look at how OMA
+understand its inner workings, and should ideally have an implementation at
+hand to confirm our attack is working. Let us take a high-level look at how OMA
 message authentication codes (MACs) are computed:
 
 {% img /images/oma-overview.png 500 OMA digest overview %}
 
 The digest can handle inputs of any length and processes them in 144-byte
-blocks. The state is initialized to zero and then together with the key passed
-to the inner function that computes a MAC for a single block. After processing
-the first block the resulting state will be used as the starting point for the
-second block. The state will be passed on until we are out of blocks and the
-resulting MAC is the inner state after processing the last input block.
+blocks. The internal state is initialized to zero and then together with the
+key passed to the inner function that computes a MAC for a single block. After
+processing the first block the resulting state will be used as the starting
+point for the second block. The state will be passed on until we are out of
+blocks and the resulting MAC is the final state after processing the last input
+block.
 
 An important property of this construction is that the internal state is not
 modified before it is returned as the MAC of the given data under the given
 key - this will turn out to be very useful later. The next section will take
-a closer look at the inner function that computes MACs for single 144-byte
-blocks.
+a closer look at the inner function that updates the internal state given a
+single 144-byte block.
 
 ## <a name="internals"></a> Internals of the OMA digest
 
-For the first 144-byte block the internal state is initialized to zero:
+As shown above, the first call to the inner function will pass the first
+144-byte block and the 8-byte internal state initialized to zero:
 
 {% img /images/oma-state.png 400 The initial 8-byte internal OMA state %}
 
-For subsequent blocks the initial state will simply be the result of processing
-the previous block. The algorithm will start by combining the first block byte
-and the first key bit into `state[7]` and then do the same for the second block
-byte and the second key bit with `state[6]`. Once it arrives at `state[0]` it
-will wrap around and continue from the right until all block bytes have been
-merged into the internal state.
+The algorithm will then start by combining the first block byte and the first
+key bit into `state[7]` and then do the same for the second block byte and the
+second key bit with `state[6]`. Once it arrives at `state[0]` it will wrap
+around and continue from the right until all block bytes have been merged into
+the internal state. With 144 bytes per block each state byte will be updated
+exactly 18 times.
 
 The inner function, just as the OMA digest itself, takes a 96-bit key. This
 means that while there are 144 bytes in a block we only have 96 key bits to
@@ -84,14 +87,14 @@ fn inner(k, b, j) {
 }
 {% endcodeblock %}
 
-The current block byte is added to the state byte to the right of the current
-position in the internal state. If the key bit is one then the negation of
-adding the position `j` to the state byte `state[j]` will be rotated one bit to
-the *left* and *added* to the previous sum, if the key bit is zero the negation
-of `state[j] + j` will be rotated one bit to the *right* and *subtracted* from
-the previous sum. All additions and subtractions are performed on 1-byte
-unsigned integers and are expected to properly wrap around when over or
-underflowing.
+The current block byte `b` is added to the state byte to the right of the
+current position in the internal state. If the key bit is one then the negation
+of adding the position `j` to the state byte `state[j]` will be rotated one bit
+to the *left* and *added* to the previous sum, if the key bit is zero the
+negation of `state[j] + j` will be rotated one bit to the *right* and
+*subtracted* from the previous sum. All additions and subtractions are
+performed on 1-byte unsigned integers and are expected to properly wrap around
+when over or underflowing.
 
 In Rust-inspired pseudocode, the full OMA digest implementation:
 
@@ -121,8 +124,7 @@ for block in input.chunks(144) {
 [github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
 
 Now that you hopefully have a solid understanding of how the OMA digest
-computes a MAC from a given key and data we can start thinking about how to
-attack it.
+computes a MAC from a given key and data we can start to attack it.
 
 ## <a name="attack"></a> The bitwise key recovery attack
 
@@ -130,16 +132,17 @@ The first attack described in the paper (and the one this post is about) is a
 bitwise key recovery attack. Using
 [differential cryptanalysis](https://en.wikipedia.org/wiki/Differential_cryptanalysis)
 we will trace input differences through the transformations in the inner
-function shown above, and study how that affects output differences. Exploiting
-differential weaknesses in the OMA digest will allow us to recover the secret
-key used to compute MACs.
+function and study how that affects output differences. Exploiting differential
+weaknesses in the OMA digest will allow us to recover the secret key used to
+compute MACs.
 
-The [chosen-plaintext attack (CPA)](https://en.wikipedia.org/wiki/Chosen-plaintext_attack)
-model assumes that an attacker can obtain the encryption of arbitrary plaintexts
-under a secret key. In the case of the OMA digest this means that she would for
-example exploit a protocol that allows to request MACs for arbitrary data,
-computed by the target with the secret key. The "only thing" left then is to
-find the secret key.
+The [adaptive chosen-message attack (ACM)](https://en.wikipedia.org/wiki/Chosen-plaintext_attack)
+model, describing a very powerful adversary, allows to obtain a valid
+authentication token (the MAC) for arbitrary messages under a secret key. In
+the case of the OMA digest this means that she would for example exploit a
+protocol that allows to request MACs for data under her control, computed by
+the target with the secret key. The "only thing" left then is to find the
+secret key.
 
 {% img /images/oma-diff.png 500 Differential attack against OMA %}
 
@@ -154,40 +157,51 @@ easily.
 
 To better explain how to inject and trace input differences we need an
 arbitrary message and its associated MAC under some unknown key. Let us take a
-look at the last 8 bytes of the message and the 8-byte internal state after
-processing all of the input that represents the MAC:
+look at the last 8 bytes of the message and the 8-byte internal state that
+represents the MAC after processing all of the input:
 
 {% img /images/oma-inject1.png 500 An OMA digest example %}
 
-If we now modify the last byte of the message and inject the differential `0x80`
-so that `0x43 ⊕ 0x80 = 0xc3` then this difference will always propagate to the
-first byte of the internal state and thus the first byte of the MAC:
+Remember that the state is updated from right-to-left, the last message byte on
+the right updates the first state byte on the left. If we now modify the last
+byte of the message and inject the differential `0x80` so that `0x43 ⊕ 0x80 =
+0xc3` then this difference will always propagate to the first byte of the
+internal state and thus the first byte of the MAC:
 
 {% img /images/oma-inject2.png 500 OMA digest with injected difference 0x80 %}
 
-Even if we do not know the secret key we can predict the output, and thus
-already create a second valid MAC for a message we did not ask the attacker to
-authenticate. This is proof enough that the OMA digest is not CPA-secure. To
-understand why the value propagates to the internal state we should look at
-the inner function again:
+Even if we do not know the secret key we can predict the output, and therefore
+create a second valid MAC for a message we did not ask the target to
+authenticate. This is already proof enough that the OMA digest is not a secure
+MAC as we just constructed an
+[existential forgery](https://en.wikipedia.org/wiki/Digital_signature_forgery#Existential_forgery).
+
+## <a name="propagate"></a> Why does 0x80 always propagate?
+
+To understand why the differential `0x80` always cleanly propagates from a
+message byte to the internal state we should look at the inner function again.
+We start by calling `inner()` as usual except that the input byte now carries
+the differential. When expanding the function we will replace the negation with
+its equivalent operation `FF ⊕`. The addition or subtraction `±` and the
+bitwise rotation `r ∈ {1, 7}` depend on the key bit `k`.
 
 {% codeblock lang:rust %}
-  update(k, b ⊕ 0x80, j)
+  inner(k, b ⊕ 0x80, j)
 
 =  state[(j + 1) % 8] + (b ⊕ 0x80) ± (FF ⊕ (state[j] + j) <<< r)
 = (state[(j + 1) % 8] +  b         ± (FF ⊕ (state[j] + j) <<< r)) ⊕ 0x80
 
-= update(k, b, j) ⊕ 0x80
+= inner(k, b, j) ⊕ 0x80
 {% endcodeblock %}
 
-We replaced the negation with its equivalent `FF ⊕` and the bitwise rotation is
-now denoted by `r ∈ {1, 7}`.
+This shows that we can rearrange the algorithm to show that the differential
+propagates to the function's value.
 
 This does not work for any value however, `0x80` is a special value for this
 function that with probability 1 propagates to the digest's internal state. The
 theory behind finding which values are good differentials is very mathematical
 and described in the paper
-[Efficient Algorithms for Computing Differential Properties of Addition](http://eprint.iacr.org/2001/001.pdf)
+[Efficient Algorithms for Computing Differential Properties of Addition](https://eprint.iacr.org/2001/001.pdf)
 by Helger Lipmaa and Shiho Moriai.
 
 ## new section
