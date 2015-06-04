@@ -9,6 +9,8 @@ date: 2015-06-01 18:00:00 +0200
 > 3. [The bitwise key recovery attack](#attack)
 > 4. [Injecting and tracing differences](#differences)
 > 5. [Why does 0x80 always propagate?](#propagate)
+> 6. [Exploiting leaked key bits](#leak)
+> 7. [XOR-Linearizing the update function](#linearizing)
 
 The recently published attacks on the "OMA digest", a home-brewed MAC
 used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
@@ -22,10 +24,11 @@ published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
 ## <a name="overview"></a> Overview of the OMA digest
 
 The OMA digest is a [MAC algorithm](https://en.wikipedia.org/wiki/Message_authentication_code),
-a function that takes a key and data as inputs. Only someone in possession of
-the correct key should be able to compute a valid MAC for any data. If for a
-given MAC the key or data differ in only the slightest way, the verification
-must fail in order to detect attackers tampering with traffic.
+a function that takes a key and a message as inputs, and returns an
+authentication code. Only someone in possession of the correct key should be
+able to compute a valid MAC for any data. If for a given MAC the key or data
+differ in only the slightest way, the verification must fail in order to detect
+attackers tampering with traffic.
 
 Before we can attack an algorithm by cryptanalysis we first have to study and
 understand its inner workings, and should ideally have an implementation at
@@ -94,7 +97,7 @@ to the *left* and *added* to the previous sum, if the key bit is zero the
 negation of `state[j] + j` will be rotated one bit to the *right* and
 *subtracted* from the previous sum. All additions and subtractions are
 performed on 1-byte unsigned integers and are expected to properly wrap around
-when over or underflowing.
+when over or underflowing (i.e. addition modulo 2^8).
 
 In Rust-inspired pseudocode, the full OMA digest implementation:
 
@@ -124,7 +127,7 @@ for block in input.chunks(144) {
 [github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
 
 Now that you hopefully have a solid understanding of how the OMA digest
-computes a MAC from a given key and data we can start to attack it.
+computes a MAC from a given key and message we can start to attack it.
 
 ## <a name="attack"></a> The bitwise key recovery attack
 
@@ -146,12 +149,11 @@ secret key.
 
 {% img /images/oma-diff.png 500 Differential attack against OMA %}
 
-We start out with a random 144-byte message `m` for which we obtain a MAC `a`.
-We will then slightly tweak the original message and send `m'` back to the
-target to receive a new MAC `a'` and observe how the injected difference
-propagated into the output. As you remember, the OMA digest does not garble its
-internal state before returning - this will let us explore output differences
-easily.
+We start out with a 144-byte message `m` for which we obtain a MAC `a`. We will
+then slightly tweak the original message and send `m'` back to the target to
+receive a new MAC `a'` and observe how the injected difference propagated into
+the output. As you remember, the OMA digest does not garble its internal state
+before returning - this will let us explore output differences easily.
 
 ## <a name="differences"></a> Injecting and tracing differences
 
@@ -164,24 +166,25 @@ represents the MAC after processing all of the input:
 
 Remember that the state is updated from right-to-left, the last message byte on
 the right updates the first state byte on the left. If we now modify the last
-byte of the message and inject the differential `0x80` so that `0x43 ⊕ 0x80 =
-0xc3` then this difference will always propagate to the first byte of the
-internal state and thus the first byte of the MAC:
+byte of the message and inject the difference `0x80` so that `0x43 ⊕ 0x80 =
+0xc3` then that will always propagate to the first byte of the internal state
+and thus the first byte of the MAC, which is now `0x31 ⊕ 0x80 = 0xb1`:
 
 {% img /images/oma-inject2.png 500 OMA digest with injected difference 0x80 %}
 
 Even if we do not know the secret key we can predict the output, and therefore
-create a second valid MAC for a message we did not ask the target to
-authenticate. This is already proof enough that the OMA digest is not a secure
-MAC as we just constructed an
-[existential forgery](https://en.wikipedia.org/wiki/Digital_signature_forgery#Existential_forgery).
+create a valid MAC for a message we did not ask the target to authenticate.
+This is already proof enough that the OMA digest is not a secure MAC as we just
+constructed an [existential forgery](https://en.wikipedia.org/wiki/Digital_signature_forgery#Existential_forgery).
 
 ## <a name="propagate"></a> Why does 0x80 always propagate?
 
-To understand why the differential `0x80` always cleanly propagates from a
+TODO
+
+To understand why the difference `0x80` always cleanly propagates from a
 message byte to the internal state we should look at the inner function again.
 We start by calling `inner()` as usual except that the input byte now carries
-the differential. When expanding the function we will replace the negation with
+the difference. When expanding the function we will replace the negation with
 its equivalent operation `FF ⊕`. The addition or subtraction `±` and the
 bitwise rotation `r ∈ {1, 7}` depend on the key bit `k`.
 
@@ -204,25 +207,27 @@ and described in the paper
 [Efficient Algorithms for Computing Differential Properties of Addition](https://eprint.iacr.org/2001/001.pdf)
 by Helger Lipmaa and Shiho Moriai.
 
-## new section
+## <a name="leak"></a> Exploiting leaked key bits
 
-So far we have managed to inject the differential `0x80` into the message and
+TODO
+
+So far we have managed to inject the difference `0x80` into the message and
 observed the same difference in the output. We unfortunately cannot infer any
 information about the key because we do not know anything about the previous
 state value that was negated and rotated either left or right. But what could
-we learn from a negated and rotated state value that includes our differential
+we learn from a negated and rotated state value that includes the difference
 `0x80`?
 
-{% img /images/oma-inject3.png 500 TODO %}
+{% img /images/oma-inject3.png 500 Exploiting leaked key bits by injecting an input difference %}
 
 If we inject the differential into the 9th-to-last byte of the message every
-byte of the MAC will be its original value XOR 0x80. The first byte of the MAC
+byte of the MAC will be its original value XOR `0x80`. The first byte of the MAC
 however now has a value we cannot easily predict anymore as its value was
 computed using the modified internal state from the 9th-to-last update() call.
 The key bit dependant bitwise rotation `r` can be exploited to learn the value
 of the key bit used to calculate the first byte of the MAC.
 
-## XOR-linearising the state update function
+## <a name="linearizing"></a> XOR-linearizing the state update function
 
 now comes a magic step that might be a little puzzling at first
 we will xor linearize the state update function
