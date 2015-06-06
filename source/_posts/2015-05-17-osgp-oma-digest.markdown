@@ -166,9 +166,9 @@ represents the MAC after processing all of the input:
 
 Remember that the state is updated from right-to-left, the last message byte on
 the right updates the first state byte on the left. If we now modify the last
-byte of the message and inject the difference `0x80` so that `0x43 ⊕ 0x80 =
-0xc3` then that will always propagate to the first byte of the internal state
-and thus the first byte of the MAC, which is now `0x31 ⊕ 0x80 = 0xb1`:
+byte of the message and inject the difference `0x80` so that `0xf3 ⊕ 0x80 =
+0x73` then that will always propagate to the first byte of the internal state
+and thus the first byte of the MAC, which is now `0xcb ⊕ 0x80 = 0x4b`:
 
 {% img /images/oma-inject2.png 500 OMA digest with injected difference 0x80 %}
 
