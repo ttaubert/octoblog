@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "A gentle introduction to differential cryptanalysis: a bitwise key recovery attack on OSGP's OMA digest"
-date: 2015-06-01 18:00:00 +0200
+date: 2015-06-16 18:00:00 +0200
 ---
 
 > 1. [Overview of the OMA digest](#overview)
@@ -27,7 +27,7 @@ The OMA digest is a [MAC algorithm](https://en.wikipedia.org/wiki/Message_authen
 a function that takes a key and a message as inputs, and returns an
 authentication code. Only someone in possession of the correct key should be
 able to compute a valid MAC for any data. If for a given MAC the key or data
-differ in only the slightest way, the verification must fail in order to detect
+differ in only the slightest way the verification must fail in order to detect
 attackers tampering with traffic.
 
 Before we can attack an algorithm by cryptanalysis we first have to study and
@@ -41,12 +41,12 @@ The digest can handle inputs of any length and processes them in 144-byte
 blocks. The internal state is initialized to zero and then together with the
 key passed to the inner function that computes a MAC for a single block. After
 processing the first block the resulting state will be used as the starting
-point for the second block. The state will be passed on until we are out of
-blocks and the resulting MAC is the final state after processing the last input
-block.
+point for the second block. The state will be passed on until there are no
+blocks left; the resulting MAC is the final state after processing the last
+input block.
 
 An important property of this construction is that the internal state is not
-modified before it is returned as the MAC of the given data under the given
+modified before it is returned as the MAC of the given message under the given
 key - this will turn out to be very useful later. The next section will take
 a closer look at the inner function that updates the internal state given a
 single 144-byte block.
@@ -54,7 +54,7 @@ single 144-byte block.
 ## <a name="internals"></a> Internals of the OMA digest
 
 As shown above, the first call to the inner function will pass the first
-144-byte block and the 8-byte internal state initialized to zero:
+144-byte block, the key, and the 8-byte internal state initialized to zero:
 
 {% img /images/oma-state.png 400 The initial 8-byte internal OMA state %}
 
@@ -73,57 +73,80 @@ neither adds entropy nor increases the effort needed to recover the key):
 
 {% img /images/oma-key-repeat.png 400 OMA reuses the first 48 key bits %}
 
-The function that updates the internal state, given a key bit, a block byte,
-and the current position in the internal state, looks as follows:
+We actually need a few more parameters to compute a state byte than just a key
+bit and a block byte. In mathematical notation, the function to compute a new
+state byte looks as follows:
+
+[math here]
+
+The current block byte `z` is added to the state byte `y = state[(j + 1) % 8]`.
+If the key bit `k` is one then the negation of adding the position `j` to state
+byte `x = state[j]` will be rotated one bit to the *left* and *added* to the
+previous sum, if the key bit is zero the negation of `x + j` will be rotated
+one bit to the *right* and *subtracted* from the previous sum. All additions
+and subtractions are performed on 1-byte unsigned integers and are expected to
+properly wrap around when over or underflowing (i.e. addition modulo 2^8).
+
+Here is the `inner()` function implemented in Rust, updating the given state
+for every block byte it encounters:
 
 {% codeblock lang:rust %}
-fn inner(k, b, j) {
-  // k = current key bit (0-1)
-  // b = current block byte (0-255)
-  // j = current position in the internal state (0-7)
+const KEY_SIZE: usize = 12;
 
-  if k == 1 {
-    state[(j + 1) % 8] + b + !(state[j] + j) <<< 1
-  } else {
-    state[(j + 1) % 8] + b - !(state[j] + j) >>> 1
-  }
-}
-{% endcodeblock %}
+fn inner(state: [u8; 8], key: &[u8], block: &[u8]) -> [u8; 8] {
+  let mut state = state;
 
-The current block byte `b` is added to the state byte to the right of the
-current position in the internal state. If the key bit is one then the negation
-of adding the position `j` to the state byte `state[j]` will be rotated one bit
-to the *left* and *added* to the previous sum, if the key bit is zero the
-negation of `state[j] + j` will be rotated one bit to the *right* and
-*subtracted* from the previous sum. All additions and subtractions are
-performed on 1-byte unsigned integers and are expected to properly wrap around
-when over or underflowing (i.e. addition modulo 2^8).
-
-In Rust-inspired pseudocode, the full OMA digest implementation:
-
-{% codeblock lang:rust %}
-state = [0,0,0,0,0,0,0,0]
-
-// For each 144-byte block of the input...
-for block in input.chunks(144) {
-  // For each input byte and key bit...
-  for n in 0..144 {
-    // The current key bit.
-    k = key.get_nth_bit(n + 1)
-
-    // The current block byte.
-    b = block[n]
-
+  // For each byte in the block...
+  for l in 0..144 {
     // Current position in the state, starts from the back.
-    j = (7 - n) % 8
+    let j = (7u8.wrapping_sub(l as u8) % 8) as usize;
 
-    // Update the state byte at position |j|.
-    state[j] = inner(k, b, j)
+    // The current key bit to work with.
+    let key_bit = key[(l / 8) % KEY_SIZE] >> (7 - j);
+
+    // The block byte at the given index or 0 if the block is too
+    // short. This basically implements zero-padding short blocks.
+    let block_byte = if l < block.len() { block[l] } else { 0 };
+
+    // Temp values shared between branches.
+    let yz = state[(j + 1) % 8].wrapping_add(block_byte);
+    let xj = !state[j].wrapping_add(j as u8);
+
+    // Switch based on key bit.
+    state[j] = if key_bit & 1 == 1 {
+      yz.wrapping_add(xj.rotate_left(1))
+    } else {
+      yz.wrapping_sub(xj.rotate_right(1))
+    };
+  }
+
+  state
+}
+{% endcodeblock %}
+
+Completing the OMA digest implementation is now trivial given the code above:
+
+{% codeblock lang:rust %}
+const BLOCK_SIZE: usize = 144;
+
+pub trait OMADigest {
+  fn oma_digest(&self, key: &[u8]) -> [u8; 8];
+}
+
+impl OMADigest for [u8] {
+  fn oma_digest(&self, key: &[u8]) -> [u8; 8] {
+    // Key must be 96 bits.
+    assert_eq!(key.len(), KEY_SIZE);
+
+    // Process each block, carrying over state.
+    self.chunks(BLOCK_SIZE).fold([0u8; 8], |state, block| {
+      inner(state, key, block)
+    })
   }
 }
 {% endcodeblock %}
 
-(You can find a real Rust implementation here:
+(An implementation with tests can be found at:
 [github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
 
 Now that you hopefully have a solid understanding of how the OMA digest
@@ -142,10 +165,10 @@ compute MACs.
 The [adaptive chosen-message attack (ACM)](https://en.wikipedia.org/wiki/Chosen-plaintext_attack)
 model, describing a very powerful adversary, allows to obtain a valid
 authentication token (the MAC) for arbitrary messages under a secret key. In
-the case of the OMA digest this means that she would for example exploit a
-protocol that allows to request MACs for data under her control, computed by
-the target with the secret key. The "only thing" left then is to find the
-secret key.
+the case of the OMA digest this means that an attacker would for example
+exploit a protocol that allows to request MACs for data under her control,
+computed by the target with the secret key. The "only thing" left then is to
+find the secret key.
 
 {% img /images/oma-diff.png 500 Differential attack against OMA %}
 
@@ -188,14 +211,9 @@ the difference. When expanding the function we will replace the negation with
 its equivalent operation `FF ⊕`. The addition or subtraction `±` and the
 bitwise rotation `r ∈ {1, 7}` depend on the key bit `k`.
 
-{% codeblock lang:rust %}
-  inner(k, b ⊕ 0x80, j)
+We can ... like this:
 
-=  state[(j + 1) % 8] + (b ⊕ 0x80) ± (FF ⊕ (state[j] + j) <<< r)
-= (state[(j + 1) % 8] +  b         ± (FF ⊕ (state[j] + j) <<< r)) ⊕ 0x80
-
-= inner(k, b, j) ⊕ 0x80
-{% endcodeblock %}
+{% img /images/oma-propagation.png 600 TODO %}
 
 This shows that we can rearrange the algorithm to show that the differential
 propagates to the function's value.
@@ -208,6 +226,16 @@ and described in the paper
 by Helger Lipmaa and Shiho Moriai.
 
 ## <a name="leak"></a> Exploiting leaked key bits
+
+So far, we managed to inject the difference `0x80` into the message and observe
+the same difference in the output. As seen above the difference cleanly
+propagates and does not reveal any information about the key as the key bit
+is not applied to the difference.
+
+used to
+compute MACs. To learn anything about a specific key bit used to compute an
+internal state byte we will have to inject the difference in a way so that is
+is transformed by the key bit.
 
 TODO
 
@@ -284,3 +312,44 @@ the whole key can be recovered
 
 I might write about the other attacks mentioned in the paper if I find the time
 want to thank the authors for their great paper
+
+fn update(k, b, j) {
+  // k = current key bit (0-1)
+  // b = current block byte (0-255)
+  // j = current position in the internal state (0-7)
+
+  if k == 1 {
+    state[(j + 1) % 8] + b + !(state[j] + j) <<< 1
+  } else {
+    state[(j + 1) % 8] + b - !(state[j] + j) >>> 1
+  }
+}
+fn inner(state, key, block) {
+  // For each input byte and key bit...
+  for n in 0..144 {
+    // The current key bit.
+    k = key.get_nth_bit(n + 1)
+
+    // The current block byte.
+    b = block[n]
+
+    // Current position in the state, starts from the back.
+    j = (7 - n) % 8
+
+    // Update the state byte at position |j|.
+    state[j] = update(k, b, j)
+  }
+
+  return state
+}
+
+fn oma_digest(state, key, message) {
+  state = [0,0,0,0,0,0,0,0]
+
+  // For each 144-byte block of the input...
+  for block in message.chunks(144) {
+    state = inner(state, key, block)
+  }
+
+  return state
+}
