@@ -37,13 +37,14 @@ message authentication codes (MACs) are computed:
 
 {% img /images/oma-overview.png 500 OMA digest overview %}
 
-The digest can handle inputs of any length and processes them in 144-byte
-blocks. The internal state is initialized to zero and then together with the
-key passed to the inner function that computes a MAC for a single block. After
-processing the first block the resulting state will be used as the starting
-point for the second block. The state will be passed on until there are no
-blocks left; the resulting MAC is the final state after processing the last
-input block.
+The digest can handle messages of any length and processes them in 144-byte
+blocks. If the length of the message is not a multiple of 144 the last block
+will be padded with zero bytes. The internal state is initialized to zero and
+then together with the key passed to the inner function that computes a MAC for
+a single block. After processing the first block the resulting state will be
+used as the starting point for the second block. The state will be passed on
+until there are no blocks left; the resulting MAC is the final state after
+processing the last input block.
 
 An important property of this construction is that the internal state is not
 modified before it is returned as the MAC of the given message under the given
@@ -74,10 +75,10 @@ neither adds entropy nor increases the effort needed to recover the key):
 {% img /images/oma-key-repeat.png 400 OMA reuses the first 48 key bits %}
 
 We actually need a few more parameters to compute a state byte than just a key
-bit and a block byte. In mathematical notation, the function to compute a new
+bit and a block byte. In mathematical notation, the function to calculate a new
 state byte looks as follows:
 
-[math here]
+{% img /images/oma-update.png 500 TODO %}
 
 The current block byte `z` is added to the state byte `y = state[(j + 1) % 8]`.
 If the key bit `k` is one then the negation of adding the position `j` to state
@@ -87,8 +88,10 @@ one bit to the *right* and *subtracted* from the previous sum. All additions
 and subtractions are performed on 1-byte unsigned integers and are expected to
 properly wrap around when over or underflowing (i.e. addition modulo 2^8).
 
-Here is the `inner()` function implemented in Rust, updating the given state
-for every block byte it encounters:
+This is not too hard to implement so let us write some Rust code. `inner()`
+works just as described above, it takes the previous state, the key, and the
+current block and merges those inputs together to obtain a new intermediate or
+final state:
 
 {% codeblock lang:rust %}
 const KEY_SIZE: usize = 12;
@@ -124,7 +127,8 @@ fn inner(state: [u8; 8], key: &[u8], block: &[u8]) -> [u8; 8] {
 }
 {% endcodeblock %}
 
-Completing the OMA digest implementation is now trivial given the code above:
+Finally, we add a trait that lets us compute the MAC for a given message with
+a convenient API, and thus have a complete OMA digest implementation:
 
 {% codeblock lang:rust %}
 const BLOCK_SIZE: usize = 144;
@@ -144,6 +148,9 @@ impl OMADigest for [u8] {
     })
   }
 }
+
+// Usage:
+// let mac = b"message".oma_digest(b"Some96BitKey");
 {% endcodeblock %}
 
 (An implementation with tests can be found at:
@@ -199,6 +206,13 @@ Even if we do not know the secret key we can predict the output, and therefore
 create a valid MAC for a message we did not ask the target to authenticate.
 This is already proof enough that the OMA digest is not a secure MAC as we just
 constructed an [existential forgery](https://en.wikipedia.org/wiki/Digital_signature_forgery#Existential_forgery).
+
+> We actually could have stated the OMA digest is not a secure MAC way earlier:
+> if you paid attention above you might have noticed that if the last block is
+> shorter than 144 bytes it will need to be padded with zero bytes. This means
+> that by obtaining the MAC for some 143-byte message we can construct an
+> existential forgery by appending a zero byte, the MAC will validate for both
+> messages, and we still know nothing about the key.
 
 ## <a name="propagate"></a> Why does 0x80 always propagate?
 
