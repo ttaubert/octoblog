@@ -4,14 +4,6 @@ title: "A gentle introduction to differential cryptanalysis: a bitwise key recov
 date: 2015-06-16 18:00:00 +0200
 ---
 
-> 1. [Overview of the OMA digest](#overview)
-> 2. [Internals of the OMA digest](#internals)
-> 3. [The bitwise key recovery attack](#attack)
-> 4. [Injecting and tracing differences](#differences)
-> 5. [Why does 0x80 always propagate?](#propagate)
-> 6. [Exploiting leaked key bits](#leak)
-> 7. [XOR-Linearizing the update function](#linearizing)
-
 The recently published attacks on the "OMA digest", a home-brewed MAC
 used in the [Open Smart Grid Protocol (OSGP)](https://en.wikipedia.org/wiki/Open_smart_grid_protocol),
 provide a nice opportunity for a rather gentle introduction to
@@ -21,7 +13,7 @@ This post will dig into the bitwise key recovery attack described in the paper
 published by [Philipp Jovanovic](https://twitter.com/Daeinar) and
 [Samuel Neves](https://twitter.com/sevenps).
 
-## <a name="overview"></a> Overview of the OMA digest
+## Overview of the OMA digest
 
 The OMA digest is a [MAC algorithm](https://en.wikipedia.org/wiki/Message_authentication_code),
 a function that takes a key and a message as inputs, and returns an
@@ -52,7 +44,7 @@ key - this will turn out to be very useful later. The next section will take
 a closer look at the inner function that updates the internal state given a
 single 144-byte block.
 
-## <a name="internals"></a> Internals of the OMA digest
+## Internals of the OMA digest
 
 As shown above, the first call to the inner function will pass the first
 144-byte block, the key, and the 8-byte internal state initialized to zero:
@@ -88,10 +80,10 @@ one bit to the *right* and *subtracted* from the previous sum. All additions
 and subtractions are performed on 1-byte unsigned integers and are expected to
 properly wrap around when over or underflowing (i.e. addition modulo 2^8).
 
-This is not too hard to implement so let us write some Rust code. `inner()`
-works just as described above, it takes the previous state, the key, and the
-current block and merges those inputs together to obtain a new intermediate or
-final state:
+This is not too hard to implement and a great chance to write some Rust code.
+`inner()` works just as described above, it takes the previous state, the key,
+and the current block and merges those inputs together to obtain a new
+intermediate or final state:
 
 {% codeblock lang:rust %}
 const KEY_SIZE: usize = 12;
@@ -127,8 +119,8 @@ fn inner(state: [u8; 8], key: &[u8], block: &[u8]) -> [u8; 8] {
 }
 {% endcodeblock %}
 
-Finally, we add a trait that lets us compute the MAC for a given message with
-a convenient API, and thus have a complete OMA digest implementation:
+Finally, we add a trait that lets us compute the MAC for a given message
+through a convenient API, and thus have a complete OMA digest implementation:
 
 {% codeblock lang:rust %}
 const BLOCK_SIZE: usize = 144;
@@ -153,13 +145,13 @@ impl OMADigest for [u8] {
 // let mac = b"message".oma_digest(b"Some96BitKey");
 {% endcodeblock %}
 
-(An implementation with tests can be found at:
-[github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
+(Full implementation with tests:
+[https://github.com/ttaubert/osgp-oma-digest](https://github.com/ttaubert/osgp-oma-digest).)
 
 Now that you hopefully have a solid understanding of how the OMA digest
 computes a MAC from a given key and message we can start to attack it.
 
-## <a name="attack"></a> The bitwise key recovery attack
+## The bitwise key recovery attack
 
 The first attack described in the paper (and the one this post is about) is a
 bitwise key recovery attack. Using
@@ -185,7 +177,7 @@ receive a new MAC `a'` and observe how the injected difference propagated into
 the output. As you remember, the OMA digest does not garble its internal state
 before returning - this will let us explore output differences easily.
 
-## <a name="differences"></a> Injecting and tracing differences
+## Injecting and tracing differences
 
 To better explain how to inject and trace input differences we need an
 arbitrary message and its associated MAC under some unknown key. Let us take a
@@ -214,7 +206,7 @@ constructed an [existential forgery](https://en.wikipedia.org/wiki/Digital_signa
 > existential forgery by appending a zero byte, the MAC will validate for both
 > messages, and we still know nothing about the key.
 
-## <a name="propagate"></a> Why does 0x80 always propagate?
+## Why does 0x80 always propagate?
 
 TODO
 
@@ -239,37 +231,26 @@ and described in the paper
 [Efficient Algorithms for Computing Differential Properties of Addition](https://eprint.iacr.org/2001/001.pdf)
 by Helger Lipmaa and Shiho Moriai.
 
-## <a name="leak"></a> Exploiting leaked key bits
+## Exploiting leaked key bits
 
-So far, we managed to inject the difference `0x80` into the message and observe
-the same difference in the output. As seen above the difference cleanly
-propagates and does not reveal any information about the key as the key bit
-is not applied to the difference.
-
-used to
-compute MACs. To learn anything about a specific key bit used to compute an
-internal state byte we will have to inject the difference in a way so that is
-is transformed by the key bit.
-
-TODO
-
-So far we have managed to inject the difference `0x80` into the message and
-observed the same difference in the output. We unfortunately cannot infer any
-information about the key because we do not know anything about the previous
-state value that was negated and rotated either left or right. But what could
-we learn from a negated and rotated state value that includes the difference
+So far we have managed to inject a difference into the message and observed the
+same difference in the output. We unfortunately cannot infer any information
+about the key because we do not know anything about the previous state byte
+that was negated and rotated either left or right. But what could we learn when
+computing the last byte of the MAC and we know that both the previous state
+byte `state[0]` and its adjacent state byte `state[1]` carry the difference
 `0x80`?
 
 {% img /images/oma-inject3.png 500 Exploiting leaked key bits by injecting an input difference %}
 
-If we inject the differential into the 9th-to-last byte of the message every
+If we inject the difference into the 9th-to-last byte of the message every
 byte of the MAC will be its original value XOR `0x80`. The first byte of the MAC
 however now has a value we cannot easily predict anymore as its value was
-computed using the modified internal state from the 9th-to-last update() call.
+computed using the modified internal state from the 9th-to-last computation.
 The key bit dependant bitwise rotation `r` can be exploited to learn the value
 of the key bit used to calculate the first byte of the MAC.
 
-## <a name="linearizing"></a> XOR-linearizing the state update function
+## XOR-linearizing the state update function
 
 now comes a magic step that might be a little puzzling at first
 we will xor linearize the state update function
@@ -326,44 +307,3 @@ the whole key can be recovered
 
 I might write about the other attacks mentioned in the paper if I find the time
 want to thank the authors for their great paper
-
-fn update(k, b, j) {
-  // k = current key bit (0-1)
-  // b = current block byte (0-255)
-  // j = current position in the internal state (0-7)
-
-  if k == 1 {
-    state[(j + 1) % 8] + b + !(state[j] + j) <<< 1
-  } else {
-    state[(j + 1) % 8] + b - !(state[j] + j) >>> 1
-  }
-}
-fn inner(state, key, block) {
-  // For each input byte and key bit...
-  for n in 0..144 {
-    // The current key bit.
-    k = key.get_nth_bit(n + 1)
-
-    // The current block byte.
-    b = block[n]
-
-    // Current position in the state, starts from the back.
-    j = (7 - n) % 8
-
-    // Update the state byte at position |j|.
-    state[j] = update(k, b, j)
-  }
-
-  return state
-}
-
-fn oma_digest(state, key, message) {
-  state = [0,0,0,0,0,0,0,0]
-
-  // For each 144-byte block of the input...
-  for block in message.chunks(144) {
-    state = inner(state, key, block)
-  }
-
-  return state
-}
