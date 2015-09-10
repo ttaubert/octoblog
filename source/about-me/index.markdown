@@ -4,7 +4,7 @@ title: "About me"
 ---
 
 I work for Mozilla and live in Berlin.  
-I spend most of my time coding, reading books, or riding (motor) bikes.
+I spend most of my time reading books, running, or riding (motor) bikes.
 
 I post things on [Twitter](https://twitter.com/ttaubert),
 my code goes on [GitHub](https://github.com/ttaubert),
