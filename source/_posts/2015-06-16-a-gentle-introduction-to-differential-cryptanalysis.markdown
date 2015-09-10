@@ -2,6 +2,7 @@
 layout: post
 title: "A gentle introduction to differential cryptanalysis: a bitwise key recovery attack on OSGP's OMA digest"
 date: 2015-06-16 18:00:00 +0200
+published: false
 ---
 
 The recently published attacks on the "OMA digest", a home-brewed MAC
