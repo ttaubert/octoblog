@@ -233,13 +233,12 @@ by Helger Lipmaa and Shiho Moriai.
 
 ## Exploiting leaked key bits
 
-So far we have managed to inject a difference into the message and observed the
-same difference in the output. We unfortunately cannot infer any information
-about the key because we do not know anything about the previous state byte
-that was negated and rotated either left or right. But what could we learn when
-computing the last byte of the MAC and we know that both the previous state
-byte `state[0]` and its adjacent state byte `state[1]` carry the difference
-`0x80`?
+So far we managed to inject a difference into the message and observe the same
+difference in the output. As the difference cleanly propagates to the final
+state, injecting it into the last 8 message bytes does not help us recover the
+key. But what could we learn when computing the last byte of the MAC and we
+know that both the previous state byte `state[0]` and its adjacent state byte
+`state[1]` carry the difference `0x80`?
 
 {% img /images/oma-inject3.png 500 Exploiting leaked key bits by injecting an input difference %}
 
