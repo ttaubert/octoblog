@@ -5,6 +5,7 @@
 
 /* VARIABLES + MIXINS */
 @textFontSize: 17px;
+@textFontSizeSmaller: 16px;
 
 .headline () {
   font-family: @headingsFontFamily;
@@ -22,25 +23,6 @@
   font-family: "FiraSans";
   font-weight: 700;
   src: url("../fonts/FiraSans-Medium.otf");
-}
-
-@font-face {
-  font-family: "PT Sans";
-  font-weight: 400;
-  src: url("../fonts/PTSans-Regular.ttf");
-}
-
-@font-face {
-  font-family: "PT Sans";
-  font-weight: 400;
-  font-style: italic;
-  src: url("../fonts/PTSans-RegularItalic.ttf");
-}
-
-@font-face {
-  font-family: "PT Sans";
-  font-weight: 700;
-  src: url("../fonts/PTSans-Bold.ttf");
 }
 
 body {
@@ -121,7 +103,7 @@ h2, h3 {
 }
 
 article pre, article p {
-  font-size: @textFontSize;
+  font-size: @textFontSizeSmaller;
   margin-bottom: 22px;
 }
 
@@ -188,7 +170,7 @@ time {
 
 .feedback {
   margin: 0;
-  font-size: @textFontSize;
+  font-size: @textFontSizeSmaller;
 }
 
 /* SIDEBAR */
