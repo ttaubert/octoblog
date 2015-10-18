@@ -5,15 +5,42 @@ date: 2015-10-10 18:00:00 +0200
 published: false
 ---
 
-With the [recent news](https://sites.google.com/site/itstheshappening/) about
-SHA-1 collisions now being within the resources of criminals why not take a
-look at how difficult it is to attack earlier algorithms?
-[MD2](https://en.wikipedia.org/wiki/MD2_%28cryptography%29), published in 1989,
-was part of TLS prior to version 1.1, and used in PKIs to sign certificates.
-It's considered broken since at least 2004 and has since been
-[retired](http://tools.ietf.org/html/rfc6149).
+With a [SHA-1 freestart collision](https://sites.google.com/site/itstheshappening/)
+in the news, describing a quite sophisticated cryptanalytical attack against
+the digest, let's step back a few years. To somewhat simpler times, before
+most people used the SHA family of ciphers. The
+[MD2 Message-Digest Algorithm](https://en.wikipedia.org/wiki/MD2_%28cryptography%29),
+published in 1989, was part of TLS prior to version 1.1, and used in PKIs to
+sign certificates. It's considered broken since at least 2004 and was
+[retired](http://tools.ietf.org/html/rfc6149) in 2011.
 
-## A timeline
+## Compression Functions
+
+If you never heard about cryptographic hash function constructions before, it
+helps to knows that most use a
+[compression function](https://en.wikipedia.org/wiki/One-way_compression_function)
+that transforms two fixed-length inputs into a fixed-length output. Each input
+block is combined with the current internal state until there are no input
+blocks left, the result is the digest.
+
+{% img /images/compression-functions.png 600 Hash and compression functions (simplified overview) %}
+
+The compression function *c* takes two 128-bit inputs and compresses them to
+a single 128-bit output. Assuming we have a function `compress()` that
+takes a state/IV and a message block, we would end up with this Rust code:
+
+{% codeblock lang:rust %}
+fn digest(msg: &[u8]) -> [u8; 16] {
+  fn compress(state: &[u8], block: &[u8]) -> [u8; 16] { ... }
+
+  let iv = [0u8; 16];
+  let blocks = msg.chunks(16);
+
+  blocks.fold(iv, |state, block| compress(&state, block))
+}
+{% endcodeblock %}
+
+## MD2 - A short timeline
 
 MD2 is not a straight
 [Merkle–Damgård construction](https://en.wikipedia.org/wiki/Merkle-Damgard),
@@ -52,7 +79,7 @@ Guided by our intuition we would think that an n-bit digest and thus 2^n
 possible outputs would require a lot of evaluations until we find a collision,
 that's after all 2^128 possible digests for MD2. Yet, per the
 [birthday paradox](https://en.wikipedia.org/wiki/Birthday_problem) we on
-average, and with high probability, will only need to generate `sqrt(2^n)`
+average, and with high probability, will only need to generate 1.25 * sqrt(2^n)
 random inputs.
 
 As the [birthday attack](https://en.wikipedia.org/wiki/Birthday_attack) is a
@@ -76,3 +103,49 @@ Finding a second preimage of `md2(a) = x` means finding `b ≠ a` such that
 `md2(a) = md2(b) = x`. This is somewhat similar to finding a collision,
 however it is a specific collision. One that fulfills the above equation
 for a given input value.
+
+## Let's go find some collisions
+
+If you made it until here (*yay!*) you deserve to know how we can find
+collisions in MD2's compression function. The first attack is described in
+Rogier and Chauvaud's 1997 paper ["MD2 is not Secure Without the Checksum Byte"](http://dl.acm.org/citation.cfm?id=263096).
+To understand how it works we need a good understanding of MD2's compression
+function.
+
+### The compression function's setup
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue. Nam tincidunt congue enim, ut porta lorem lacinia consectetur.
+
+{% img /images/md2-compression1.png 500 TODO %}
+
+Donec ut libero sed arcu vehicula ultricies a non tortor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem. Ut turpis felis, pulvinar a semper sed, adipiscing id dolor. Pellentesque auctor nisi id magna consequat sagittis.
+
+### The transformation
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue.
+
+{% codeblock lang:rust %}
+fn compress(state: &[u8], msg: &[u8]) -> [u8; 16] {
+  /* ... */
+
+  let mut v: [u8; 48] = /* (see above) */;
+  let mut t = 0u8;
+
+  /* 18 rounds of transformations */
+  for i in 0..18 {
+    for j in 0..v.len() {
+      v[j] ^= SBOX[t];
+      t = v[j];
+    }
+
+    // Addition modulo 256.
+    t = t.wrapping_add(i);
+  }
+
+  /* ... */
+}
+{% endcodeblock %}
+
+Donec ut libero sed arcu vehicula ultricies a non tortor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem. Ut turpis felis, pulvinar a semper sed, adipiscing id dolor. Pellentesque auctor nisi id magna consequat sagittis.
+
+Mention `SBOX` and refer to https://github.com/ttaubert/rust-md2-sbox
