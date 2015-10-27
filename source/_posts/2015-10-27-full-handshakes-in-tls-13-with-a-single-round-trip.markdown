@@ -2,7 +2,6 @@
 layout: post
 title: "Full Handshakes in TLS 1.3 with a Single Round-Trip"
 date: 2015-10-27 18:00:00 +0100
-published: false
 ---
 
 > *Up to this writing TLS 1.3 has not been finalized and the proposal
@@ -46,21 +45,40 @@ is important because a full handshake can be quite expensive: it has a high
 latency as it needs two round-trips and involves complex computations that
 can affect the server load.
 
-**[Session IDs](https://tools.ietf.org/html/rfc5246#appendix-F.1.4)**, assigned
-by the server, are unique identifiers under which both parties store the master
+### Resumption with Session IDs
+
+[Session IDs](https://tools.ietf.org/html/rfc5246#appendix-F.1.4), assigned by
+the server, are unique identifiers under which both parties store the master
 secret and other details of the connection they established. The client may
 include this ID in the *ClientHello* message of the next handshake to
 short-circuit the negotiation and reuse previous connection parameters.
+
+{% img /images/tls-hs-session-ids.png 500 Abbreviated Handshake with Session IDs %}
+
+If the server is willing and able to resume the session it responds with a
+*ServerHello* message including the Session ID given by the client. This
+handshake is effectively 1-RTT as the client can send application data
+immediately after its *Finished* message.
 
 The downside is that servers with lots of visitors will have to manage big
 session caches. A setup involving multiple load-balanced servers will need to
 securely synchronize session caches across machines.
 
-**[Session tickets](http://tools.ietf.org/html/rfc5077)**, created by the
-server and stored by the client, are blobs containing all necessary information
-about a connection, encrypted by a key only known to the server. If the client
+### Resumption with Session Tickets
+
+[Session tickets](http://tools.ietf.org/html/rfc5077), created by the server
+and stored by the client, are blobs containing all necessary information about
+a connection, encrypted by a key only known to the server. If the client
 presents this tickets with the *ClientHello* message and can prove that it
 knows the master secret stored in the ticket then the session will be resumed.
+
+{% img /images/tls-hs-session-tickets.png 500 Abbreviated Handshake with Session Tickets %}
+
+If the server is willing and able to decrypt the given ticket it responds with
+a *ServerHello* message including an empty Session Ticket extension, otherwise
+the Session Ticket extension would be omitted completely. As noted above, the
+client will start sending application data immediately after the *Finished*
+message to achieve 1-RTT.
 
 Using abbreviated handshakes we can establish a secure connection with a single
 round-trip and very light computation. Unfortunately this requires that we
