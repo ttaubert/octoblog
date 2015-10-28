@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Full Handshakes in TLS 1.3 with a Single Round-Trip"
-date: 2015-10-27 18:00:00 +0100
+date: 2015-10-28 18:00:00 +0100
 ---
 
 > *Up to this writing TLS 1.3 has not been finalized and the proposal
@@ -29,12 +29,38 @@ time the user visits a web server.
 
 ### Static RSA Key Exchange
 
-diagram with messages
+A full handshake using static RSA is the simplest key exchange we can have in
+TLS. After sharing some basic protocol information via the *ClientHello* and
+*ServerHello* messages the server sends its certificate in the *Certificate*
+message to the client. The *ServerHelloDone* message signals that for now there
+will be no further messages sent by the server, it waits for a client response.
+
+{% img /images/tls-hs-static-rsa.png 500 Full Handshake with Static RSA Key Exchange %}
+
+The client then encrypts the so-called premaster secret (a uniform key that will
+be used to derive the master secret, which in turns is used to derive communication
+keys) with the server's public key as found in the certificate and sends it with the *ClientKeyExchange* message. *ChangeCipherSpec*
+signals that from now on messages will be encrypted and so is *Finished*, the
+last message containing a MAC of all handshake message to prove to the server
+that the client saw the same messages.
+
+The server decrypts the *ClientKeyExchange* message using its certificate's
+private key and derives the master secret, and communication keys. It then
+switches to encrypted communication and lets the client check the value of its
+MAC in the *Finished* message. It takes two round-trips to establish a
+connection.
+
+The simplicity of static RSA has a serious drawback: it does not offer [forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy).
+If a passive adversary collects all traffic from visitors to a specific server
+then every recorded TLS session can be broken later by stealing the certificates
+private key. This key exchange method was thus removed in TLS 1.3.
 
 ### Ephemeral Diffie-Hellman Key Exchange
 
 handles DHE and ECDHE
 diagram with messages
+
+{% img /images/tls-hs-ecdhe.png 500 Full Handshake with Ephemeral Diffie-Hellman Key Exchange %}
 
 ## Abbreviated Handshakes
 
