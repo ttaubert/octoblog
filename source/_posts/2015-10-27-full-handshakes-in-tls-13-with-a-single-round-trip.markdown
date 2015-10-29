@@ -14,18 +14,14 @@ connection. You want to get the protocol out of your way and start delivering
 data to visitors as soon as possible. This is crucial if we want the web to
 succeed at [deprecating non-secure HTTP](https://blog.mozilla.org/security/2015/04/30/deprecating-non-secure-http/).
 
+## Full Handshakes in TLS 1.2
+
 Let's start by taking a look at the full handshake as standardized in
 [TLS 1.2](https://tools.ietf.org/html/rfc5246), and then continue to
 abbreviated handshakes that decrease connection times for resumed sessions.
 Once we have a good understanding of the current protocol we can proceed to
 the proposal made in the latest [TLS 1.3 draft](https://tlswg.github.io/tls13-spec/)
 to achieve full 1-RTT handshakes.
-
-## Full Handshakes in TLS 1.2
-
-Let's take a look at the latest version of TLS. A full handshake is the
-negotiation at the beginning of a new HTTPS connection when this is the first
-time the user visits a web server.
 
 ### Static RSA Key Exchange
 
@@ -37,12 +33,13 @@ will be no further messages sent by the server, it waits for a client response.
 
 {% img /images/tls-hs-static-rsa.png 500 Full Handshake with Static RSA Key Exchange %}
 
-The client then encrypts the so-called premaster secret (a uniform key that will
-be used to derive the master secret, which in turns is used to derive communication
-keys) with the server's public key as found in the certificate and sends it with the *ClientKeyExchange* message. *ChangeCipherSpec*
-signals that from now on messages will be encrypted and so is *Finished*, the
-last message containing a MAC of all handshake message to prove to the server
-that the client saw the same messages.
+The client then encrypts the so-called premaster secret (a uniform key that
+will be used to derive the master secret, which in turns is used to derive
+communication keys) with the server's public key as found in the certificate
+and sends it with the *ClientKeyExchange* message. *ChangeCipherSpec* signals
+that from now on messages will be encrypted and so is *Finished*, the last
+message containing a MAC of all handshake message to prove to the server that
+the client saw the same messages.
 
 The server decrypts the *ClientKeyExchange* message using its certificate's
 private key and derives the master secret, and communication keys. It then
@@ -50,15 +47,23 @@ switches to encrypted communication and lets the client check the value of its
 MAC in the *Finished* message. It takes two round-trips to establish a
 connection.
 
-The simplicity of static RSA has a serious drawback: it does not offer [forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy).
-If a passive adversary collects all traffic from visitors to a specific server
-then every recorded TLS session can be broken later by stealing the certificates
-private key. This key exchange method was thus removed in TLS 1.3.
+**Authentication:** With static RSA key exchanges, the authenticity of the connection is verified
+by the simple fact that the premaster secret is encrypted with the server
+certificate's public key. The server having the private key can decrypt the
+PMS, correctly derive the master secret, and send properly encrypted *Finished*
+message with the right HMAC.
+
+The simplicity of static RSA has a serious drawback: it does not offer
+[forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy). If a passive
+adversary collects all traffic from visitors to a specific server then every
+recorded TLS session can be broken later by stealing the certificates private
+key. *This key exchange method was thus removed in TLS 1.3.*
 
 ### Ephemeral Diffie-Hellman Key Exchange
 
 handles DHE and ECDHE
 diagram with messages
+explain authentication
 
 {% img /images/tls-hs-ecdhe.png 500 Full Handshake with Ephemeral Diffie-Hellman Key Exchange %}
 
