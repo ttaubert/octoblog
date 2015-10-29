@@ -5,6 +5,7 @@ date: 2015-10-28 18:00:00 +0100
 ---
 
 TODO: is `EncryptedExtensions` optional?
+TODO: resumption is now PSK with tickets?
 
 > *Up to this writing, TLS 1.3 (draft-10) has not been finalized and the
 > proposal presented here might change, as it already did multiples times since
@@ -21,7 +22,7 @@ Let's start by taking a look at the full handshake as standardized in
 abbreviated handshakes that decrease connection times for resumed sessions.
 Once we understand the current protocol we can proceed to the proposal made in
 the latest [TLS 1.3 draft](https://tlswg.github.io/tls13-spec/) to achieve full
-1-RTT, and even 0-RTT handshakes.
+1-RTT and even 0-RTT handshakes.
 
 ## Full TLS 1.2 Handshake (static RSA)
 
@@ -83,7 +84,7 @@ connection the server will sign the parameters contained in the
 signature with the certificate's public key and only then proceeds with the
 handshake.
 
-## Abbreviated Handshakes
+## Abbreviated Handshakes in TLS 1.2
 
 Already [SSLv2](https://tools.ietf.org/html/draft-hickman-netscape-ssl-00)
 stated session identifiers as a way to resume previously established TLS/SSL
@@ -124,9 +125,9 @@ knows the master secret stored in the ticket then the session will be resumed.
 
 If the server is willing and able to decrypt the given ticket it responds with
 a `ServerHello` message including an empty Session Ticket extension, otherwise
-the extension would be omitted completely. As above, the client will start
-sending application data immediately after the `Finished` message to achieve
-1-RTT.
+the extension would be omitted completely. As with session IDs, the client will
+start sending application data immediately after the `Finished` message to
+achieve 1-RTT.
 
 To not affect the forward secrecy provided by (EC)DHE suites session ticket
 keys should be rotated periodically, otherwise stealing the ticket key would
@@ -145,7 +146,7 @@ ticket keys regularly so even tickets might be invalid on the next visit.
 ## Full Handshakes in TLS 1.3
 
 As already said above, static RSA key exchanges have been removed from the
-TLS 1.3 draft as they cannot provide forward secrecy. That's a great start!
+TLS 1.3 draft because they cannot provide forward secrecy. That's a great start!
 
 Another good change is that the `ChangeCipherSpec` protocol (yes, it's actually
 a protocol, not a message) was removed as well. With TLS 1.3 every message
@@ -166,14 +167,49 @@ does not support any of the proposed key shares then it will respond with
 `HelloRetryRequest` and the client may then try again with a different
 configuration or abort.
 
+**Authentication:** The Diffie-Hellman parameters itself aren't signed anymore,
+authentication will be a tad more explicit in TLS v1.3. The server now sends a
+`CertificateVerify` message following the certificate that contains a MAC of
+all handshake message exchanged so far, signed with the certificate's private
+key. The client then simply verifies the signature with the certificate's
+public key.
+
+## Session Resumption in TLS 1.3
+
+session ids and tickets have been obsoleted
+realized through a PSK mode
+PSKs can also be established in previous sessions
+very much like session tickets
+key share is only sent to full back to full handshake
+
+{% img /images/tls13-hs-resumption.png 600 Session Resumption in TLS 1.3 %}
+
+PKS identifier is sent as blob, either DB lookup, or encrypted ticket
+can send multiple identities
+server replies with selected one
+
+advantages? less computation but still 1-RTT
+
 ## 0-RTT Handshakes in TLS 1.3
 
-TLS 1.3 will therefore enable 1-RTT handshakes by default, but can we do even
-better? Let's look at a slightly varied version of the above handshake:
+TLS 1.3 will therefore enable 1-RTT handshakes by default, even when connecting
+to a server the first time. But can we do even better? Let's look at a slightly
+varied version of the full handshake:
 
-{% img /images/tls13-hs-zero-rtt1.png 600 Full TLS 1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
+TODO: remove and just mention
+
+{% img /images/tls13-hs-zero-rtt1.png 600 Full TLS 1.3 Handshake with ServerConfiguration %}
+
+The flow is identical to the full handshake as shown before, however there is a
+`ServerConfiguration` message following the `ServerHello`. Once a client
+connected to a server for the first time and the server sends such a message,
+the configuration is stored on the client. With the server's configuration at
+hand the client can achieve a 0-RTT handshake the next time it connects. Let's
+see how that works:
 
 especially interesting for HTTP where you want to send GET early
+
+server can pack application data into 
 
 similar to tickets?
 
