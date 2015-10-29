@@ -8,7 +8,7 @@ As you probably know, in Firefox there is unfortunately no way to configure exis
 
 The add-on’s current version is 0.5.8 – so I already invested a decent amount of time. Unfortunately I’m still waiting for full review from the AMO team as their backlog is pretty high after the Firefox 4 release. If you have any thoughts or bugs feel free to comment.
 
-{% img /images/customizable-shortcuts.png Screenshot of the Customizable Shortcuts add-on %}
+{% img /images/customizable-shortcuts.png The Customizable Shortcuts add-on %}
 
 Download: <https://addons.mozilla.org/en-US/firefox/addon/customizable-shortcuts/>  
 GitHub: <https://github.com/ttaubert/customizable-shortcuts>  

@@ -18,7 +18,7 @@ While there’s no doubt that adding new features and supporting new platforms a
 
 To better illustrate the steady growth over the last few years I created <http://www.arewesmallyet.com/>. It’s updated daily, shows differences between nightly builds and links to the corresponding changelog if one would like to investigate the cause of increasing build sizes.
 
-{% img /images/arewesmallyet.png Screenshot of arewesmallyet.com %}
+{% img /images/arewesmallyet.png arewesmallyet.com %}
 
 While this surely isn’t the most important battle we have right now I hope this will turn out useful to anyone willing to pick this up and tackle some build size optimizations.
 

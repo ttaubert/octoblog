@@ -132,6 +132,23 @@ img:hover {
   border: 1px solid rgb(200,200,200);
 }
 
+.img {
+  display: inline-block;
+  text-align: center;
+  width: 660px;
+  color: inherit !important;
+  font-size: 12px;
+}
+
+.img:hover {
+  text-decoration: none;
+}
+
+.img::after {
+  content: attr(title);
+  font-weight: 700;
+}
+
 /* POSTS */
 .post:only-of-type {
   margin-bottom: 44px;
@@ -162,10 +179,6 @@ time {
 
 .embed {
   width: 100%;
-}
-
-.embed-space {
-  margin-bottom: 22px;
 }
 
 .feedback {

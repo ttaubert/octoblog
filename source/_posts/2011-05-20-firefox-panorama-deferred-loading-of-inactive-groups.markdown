@@ -8,7 +8,7 @@ Starting with tomorrow’s Nightly hidden tabs are not anymore restored by defau
 
 If you have lots of tabs and tab groups like me (~120 tabs in 12 groups) the landing of [bug 595601](https://bugzilla.mozilla.org/show_bug.cgi?id=595601 "Bug 595601 - Option to not load tabs from inactive groups on initial browser startup (and until such time as the tab(s) become part of an active group)") for Firefox 6 is going to be a huge win in terms of (perceived) startup speed and memory usage. But let’s check the numbers.
 
-{% img /images/panorama.png Screenshot of Panorama with lots of groups %}
+{% img /images/panorama.png Panorama with lots of groups %}
 
 ## Memory Usage (with hidden tabs restored)
 

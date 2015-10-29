@@ -54,14 +54,14 @@ and import the new virtual machine into VirtualBox. Please give it at least
 host machine has available. Building Firefox takes up a lot of resources and
 you want it to build as fast as possible.
 
-{% img /images/firefoxdev3.png Screenshot showing the VirtualBox import dialog %}
+{% img /images/firefoxdev3.png The VirtualBox import dialog %}
 
 Now that your virtual machine is ready, boot it and wait for the Ubuntu desktop
 to be shown. A terminal will pop up automatically and do some last steps before
 we can get started. After a successful installation Sublime 2 should start
 automatically.
 
-{% img /images/firefoxdev1.png Screenshot showing Sublime 2 running on Ubuntu %}
+{% img /images/firefoxdev1.png Sublime 2 running on Ubuntu %}
 
 > *Note: Should you ever need root credentials, use "firefox-dev" as the
 > password. If you want to change your Language and Keyboard settings then
@@ -76,7 +76,7 @@ watch the build progress in the text editor's console at the bottom. Once the
 build has finished you can use `Tools > Run` to start your custom Firefox
 build and check that everything works as expected.
 
-{% img /images/firefoxdev2.png Screenshot showing the build menu %}
+{% img /images/firefoxdev2.png The build menu %}
 
 > *Note: if you want to switch from an optimized to a debug build then
 > choose `Tools > Build System > Firefox (Debug)` and hit `Tools > Build`

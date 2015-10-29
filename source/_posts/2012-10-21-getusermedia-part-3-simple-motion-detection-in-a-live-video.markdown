@@ -103,7 +103,7 @@ noise in the signal.
 That is all! Take a look at the [live demo](/demos/motion-detection/) or watch
 the screencast below:
 
-<iframe class="embed embed-space"
+<iframe class="embed"
  src="http://player.vimeo.com/video/60650211?title=1&amp;byline=1&amp;portrait=1"
  width="500" height="195" frameborder="0"
  webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>

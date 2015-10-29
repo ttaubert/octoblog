@@ -191,7 +191,7 @@ found. When generating lots of keys Firefox currently sometimes fails with a
 "transient error" that needs to be investigated. If you want a loop that runs
 despite that error you could simply restart the search in the error handler.
 
-{% img /images/onion-console.png Screenshot of the Web Console showing a found .onion name with its key %}
+{% img /images/onion-console.png The Web Console showing a found .onion name with its key %}
 
 ## The code
 

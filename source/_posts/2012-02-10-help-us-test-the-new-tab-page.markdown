@@ -15,4 +15,4 @@ We’ll disable it for Aurora again on February 16th (next Thursday). If you lik
 
 Please make sure you don’t report a duplicate bug and check the dependencies of the original New Tab Page bug before filing – [bug 455553](https://bugzilla.mozilla.org/show_bug.cgi?id=455553 "Bug 455553 - New Tab Page feature").
 
-{% img /images/newtab.png Screenshot of the new tab page %}
+{% img /images/newtab.png The new tab page %}
