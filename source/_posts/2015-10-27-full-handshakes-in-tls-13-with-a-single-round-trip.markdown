@@ -1,8 +1,10 @@
 ---
 layout: post
-title: "Full Handshakes in TLS 1.3 with a Single Round-Trip"
+title: "Faster Handshakes with TLS v1.3"
 date: 2015-10-28 18:00:00 +0100
 ---
+
+TODO: is `EncryptedExtensions` optional?
 
 > *Up to this writing, TLS 1.3 (draft-10) has not been finalized and the
 > proposal presented here might change, as it already did multiples times since
@@ -19,7 +21,7 @@ Let's start by taking a look at the full handshake as standardized in
 abbreviated handshakes that decrease connection times for resumed sessions.
 Once we understand the current protocol we can proceed to the proposal made in
 the latest [TLS 1.3 draft](https://tlswg.github.io/tls13-spec/) to achieve full
-1-RTT handshakes.
+1-RTT, and even 0-RTT handshakes.
 
 ## Full TLS 1.2 Handshake (static RSA)
 
@@ -142,8 +144,37 @@ ticket keys regularly so even tickets might be invalid on the next visit.
 
 ## Full Handshakes in TLS 1.3
 
-backwards compat due to use of hello extensions
+As already said above, static RSA key exchanges have been removed from the
+TLS 1.3 draft as they cannot provide forward secrecy. That's a great start!
 
-### Static RSA Key Exchange
+Another good change is that the `ChangeCipherSpec` protocol (yes, it's actually
+a protocol, not a message) was removed as well. With TLS 1.3 every message
+after following the `ServerHello` message is encrypted with the so-called
+ephemeral secret. This locks out passive adversaries very early in the game.
 
-don't exist anymore \o/ no forward secrecy
+{% img /images/tls13-hs-ecdhe.png 600 Full TLS 1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
+
+The probably most important change (with regard to 1-RTT) is the removal of the
+`ServerKeyExchange` and `ClientKeyExchange` messages. The (EC)DHE parameters
+and public keys are now sent in special *KeyShare* extensions, a new type of
+extension to be included in the `ServerHello` and `ClientHello` messages.
+
+The client sends a list of *KeyShare* values, a value consisting of a named
+(EC)DH group and the appropriate public value. If the server accepts it must
+respond with one of the proposed groups and its own public value. If the server
+does not support any of the proposed key shares then it will respond with
+`HelloRetryRequest` and the client may then try again with a different
+configuration or abort.
+
+## 0-RTT Handshakes in TLS 1.3
+
+TLS 1.3 will therefore enable 1-RTT handshakes by default, but can we do even
+better? Let's look at a slightly varied version of the above handshake:
+
+{% img /images/tls13-hs-zero-rtt1.png 600 Full TLS 1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
+
+especially interesting for HTTP where you want to send GET early
+
+similar to tickets?
+
+lesser security
