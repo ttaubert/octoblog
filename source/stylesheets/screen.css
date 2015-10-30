@@ -198,7 +198,7 @@ code{white-space:nowrap;}
 .highlight .err{border:none;}
 img{display:block;margin:0 auto;border:1px solid #eeeeee;}
 img:hover{border:1px solid #c8c8c8;}
-.img{color:inherit !important;font-size:12px;display:inline-block;width:660px;text-align:center}
+.img{color:inherit !important;font-size:12px;display:inline-block;width:100%;text-align:center}
 .img:hover{text-decoration:none}
 .img::after{content:attr(title);font-weight:700}
 .post:only-of-type{margin-bottom:44px;}
