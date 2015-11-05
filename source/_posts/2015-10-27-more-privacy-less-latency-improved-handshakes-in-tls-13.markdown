@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Faster Handshakes with TLS 1.3"
-date: 2015-11-02 18:00:00 +0100
+title: "More Privacy, Less Latency - Improved Handshakes in TLS 1.3"
+date: 2015-11-06 18:00:00 +0100
 ---
 
 > *Up to this writing, TLS v1.3 (draft-10) has not been finalized and the
@@ -64,8 +64,7 @@ A full handshake using ephemerical (Elliptic Curve)
 exchange keys is very similar to the flow of static RSA. The main difference is
 that after sending the certificate the server will also send a `ServerKeyExchange`
 message. This message contains either the parameters of a DH group or of an
-elliptic curve, paired with an ephemeral (EC)DH public key computed by the
-server.
+elliptic curve, paired with an ephemeral public key computed by the server.
 
 {% img /images/tls-hs-ecdhe.png 600 Full TLS v1.2 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
 
@@ -77,9 +76,9 @@ can derive a shared master secret.
 **Authentication:** With (EC)DH key exchanges it's still the certificate that
 is signed by a CA and then hopefully trusted by the client. To authenticate the
 connection the server will sign the parameters contained in the
-`ServerKeyExchange` message with its private key. The client verifies the
-signature with the certificate's public key and only then proceeds with the
-handshake.
+`ServerKeyExchange` message with the certificate's private key. The client
+verifies the signature with the certificate's public key and only then proceeds
+with the handshake.
 
 ## Abbreviated Handshakes in TLS 1.2
 
@@ -87,8 +86,8 @@ Already [SSLv2](https://tools.ietf.org/html/draft-hickman-netscape-ssl-00)
 stated session identifiers as a way to resume previously established TLS/SSL
 sessions. [Session resumption](https://blog.cloudflare.com/tls-session-resumption-full-speed-and-secure/)
 is important because a full handshake can be quite expensive: it has a high
-latency as it needs two round-trips and involves complex computations that
-can affect the machine load.
+latency as it needs two round-trips and involves rather expensive computations
+that can affect the machine load.
 
 **[Session IDs](https://tools.ietf.org/html/rfc5246#appendix-F.1.4)**, assigned
 by the server, are unique identifiers under which both parties store the master
@@ -136,9 +135,9 @@ draft because they cannot provide forward secrecy. That's a great start!
 Another good change is that the `ChangeCipherSpec` protocol (yes, it's actually
 a protocol, not a message) was removed as well. With TLS v1.3 every message
 following the `ServerHello` message is encrypted with the so-called ephemeral
-secret. This locks out passive adversaries very early in the game. The
-`EncryptedExtensions` message was added to carry extension data that can be
-encrypted because they aren't needed to set up secure communication.
+secret. This locks out passive adversaries very early in the game.
+`EncryptedExtensions` was added to carry Hello extension data that can be
+encrypted because it's not needed to set up secure communication.
 
 {% img /images/tls13-hs-ecdhe.png 600 Full TLS v1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
 
@@ -152,9 +151,8 @@ v1.2 clients as it doesn't change the order of messages.
 The client sends a list of *KeyShare* values, a value consisting of a named
 (EC)DH group and an ephemeral public value. If the server accepts it must
 respond with one of the proposed groups and its own public value. If the server
-does not support any of the given key shares then it will respond with
-`HelloRetryRequest` and the client may try again with a different configuration
-or abort.
+does not support any of the given key shares the client may try again with a
+different configuration or abort.
 
 **Authentication:** The Diffie-Hellman parameters itself aren't signed anymore,
 authentication will be a tad more explicit in TLS v1.3. The server sends a
@@ -175,38 +173,141 @@ on the next visit.
 The client sends one or more *PSK identities* as opaque blobs of data. They can
 be database lookup keys (similar to Session IDs), or self-encrypted and
 self-authenticated values (similar to Session Tickets). If the server accepts
-one of the given PSK identities then it replies with the one it selected. The
+one of the given PSK identities it replies with the one it selected. The
 *KeyShare* extension is sent to allow servers to ignore PSKs and fall back to
 a full handshake.
 
-**Authentication** is omitted, as that was done in the previous handshake when
-the PSK identity was established. An attacker can't impersonate the server if
-she doesn't know anything about the session to be resumed.
+**Authentication:** As the server is authenticating via a PSK, it does not send
+`Certificate` or `CertificateVerify` messages. The identity of the server was
+verified in the previous handshake when the PSK was established. An attacker
+can't impersonate the server if she doesn't know anything about the resumed
+session.
 
-Session resumption is probably less important in TLS v1.3 than it was in v1.2.
-A PSK handshake requires a single round-trip, just like a full handshake. On
-the other hand clients can get away with less computation and gain a few
-milliseconds, as they don't need to do a Diffie-Hellman key exchange or verify
-the server's certificate. Forward secrecy can be maintained by limiting the
-lifetime of PSK identities sensibly.
+---
+
+Session resumption might seem less important in TLS v1.3 than it is in v1.2.
+A PSK handshake requires a single round-trip, just like a full handshake.
+However, the client doesn't need to check the certificate chain and signatures,
+which significantly reduces handshake times for RSA certificates. Avoiding
+user-facing client authentication dialogs on subsequent connections might be
+attractive for some as well.
+
+Forward secrecy can be maintained by limiting the lifetime of PSK identities
+sensibly. Clients may also choose an (EC)DHE cipher suite for PSK handshakes -
+doing so would retain the client's and server's authentication states and
+provide forward secrecy for every connection, not just the whole session.
 
 ## 0-RTT Handshakes in TLS 1.3
 
-TLS v1.3 will therefore enable 1-RTT handshakes by default, even when connecting
-to a server the first time. But can we do even better?
-varied version of the full handshake:
+TLS v1.3 will enable 1-RTT handshakes, even when connecting to a server the
+very first time. But can we do even better?
 
-The flow is identical to the full handshake as shown before, however there is a
-`ServerConfiguration` message following the `ServerHello`. Once a client
-connected to a server for the first time and the server sends such a message,
-the configuration is stored on the client. With the server's configuration at
-hand the client can achieve a 0-RTT handshake the next time it connects. Let's
-see how that works:
+The current draft of the spec contains a proposal to let clients encrypt data
+on their first flights. After a successful handshake the server would send a
+`ServerConfiguration` message that the client can use in the future to skip
+handshake negotiation and also allow 0-RTT handshakes. The configuration
+includes things as the server's preferred cipher suite and semi-static (EC)DH
+parameters.
 
-especially interesting for HTTP where you want to send GET early
+{% img /images/tls13-hs-zero-rtt.png 600 TLS v1.3 0-RTT Handshake %}
 
-server can pack application data into 
+With the very first TLS record, the client can send its Hello, encrypt the rest
+of the communication, and send a `GET / HTTP/1.0`. The server, if able and
+willing to decrypt, responds with its default set of messages but can
+immediately answer with the contents of the requested resource. That handshake
+didn't need a single round-trip!
 
-similar to tickets?
+Now at first, this might seem very similar to session resumption and you might
+ask why one wouldn't merge these two mechanisms. The differences however are
+subtle but important, and the security properties of 0-RTT handshakes are
+weaker than those for other kinds of TLS data:
 
-lesser security
+**1.** When resuming a session in PSK mode the server gets the chance to
+incorporate the *server random* into the master secret. The server random is
+a random string of bytes meant to protect the server from replay attacks. The
+poor server can't tell whether it's a valid request or an attacker replaying
+parts of a recorded conversation. Subsequent flights will have the usual Replay protection will be active after the
+server's first flight has reached the client and the master secret was updated.
+
+**2.** The semi-static DH share given in the server configuration defies fwd
+secrecy. A little bit like with session resumption but configurations will
+likely be shared between multiple clients and it makes sense to keep them
+valid longer.
+
+The second issue can be addressed by reasonably limiting the lifetimes of
+server configurations. If you expire them after a day by default it means that
+regular visitors would each day have to do one full 1-RTT handshake before they
+could do 0-RTT ones for 24h.
+
+---
+
+Defending against replay attacks without the server random is a tad harder. One
+option is for the server to keep track of all client key shares and reject any
+that it has already seen. That's what [QUIC](#) does, the server maintains an
+anti-replay window and keeps a list of client nonces, indexed by a server-provided
+token.
+
+It's important to understand that this is a generic issue, not an
+issue with TLS in particular, so it's not like there's some other
+0-RTT model we can lift and put into TLS that would solve the problem.
+
+---
+
+There are a number of basic ways to address this issue, but I think
+the main plausible[0] ones are:
+
+1. Keep the server state globally consistent and also temporally
+   consistent so that replays can always be detected.
+
+2. Remove the TLS anti-replay guarantee for the data sent in the first
+   flight and tell applications to only send data there that can
+   tolerate being replayed.
+
+3. Remove the TLS reliable delivery guarantee for the data sent in
+   the first flight, so that the stack doesn't automatically replay it.
+
+The first of these options (global state) is possible, but only in
+some limited circumstances, namely very sophisticated operators and/or
+situations where there's really only one server which has good state
+management. An example of the latter is WebRTC, where the server can
+have a different anti-replay context for each connection.
+
+The other two options clearly require a separate API to handle this
+special first-flight data and would require applications to handle it
+separately. So, for instance, in option 2, you would have something
+like:
+
+    c = new TLSConnection(...)
+    c.setReplayable0RTTData("GET /....")
+    c.connect();
+
+And in the case of option 3 you would have something like:
+
+    c = new TLSConnection(...)
+    c.setUnreliable0RTTData("GET /....")
+    c.connect()
+    if (c.delivered0RTTData()) {
+       // Things are cool
+    } else {
+       // Try to figure out whether to replay or not
+    }
+    
+So in the former case, the choice of replay is in the TLS
+stack's hands but in the latter in the application's hands.
+
+I would expect them to have relatively similar impacts on the wire,
+namely applications would self-designate certain data as replay-safe
+(e.g., HTTP GETs) and would send it in the first flight and then
+either let the stack retransmit (option 2) or retransmit themselves
+(option 3). This isn't that odd, since, as AGL observes, browsers
+already routinely retry some HTTP requests that appear to fail even for
+ordinary TLS (i.e., no HTTP response was received) so in those cases
+they have already circumvented the anti-replay guarantees supplied by
+TLS, but of course that's different from having TLS give up those
+guarantees.
+
+I get the sense from the discussion that people have different takes
+on #2 and #3.  Do we really need to decide here?  Can we offer TLS
+APIs the choice?  Some might even choose to implement both models and
+kick the can even further down the road.  I don't actually see any
+problem with that.
