@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "More Privacy, Less Latency - Improved Handshakes in TLS 1.3"
+title: "More Privacy, Less Latency - Improved Handshakes in TLS version 1.3"
 date: 2015-11-06 18:00:00 +0100
 ---
 
@@ -14,12 +14,17 @@ connection. You want to get the protocol out of your way and start delivering
 data to visitors as soon as possible. This is crucial if we want the web to
 succeed at [deprecating non-secure HTTP](https://blog.mozilla.org/security/2015/04/30/deprecating-non-secure-http/).
 
-Let's start by taking a look at the full handshake as standardized in
+Let's start by looking at the full handshake as standardized in
 [TLS v1.2](https://tools.ietf.org/html/rfc5246), and then continue to
 abbreviated handshakes that decrease connection times for resumed sessions.
-Once we understand the current protocol we can proceed to the proposal made in
+Once we understand the current protocol we can proceed to proposals made in
 the latest [TLS v1.3 draft](https://tlswg.github.io/tls13-spec/) to achieve
 full 1-RTT and even 0-RTT handshakes.
+
+It helps if you already have a rough idea of how TLS and Diffie-Hellman works
+as I can't go into too much detail here. The focus of this post is to compare
+current and future handshakes and I might omit a few technicalities to get
+basic ideas across more easily.
 
 ## Full TLS 1.2 Handshake (static RSA)
 
@@ -35,9 +40,9 @@ messages until the client responds.
 The client then encrypts the so-called premaster secret with the server's
 public key found in the certificate and wraps it in a `ClientKeyExchange`
 message. `ChangeCipherSpec` signals that from now on messages will be encrypted.
-And so is `Finished`, the last message containing a MAC of all handshake
-messages exchanged thus far to prove that both parties saw the same messages,
-without interference from a MITM.
+`Finished`, the first message to be encrypted and the client's last message of
+the handshake, contains a MAC of all handshake messages exchanged thus far to
+prove that both parties saw the same messages, without interference from a MITM.
 
 The server decrypts the premaster secret found in the `ClientKeyExchange`
 message using its certificate's private key, and derives the master secret and
@@ -55,11 +60,11 @@ The simplicity of static RSA has a serious drawback: it does not offer
 [forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy). If a passive
 adversary records all traffic to a specific server then every recorded TLS
 session can be broken later by obtaining the certificate's private key. *This
-key exchange method was [removed in TLS v1.3](https://tlswg.github.io/tls13-spec/#major-differences-from-tls-12).*
+key exchange method will be [removed in TLS v1.3](https://tlswg.github.io/tls13-spec/#major-differences-from-tls-12).*
 
 ## Full TLS 1.2 Handshake (ephemeral DH)
 
-A full handshake using ephemerical (Elliptic Curve)
+A full handshake using ephemeral (Elliptic Curve)
 [Diffie-Hellman](https://en.wikipedia.org/wiki/Diffie-Hellman_key_exchange) to
 exchange keys is very similar to the flow of static RSA. The main difference is
 that after sending the certificate the server will also send a `ServerKeyExchange`
@@ -127,21 +132,29 @@ allow recovering recorded sessions later. In a setup with multiple load-balanced
 servers the main challenge here is to securely generate, rotate, and
 synchronize keys across machines.
 
+**Authentication:** Both session resumption mechanisms retain the client's and
+server's authentication states as established in the session's initial handshake.
+Neither the server nor the client have to send and verify certificates a second
+time, and thus can reduce connection times significantly, especially when using
+RSA certificates.
+
 ## Full Handshakes in TLS 1.3
 
-As said above, static RSA key exchanges have been removed from the TLS v1.3
-draft because they cannot provide forward secrecy. That's a great start!
+An important change with regard to handshakes in TLS v1.3 is that static RSA
+key exchanges are no longer supported. Great! That means we can directly start
+by looking at full handshakes using forward-secure Diffie-Hellman.
 
-Another good change is that the `ChangeCipherSpec` protocol (yes, it's actually
-a protocol, not a message) was removed as well. With TLS v1.3 every message
-following the `ServerHello` message is encrypted with the so-called ephemeral
-secret. This locks out passive adversaries very early in the game.
-`EncryptedExtensions` was added to carry Hello extension data that can be
-encrypted because it's not needed to set up secure communication.
+Another important change is the removal of the `ChangeCipherSpec` protocol
+(yes, it's actually a protocol, not a message). With TLS v1.3 every message
+sent after `ServerHello` is encrypted with the so-called
+[ephemeral secret](https://tlswg.github.io/tls13-spec/#key-schedule). This
+locks out passive adversaries very early in the game. `EncryptedExtensions` is
+added to carry Hello extension data that can be encrypted because it's not
+needed to set up secure communication.
 
 {% img /images/tls13-hs-ecdhe.png 600 Full TLS v1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
 
-The probably most important change (with regard to 1-RTT) is the removal of the
+The probably most important change with regard to 1-RTT is the removal of the
 `ServerKeyExchange` and `ClientKeyExchange` messages. The DH parameters and
 public keys are now sent in special *KeyShare* extensions, a new type of
 extension to be included in the `ServerHello` and `ClientHello` messages.
@@ -160,7 +173,7 @@ authentication will be a tad more explicit in TLS v1.3. The server sends a
 exchanged so far, signed with the certificate's private key. The client then
 simply verifies the signature with the certificate's public key.
 
-## Session Resumption in TLS 1.3
+## Session Resumption in TLS 1.3 (PSK)
 
 Session resumption via identifiers and tickets will be obsolete in TLS v1.3.
 Both will be realized through a [pre-shared key (PSK) mode](https://tlswg.github.io/tls13-spec/#rfc.section.6.2.3).
@@ -190,7 +203,7 @@ A PSK handshake requires a single round-trip, just like a full handshake.
 However, the client doesn't need to check the certificate chain and signatures,
 which significantly reduces handshake times for RSA certificates. Avoiding
 user-facing client authentication dialogs on subsequent connections might be
-attractive for some as well.
+attractive as well.
 
 Forward secrecy can be maintained by limiting the lifetime of PSK identities
 sensibly. Clients may also choose an (EC)DHE cipher suite for PSK handshakes -
@@ -206,8 +219,8 @@ The current draft of the spec contains a proposal to let clients encrypt data
 on their first flights. After a successful handshake the server would send a
 `ServerConfiguration` message that the client can use in the future to skip
 handshake negotiation and also allow 0-RTT handshakes. The configuration
-includes things as the server's preferred cipher suite and semi-static (EC)DH
-parameters.
+includes things as the configuration identifier, the server's semi-static
+(EC)DH parameters, and an expiration date.
 
 {% img /images/tls13-hs-zero-rtt.png 600 TLS v1.3 0-RTT Handshake %}
 
@@ -215,7 +228,9 @@ With the very first TLS record, the client can send its Hello, encrypt the rest
 of the communication, and send a `GET / HTTP/1.0`. The server, if able and
 willing to decrypt, responds with its default set of messages but can
 immediately answer with the contents of the requested resource. That handshake
-didn't need a single round-trip!
+didn't need a single round-trip! (well the client data)
+
+TODO: mention the static secret and the ephemeral secret after the finished message
 
 Now at first, this might seem very similar to session resumption and you might
 ask why one wouldn't merge these two mechanisms. The differences however are
@@ -234,18 +249,24 @@ secrecy. A little bit like with session resumption but configurations will
 likely be shared between multiple clients and it makes sense to keep them
 valid longer.
 
+**3.** If the server key is compromised, the attacker can tamper with the 0-RTT
+data without detection.
+
 The second issue can be addressed by reasonably limiting the lifetimes of
 server configurations. If you expire them after a day by default it means that
 regular visitors would each day have to do one full 1-RTT handshake before they
 could do 0-RTT ones for 24h.
 
+TODO: the client data is protected by the static secret.
+TODO: the server data is protected by the ephemeral secret.
+
 ---
 
 Defending against replay attacks without the server random is a tad harder. One
 option is for the server to keep track of all client key shares and reject any
-that it has already seen. That's what [QUIC](#) does, the server maintains an
-anti-replay window and keeps a list of client nonces, indexed by a server-provided
-token.
+that it has already seen. That's what [QUIC](https://en.wikipedia.org/wiki/QUIC)
+does, the server maintains an anti-replay window and keeps a list of client
+nonces, indexed by a server-provided token.
 
 It's important to understand that this is a generic issue, not an
 issue with TLS in particular, so it's not like there's some other
@@ -311,3 +332,5 @@ on #2 and #3.  Do we really need to decide here?  Can we offer TLS
 APIs the choice?  Some might even choose to implement both models and
 kick the can even further down the road.  I don't actually see any
 problem with that.
+
+(TODO: use present tense, not "will" or "will be", to describe 1.3 changes)
