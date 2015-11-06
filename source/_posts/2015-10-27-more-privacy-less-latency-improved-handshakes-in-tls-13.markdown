@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "More Privacy, Less Latency - Improved Handshakes in TLS version 1.3"
-date: 2015-11-06 18:00:00 +0100
+date: 2015-11-09 18:00:00 +0100
 ---
 
 > *Up to this writing, TLS v1.3 (draft-10) has not been finalized and the
@@ -35,7 +35,7 @@ messages the server sends its certificate to the client. The `ServerHelloDone`
 message at the end of the record signals that for now there will be no further
 messages until the client responds.
 
-{% img /images/tls-hs-static-rsa.png 600 Full TLS v1.2 Handshake with Static RSA Key Exchange %}
+{% img /images/tls-hs-static-rsa.png 600 Full TLS v1.2 Handshake with Static RSA Key Exchange (2-RTT) %}
 
 The client then encrypts the so-called premaster secret with the server's
 public key found in the certificate and wraps it in a `ClientKeyExchange`
@@ -71,7 +71,7 @@ that after sending the certificate the server will also send a `ServerKeyExchang
 message. This message contains either the parameters of a DH group or of an
 elliptic curve, paired with an ephemeral public key computed by the server.
 
-{% img /images/tls-hs-ecdhe.png 600 Full TLS v1.2 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
+{% img /images/tls-hs-ecdhe.png 600 Full TLS v1.2 Handshake with Ephemeral Diffie-Hellman Key Exchange (2-RTT) %}
 
 The client too computes an ephemeral public key compatible with the given
 parameters and sends it to the server. Knowing their private keys and the other
@@ -100,7 +100,7 @@ secret and other details of the connection they established. The client may
 include this ID in the `ClientHello` message of the next handshake to
 short-circuit the negotiation and reuse previous connection parameters.
 
-{% img /images/tls-hs-session-ids.png 600 Abbreviated Handshake with Session IDs %}
+{% img /images/tls-hs-session-ids.png 600 Abbreviated Handshake with Session IDs (1-RTT) %}
 
 If the server is willing and able to resume the session it responds with a
 `ServerHello` message including the Session ID given by the client. This
@@ -118,7 +118,7 @@ a connection, encrypted by a key only known to the server. If the client
 presents this tickets with the `ClientHello` message and can prove that it
 knows the master secret stored in the ticket then the session will be resumed.
 
-{% img /images/tls-hs-session-tickets.png 600 Abbreviated Handshake with Session Tickets %}
+{% img /images/tls-hs-session-tickets.png 600 Abbreviated Handshake with Session Tickets (1-RTT) %}
 
 If the server is willing and able to decrypt the given ticket it responds with
 a `ServerHello` message including an empty Session Ticket extension, otherwise
@@ -152,7 +152,7 @@ locks out passive adversaries very early in the game. `EncryptedExtensions` is
 added to carry Hello extension data that can be encrypted because it's not
 needed to set up secure communication.
 
-{% img /images/tls13-hs-ecdhe.png 600 Full TLS v1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange %}
+{% img /images/tls13-hs-ecdhe.png 600 Full TLS v1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange (1-RTT) %}
 
 The probably most important change with regard to 1-RTT is the removal of the
 `ServerKeyExchange` and `ClientKeyExchange` messages. The DH parameters and
@@ -175,13 +175,12 @@ simply verifies the signature with the certificate's public key.
 
 ## Session Resumption in TLS 1.3 (PSK)
 
-Session resumption via identifiers and tickets will be obsolete in TLS v1.3.
-Both will be realized through a [pre-shared key (PSK) mode](https://tlswg.github.io/tls13-spec/#rfc.section.6.2.3).
-A PSK is established on a previous connection (like a ticket), after the
-handshake was completed successfully, and can then be presented by the client
-on the next visit.
+Session resumption via identifiers and tickets is obsolete in TLS v1.3.
+Both methods are replaced by a [pre-shared key (PSK) mode](https://tlswg.github.io/tls13-spec/#rfc.section.6.2.3).
+A PSK is established on a previous connection after the handshake is completed,
+and can then be presented by the client on the next visit.
 
-{% img /images/tls13-hs-resumption.png 600 Session Resumption in TLS v1.3 %}
+{% img /images/tls13-hs-resumption.png 600 Session Resumption in TLS v1.3 (1-RTT) %}
 
 The client sends one or more *PSK identities* as opaque blobs of data. They can
 be database lookup keys (similar to Session IDs), or self-encrypted and
@@ -190,25 +189,20 @@ one of the given PSK identities it replies with the one it selected. The
 *KeyShare* extension is sent to allow servers to ignore PSKs and fall back to
 a full handshake.
 
-**Authentication:** As the server is authenticating via a PSK, it does not send
-`Certificate` or `CertificateVerify` messages. The identity of the server was
-verified in the previous handshake when the PSK was established. An attacker
-can't impersonate the server if she doesn't know anything about the resumed
-session.
-
----
-
-Session resumption might seem less important in TLS v1.3 than it is in v1.2.
-A PSK handshake requires a single round-trip, just like a full handshake.
-However, the client doesn't need to check the certificate chain and signatures,
-which significantly reduces handshake times for RSA certificates. Avoiding
-user-facing client authentication dialogs on subsequent connections might be
-attractive as well.
-
 Forward secrecy can be maintained by limiting the lifetime of PSK identities
-sensibly. Clients may also choose an (EC)DHE cipher suite for PSK handshakes -
-doing so would retain the client's and server's authentication states and
-provide forward secrecy for every connection, not just the whole session.
+sensibly. Clients may also choose an (EC)DHE cipher suite for PSK handshakes
+to provide forward secrecy for every connection, not just the whole session.
+
+**Authentication:** As in TLS v1.2, the client's and server's authentication
+states are retained and both parties don't need to exchange and verify
+certificates again. A regular PSK handshake initiating a new session omits
+certificates completely.
+
+Session resumption still allows significantly faster handshakes when using RSA
+certificates and can prevent user-facing client authentication dialogs on
+subsequent connections. However, the fact that it requires a single round-trip
+just like a full handshake might make it less appealing, especially if you
+have an ECDSA certificate and do not require client authentication.
 
 ## 0-RTT Handshakes in TLS 1.3
 
