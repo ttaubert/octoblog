@@ -4,7 +4,7 @@ title: "More Privacy, Less Latency - Improved Handshakes in TLS version 1.3"
 date: 2015-11-09 18:00:00 +0100
 ---
 
-> *Up to this writing, TLS v1.3 (draft-10) has not been finalized and the
+> *Up to this writing, TLS v1.3 (draft-11) has not been finalized and the
 > proposals presented here might change, as they already did multiple times
 > since first versions. I will do my best to update this post timely.*
 
@@ -202,69 +202,67 @@ Session resumption still allows significantly faster handshakes when using RSA
 certificates and can prevent user-facing client authentication dialogs on
 subsequent connections. However, the fact that it requires a single round-trip
 just like a full handshake might make it less appealing, especially if you
-have an ECDSA certificate and do not require client authentication.
+have an ECDSA or EdDSA certificate and do not require client authentication.
 
-## 0-RTT Handshakes in TLS 1.3
+## Zero-RTT Handshakes in TLS 1.3
 
-TLS v1.3 will enable 1-RTT handshakes, even when connecting to a server the
-very first time. But can we do even better?
+TLS v1.3 enables 1-RTT handshakes, even when connecting to a server the very
+first time. But can we do even better?
 
 The current draft of the spec contains a proposal to let clients encrypt data
-on their first flights. After a successful handshake the server would send a
-`ServerConfiguration` message that the client can use in the future to skip
-handshake negotiation and also allow 0-RTT handshakes. The configuration
-includes things as the configuration identifier, the server's semi-static
-(EC)DH parameters, and an expiration date.
+on their first flights. On a previous connection, after the handshake completes,
+the server would send a `ServerConfiguration` message that the client can use
+on subsequent connections to skip handshake negotiation and for 0-RTT
+handshakes. The configuration includes things as the configuration identifier,
+the server's semi-static (EC)DH parameters, and an expiration date.
 
 {% img /images/tls13-hs-zero-rtt.png 600 TLS v1.3 0-RTT Handshake %}
 
-With the very first TLS record, the client can send its Hello, encrypt the rest
-of the communication, and send a `GET / HTTP/1.0`. The server, if able and
-willing to decrypt, responds with its default set of messages but can
-immediately answer with the contents of the requested resource. That handshake
-didn't need a single round-trip! (well the client data)
+With the very first TLS record the client can send its `ClientHello` and,
+changing the order of messages, directly append `ApplicationData` (e.g. `GET /
+HTTP/1.1`), encrypted with the [static secret](https://tlswg.github.io/tls13-spec/#key-schedule).
+The server, if able and willing to decrypt, responds with its default set of
+messages but can immediately answer with the contents of the requested resource.
+That's the same round-trip time as for an unencrypted HTTP request. All
+communication following the `ServerHello` will again be encrypted with the
+ephemeral secret.
 
-TODO: mention the static secret and the ephemeral secret after the finished message
+### Weaker security properties
 
-Now at first, this might seem very similar to session resumption and you might
-ask why one wouldn't merge these two mechanisms. The differences however are
-subtle but important, and the security properties of 0-RTT handshakes are
-weaker than those for other kinds of TLS data:
+Now at first, this might seem very similar to session resumption or PSK, and
+you might ask why one wouldn't merge these two mechanisms. The differences
+however are subtle but important, and the security properties of 0-RTT
+handshakes are weaker than those for other kinds of TLS data:
 
-**1.** When resuming a session in PSK mode the server gets the chance to
-incorporate the *server random* into the master secret. The server random is
-a random string of bytes meant to protect the server from replay attacks. The
-poor server can't tell whether it's a valid request or an attacker replaying
-parts of a recorded conversation. Subsequent flights will have the usual Replay protection will be active after the
-server's first flight has reached the client and the master secret was updated.
+**1.** To protect against replay attacks the server will usually incorporate a
+*server random* into the master secret. That however isn't possible with 0-RTT
+handshakes and so the poor server can't easily tell whether it's a valid
+request or an attacker replaying a recorded conversation. Replay protection
+will be in place again after the `ServerHello` message was sent.
 
-**2.** The semi-static DH share given in the server configuration defies fwd
-secrecy. A little bit like with session resumption but configurations will
-likely be shared between multiple clients and it makes sense to keep them
-valid longer.
+**2.** The semi-static DH share given in the server configuration, used to
+derive the static secret and encrypt first flight data, defies forward secrecy.
+Other than with PSK and session resumption we can't just choose an (EC)DHE
+suite but have to limit server configuration expiration sensibly. As these will
+likely by shared between multiple clients, in contrast to PSK, it probably
+makes sense to keep them valid longer.
 
-**3.** If the server key is compromised, the attacker can tamper with the 0-RTT
-data without detection.
+**3.** If the server's DH share is compromised a MITM can tamper with the
+0-RTT data sent by the client, without being detected. This does not extend to
+the full session as the client can retrospectively authenticate the server via
+the remaining handshake messages.
 
-The second issue can be addressed by reasonably limiting the lifetimes of
-server configurations. If you expire them after a day by default it means that
-regular visitors would each day have to do one full 1-RTT handshake before they
-could do 0-RTT ones for 24h.
+### Defending against replay attacks
 
-TODO: the client data is protected by the static secret.
-TODO: the server data is protected by the ephemeral secret.
+Defending against replay attacks without the server random hard. It's important
+to understand that this is a generic problem, not an issue with TLS in
+particular, so we can't just borrow another protocol's 0-RTT model and put that
+into TLS.
 
----
-
-Defending against replay attacks without the server random is a tad harder. One
-option is for the server to keep track of all client key shares and reject any
-that it has already seen. That's what [QUIC](https://en.wikipedia.org/wiki/QUIC)
+One option would be to let the  server keep track of all client key shares and
+reject any that it has already seen. That's what [QUIC](https://en.wikipedia.org/wiki/QUIC)
 does, the server maintains an anti-replay window and keeps a list of client
 nonces, indexed by a server-provided token.
-
-It's important to understand that this is a generic issue, not an
-issue with TLS in particular, so it's not like there's some other
-0-RTT model we can lift and put into TLS that would solve the problem.
 
 ---
 
