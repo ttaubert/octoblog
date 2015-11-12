@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "More Privacy, Less Latency - Improved Handshakes in TLS version 1.3"
-date: 2015-11-09 18:00:00 +0100
+date: 2015-11-16 16:00:00 +0100
 ---
 
 > *Up to this writing, TLS v1.3 (draft-11) has not been finalized and the
@@ -31,9 +31,9 @@ across more easily.
 Static RSA is a straightforward key exchange method, available since
 [SSLv2](https://tools.ietf.org/html/draft-hickman-netscape-ssl-00). After
 sharing basic protocol information via the `ClientHello` and `ServerHello`
-messages the server sends its certificate to the client. The `ServerHelloDone`
-message at the end of the record signals that for now there will be no further
-messages until the client responds.
+messages the server sends its certificate to the client. `ServerHelloDone`
+signals that for now there will be no further messages until the client
+responds.
 
 {% img /images/tls-hs-static-rsa.png 600 Full TLS v1.2 Handshake with Static RSA Key Exchange (2-RTT) %}
 
@@ -59,8 +59,9 @@ encrypted `Finished` message with the right MAC.
 The simplicity of static RSA has a serious drawback: it does not offer
 [forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy). If a passive
 adversary records all traffic to a specific server then every recorded TLS
-session can be broken later by obtaining the certificate's private key. *This
-key exchange method will be [removed in TLS v1.3](https://tlswg.github.io/tls13-spec/#major-differences-from-tls-12).*
+session can be broken later by obtaining the certificate's private key.
+
+*This key exchange method will be [removed in TLS v1.3](https://tlswg.github.io/tls13-spec/#major-differences-from-tls-12).*
 
 ## Full TLS 1.2 Handshake (ephemeral DH)
 
@@ -107,10 +108,11 @@ If the server is willing and able to resume the session it responds with a
 handshake is effectively 1-RTT as the client can send application data
 immediately after the `Finished` message.
 
-The downside is that servers with lots of visitors will have to manage big
-session caches, or risk pushing out saved sessions too quickly. A setup
-involving multiple load-balanced servers will need to securely synchronize
-session caches across machines.
+Sites with lots of visitors will have to manage and secure big session caches,
+or risk pushing out saved sessions too quickly. A setup involving multiple
+load-balanced servers will need to securely synchronize session caches across
+machines. The forward secrecy of a connection is bounded by how long session
+information is retained on servers.
 
 **[Session tickets](http://tools.ietf.org/html/rfc5077)**, created by the server
 and stored by the client, are blobs containing all necessary information about
@@ -138,13 +140,11 @@ Neither the server nor the client have to send and verify certificates a second
 time, and thus can reduce connection times significantly, especially when
 dealing with RSA certificates.
 
-Next, let's take a look at the proposals in the current draft.
-
 ## Full Handshakes in TLS 1.3
 
 The first good news about handshakes in TLS v1.3 is that static RSA key
-exchanges are no longer supported. Great! That means we can directly continue
-to full handshakes using forward-secure Diffie-Hellman.
+exchanges are no longer supported. Great! That means we can start with full
+handshakes using forward-secure Diffie-Hellman.
 
 Another important change is the removal of the `ChangeCipherSpec` protocol
 (yes, it's actually a protocol, not a message). With TLS v1.3 every message
@@ -182,7 +182,7 @@ Both methods are replaced by a [pre-shared key (PSK) mode](https://tlswg.github.
 A PSK is established on a previous connection after the handshake is completed,
 and can then be presented by the client on the next visit.
 
-{% img /images/tls13-hs-resumption.png 600 Session Resumption in TLS v1.3 (1-RTT) %}
+{% img /images/tls13-hs-resumption.png 600 Session Resumption / PSK Mode in TLS v1.3 (1-RTT) %}
 
 The client sends one or more *PSK identities* as opaque blobs of data. They can
 be database lookup keys (similar to Session IDs), or self-encrypted and
@@ -209,38 +209,46 @@ have an ECDSA or EdDSA certificate and do not require client authentication.
 
 ## Zero-RTT Handshakes in TLS 1.3
 
-As shown above, TLS v1.3 enables full 1-RTT handshakes, even when connecting to
-a server the very first time. But can we do even better?
+TLS v1.3 enables full 1-RTT handshakes, even when connecting to a server the
+very first time. But can we do even better?
 
 The current draft of the spec contains a proposal to let clients encrypt data
 on their first flights. On a previous connection, after the handshake completes,
 the server would send a `ServerConfiguration` message that the client can use
-for 0-RTT handshakes on subsequent connections. The configuration includes the
-configuration identifier, the server's semi-static (EC)DH parameters, an
-expiration date, and other data.
+for [0-RTT handshakes](https://tlswg.github.io/tls13-spec/#zero-rtt-exchange)
+on subsequent connections. The configuration includes the configuration
+identifier, the server's semi-static (EC)DH parameters, an expiration date,
+and other data.
 
 {% img /images/tls13-hs-zero-rtt.png 600 TLS v1.3 0-RTT Handshake %}
 
 With the very first TLS record the client sends its `ClientHello` and, changing
-the order of messages, directly appends `ApplicationData` (e.g. `GET / HTTP/1.1`),
-encrypted with the [static secret](https://tlswg.github.io/tls13-spec/#key-schedule).
+the order of messages, directly appends `ApplicationData` (e.g. `GET / HTTP/1.1`).
+Everything after the `ClientHello` will be encrypted with the
+[static secret](https://tlswg.github.io/tls13-spec/#key-schedule), derived from
+the client's ephemeral *KeyShare* and the semi-static DH parameters given in
+the server's configuration.
+
 The server, if able and willing to decrypt, responds with its default set of
-messages and immediately (TODO) appends the contents of the requested resource. That's
-the same round-trip time as for an unencrypted HTTP request. All communication
-following the `ServerHello` will again be encrypted with the ephemeral secret.
+messages and immediately appends the contents of the requested resource. *That's
+the same round-trip time as for an unencrypted HTTP request.* All communication
+following the `ServerHello` will again be encrypted with the ephemeral secret,
+derived from the client's *and* server's ephemeral key shares. After exchanging
+`Finished` messages traffic will be encrypted with keys derived from the master
+secret.
 
 ### Security of 0-RTT Handshakes
 
-At first glance, 0-RTT mode seems very similar to session resumption or PSK,
-and you might wonder why one wouldn't merge these mechanisms. The differences
-however are subtle but important, and the security properties of 0-RTT
-handshakes are weaker than those for other kinds of TLS data:
+At first glance, 0-RTT mode seems similar to session resumption or PSK, and you
+might wonder why one wouldn't merge these mechanisms. The differences however
+are subtle but important, and the security properties of 0-RTT handshakes are
+weaker than those for other kinds of TLS data:
 
 **1.** To protect against replay attacks the server must incorporate a *server
 random* into the master secret. That however isn't possible before the first
 round-trip and so the poor server can't easily tell whether it's a valid
 request or an attacker replaying a recorded conversation. Replay protection
-will be in place again after the `ServerHello` message was sent.
+will be in place again after the `ServerHello` message is sent.
 
 **2.** The semi-static DH share given in the server configuration, used to
 derive the static secret and encrypt first flight data, defies forward secrecy.
@@ -254,82 +262,67 @@ maximum allowed validity is 7 days.
 the full session as the client can retrospectively authenticate the server via
 the remaining handshake messages.
 
-### Defending against replay attacks
+### Defending against Replay Attacks
 
-Defending against replay attacks without the server random hard. It's important
-to understand that this is a generic problem, not an issue with TLS in
-particular, so we can't just borrow another protocol's 0-RTT model and put that
-into TLS.
+Thwarting replay attacks without input from the server is fundamentally very
+expensive. It's important to understand that this is a generic problem, not an
+issue with TLS in particular, so unfortunately one can't just borrow another
+protocol's 0-RTT model and put that into TLS.
 
-One option would be to let the  server keep track of all client key shares and
-reject any that it has already seen. That's what [QUIC](https://en.wikipedia.org/wiki/QUIC)
-does, the server maintains an anti-replay window and keeps a list of client
-nonces, indexed by a server-provided token. For this to worker however, the
-server state has to be globally and temporally consistent.
+It is possible to have servers keep a list of every *ClientRandom* they have
+received in a given time window. Upon receiving a `ClientHello` the server
+checks its list and rejects replays if necessary. This list must be globally
+and temporally consistent as there are
+[possible attack vectors](https://www.ietf.org/mail-archive/web/tls/current/msg15594.html)
+due to TLS' reliably delivery guarantee if an attacker can force a server to
+lose its state, as well as with multiple servers in loosely-synchronized data
+centers.
 
-Another solution might be to remove the anti-replay guarantee for the data sent
-in the first flight. Applications should then only send data that can tolerate
-being replayed. That's already hard for browsers, there are lots of
-applications out there where `GET` requests aren't idempotent, and could cause
-state changes.
+Maintaing a consistent global state is possible, but only in some limited
+circumstances, namely very sophisticated operators or situations where there is
+a single server with good state management. We will need something better.
 
----
+### Removing Reliable Delivery Guarantee
 
-There are a number of basic ways to address this issue, but I think
-the main plausible[0] ones are:
+To defend against replay attacks we need the list of *ClientRandom* values and
+a special API used by applications to specify the data allowed to be sent with
+the first flight, without replaying it in case the server ignores it. Here's
+an example of such an API:
 
-1. Keep the server state globally consistent and also temporally
-   consistent so that replays can always be detected.
+{% codeblock lang:js %}
+let c = new TLSConnection(...);
+c.setUnreliable0RTTData("GET /....");
+c.connect();
 
-2. Remove the TLS anti-replay guarantee for the data sent in the first
-   flight and tell applications to only send data there that can
-   tolerate being replayed.
+if (c.delivered0RTTData()) {
+  // Things are cool.
+} else {
+  // Try to figure out whether to replay or not.
+}
+{% endcodeblock %}
 
-3. Remove the TLS reliable delivery guarantee for the data sent in
-   the first flight, so that the stack doesn't automatically replay it.
+For the TLS stack it's easy to tell whether the 0-RTT data was accepted or not.
+It might not be as easy for the application to determine whether it wants to
+replay data, given a possible attack scenario.
 
-The first of these options (global state) is possible, but only in
-some limited circumstances, namely very sophisticated operators and/or
-situations where there's really only one server which has good state
-management. An example of the latter is WebRTC, where the server can
-have a different anti-replay context for each connection.
+### Removing Anti-Replay Guarantee
 
-The other two options clearly require a separate API to handle this
-special first-flight data and would require applications to handle it
-separately. So, for instance, in option 2, you would have something
-like:
+What if we don't want the overhead of maintaining a globally consistent list or
+need reliable delivery of data? The only way to achieve this securely is if
+we're okay with the 0-RTT being replayed. Servers would allow only specific
+data sent with the first flight, everything else will be ignored. An API might
+look like this:
 
-    c = new TLSConnection(...)
-    c.setReplayable0RTTData("GET /....")
-    c.connect();
+{% codeblock lang:js %}
+let c = new TLSConnection(...);
+c.setReplayable0RTTData("GET /....");
+c.connect();
+{% endcodeblock %}
 
-And in the case of option 3 you would have something like:
+## Conclusion
 
-    c = new TLSConnection(...)
-    c.setUnreliable0RTTData("GET /....")
-    c.connect()
-    if (c.delivered0RTTData()) {
-       // Things are cool
-    } else {
-       // Try to figure out whether to replay or not
-    }
-    
-So in the former case, the choice of replay is in the TLS
-stack's hands but in the latter in the application's hands.
-
-I would expect them to have relatively similar impacts on the wire,
-namely applications would self-designate certain data as replay-safe
-(e.g., HTTP GETs) and would send it in the first flight and then
-either let the stack retransmit (option 2) or retransmit themselves
-(option 3). This isn't that odd, since, as AGL observes, browsers
-already routinely retry some HTTP requests that appear to fail even for
-ordinary TLS (i.e., no HTTP response was received) so in those cases
-they have already circumvented the anti-replay guarantees supplied by
-TLS, but of course that's different from having TLS give up those
-guarantees.
-
-I get the sense from the discussion that people have different takes
-on #2 and #3.  Do we really need to decide here?  Can we offer TLS
-APIs the choice?  Some might even choose to implement both models and
-kick the can even further down the road.  I don't actually see any
-problem with that.
+1-RTT as default is great
+no static rsa
+forward secrecy
+simplified session resumption
+0-RTT is not finished yet
