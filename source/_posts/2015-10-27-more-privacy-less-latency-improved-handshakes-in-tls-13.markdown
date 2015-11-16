@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "More Privacy, Less Latency - Improved Handshakes in TLS version 1.3"
-date: 2015-11-16 16:00:00 +0100
+date: 2015-11-16 18:00:00 +0100
 ---
 
 > *Up to this writing, TLS v1.3 (draft-11) has not been finalized and the
@@ -51,15 +51,15 @@ and completes the handshake. *It takes two round-trips to establish a
 connection.*
 
 **Authentication:** With static RSA key exchanges, the connection is
-authenticated by the simple fact that the premaster secret is encrypted with
-the server certificate's public key. Only the server in possession of the
-private key can decrypt, correctly derive the master secret, and send an
-encrypted `Finished` message with the right MAC.
+authenticated by encrypting the premaster secret with the server certificate's
+public key. Only the server in possession of the private key can decrypt,
+correctly derive the master secret, and send an encrypted `Finished` message
+with the right MAC.
 
 The simplicity of static RSA has a serious drawback: it does not offer
 [forward secrecy](https://en.wikipedia.org/wiki/Forward_secrecy). If a passive
-adversary records all traffic to a specific server then every recorded TLS
-session can be broken later by obtaining the certificate's private key.
+adversary records all traffic to a server then every recorded TLS session can
+be broken later by obtaining the certificate's private key.
 
 *This key exchange method will be [removed in TLS v1.3](https://tlswg.github.io/tls13-spec/#major-differences-from-tls-12).*
 
@@ -81,7 +81,7 @@ party's public key both sides should now share the same premaster secret and
 can derive a shared master secret.
 
 **Authentication:** With (EC)DH key exchanges it's still the certificate that
-is signed by a CA and then hopefully trusted by the client. To authenticate the
+must be signed by a CA listed in the client's trust store. To authenticate the
 connection the server will sign the parameters contained in `ServerKeyExchange`
 with the certificate's private key. The client verifies the signature with the
 certificate's public key and only then proceeds with the handshake.
@@ -89,11 +89,11 @@ certificate's public key and only then proceeds with the handshake.
 ## Abbreviated Handshakes in TLS 1.2
 
 Already [SSLv2](https://tools.ietf.org/html/draft-hickman-netscape-ssl-00)
-stated session identifiers as a way to resume previously established TLS/SSL
+states session identifiers as a way to resume previously established TLS/SSL
 sessions. [Session resumption](https://blog.cloudflare.com/tls-session-resumption-full-speed-and-secure/)
-is important because a full handshake can be quite expensive: it has a high
-latency as it needs two round-trips and involves rather expensive computations
-that can affect the machine load and take some time to complete.
+is important because a full handshake can take time: it has a high latency as
+it needs two round-trips and might involve expensive computation to exchange
+keys, or sign and verify certificates.
 
 **[Session IDs](https://tools.ietf.org/html/rfc5246#appendix-F.1.4)**, assigned
 by the server, are unique identifiers under which both parties store the master
@@ -117,13 +117,13 @@ information is retained on servers.
 **[Session tickets](http://tools.ietf.org/html/rfc5077)**, created by the server
 and stored by the client, are blobs containing all necessary information about
 a connection, encrypted by a key only known to the server. If the client
-presents this tickets with the `ClientHello` message and can prove that it
-knows the master secret stored in the ticket then the session will be resumed.
+presents this tickets with the `ClientHello` message, and proves that it knows
+the master secret stored in the ticket, the session will be resumed.
 
 {% img /images/tls-hs-session-tickets.png 600 Abbreviated Handshake with Session Tickets (1-RTT) %}
 
-If the server is willing and able to decrypt the given ticket it responds with
-a `ServerHello` message including an empty Session Ticket extension, otherwise
+A server willing and able to decrypt the given ticket responds with a
+`ServerHello` message including an empty *SessionTicket* extension, otherwise
 the extension would be omitted completely. As with session IDs, the client will
 start sending application data immediately after the `Finished` message to
 achieve 1-RTT.
@@ -209,17 +209,15 @@ have an ECDSA or EdDSA certificate and do not require client authentication.
 
 ## Zero-RTT Handshakes in TLS 1.3
 
-TLS v1.3 enables full 1-RTT handshakes when connecting to a server the very
-first time. But can we do even better?
-
-The current draft of the specification contains a proposal to let clients
+The latest draft of the specification contains a proposal to let clients
 encrypt application data and include it in their first flights. On a previous
 connection, after the handshake completes, the server would send a
 `ServerConfiguration` message that the client can use for
 [0-RTT handshakes](https://tlswg.github.io/tls13-spec/#zero-rtt-exchange)
-on subsequent connections. The configuration includes the configuration
-identifier, the server's semi-static (EC)DH parameters, an expiration date,
-and other data.
+on subsequent connections. The
+[configuration](https://tlswg.github.io/tls13-spec/#server-configuration)
+includes a configuration identifier, the server's semi-static (EC)DH parameters,
+an expiration date, and other details.
 
 {% img /images/tls13-hs-zero-rtt.png 600 TLS v1.3 0-RTT Handshake %}
 
@@ -235,8 +233,8 @@ messages and immediately appends the contents of the requested resource. *That's
 the same round-trip time as for an unencrypted HTTP request.* All communication
 following the `ServerHello` will again be encrypted with the ephemeral secret,
 derived from the client's *and* server's ephemeral key shares. After exchanging
-`Finished` messages traffic will be encrypted with keys derived from the master
-secret.
+`Finished` messages the server will be re-authenticated, and traffic encrypted
+with keys derived from the master secret.
 
 ### Security of 0-RTT Handshakes
 
@@ -267,8 +265,8 @@ the remaining handshake messages.
 
 Thwarting replay attacks without input from the server is fundamentally very
 expensive. It's important to understand that this is a generic problem, not an
-issue with TLS in particular, so unfortunately one can't just borrow another
-protocol's 0-RTT model and put that into TLS.
+issue with TLS in particular, so alas one can't just borrow another protocol's
+0-RTT model and put that into TLS.
 
 It is possible to have servers keep a list of every *ClientRandom* they have
 received in a given time window. Upon receiving a `ClientHello` the server
@@ -292,7 +290,7 @@ requests against a given resource are idempotent.
 
 {% codeblock lang:js %}
 let c = new TLSConnection(...);
-c.setReplayable0RTTData("GET /....");
+c.setReplayable0RTTData("GET / ...");
 c.connect();
 {% endcodeblock %}
 
@@ -309,7 +307,7 @@ do this manually if necessary.
 
 {% codeblock lang:js %}
 let c = new TLSConnection(...);
-c.setUnreliable0RTTData("GET /....");
+c.setUnreliable0RTTData("GET / ...");
 c.connect();
 
 if (c.delivered0RTTData()) {
@@ -324,22 +322,22 @@ specification might look very different from what we can see above. Though, as
 0-RTT handshakes are a charter goal, the working group will very likely find a
 way to make them work.
 
-## Conclusion (TODO)
+## Summing up
 
-TLS v1.3 will bring major improvements to handshakes. All information that's
-not needed to set up a secure channel will be encrypted as early as possible
-and make TLS handshakes a lot more private. Clients will need only a single
-round-trip to establish a secure and authenticated connection to server they
-never spoke to before.
+TLS v1.3 will bring major improvements to handshakes, how exactly will be
+finalized in the coming months (or years?). They will be more private by
+default as all information not needed to set up a secure channel will be
+encrypted as early as possible. Clients will need only a single round-trip to
+establish secure and authenticated connections to servers they never spoke to
+before.
 
-Static RSA mode will no longer be available to enable forward secrecy by
-default. The two session resumption standards are merged into a single PSK mode
-which will allow to streamline implementations.
+Static RSA mode will no longer be available, forward secrecy will be the
+default. The two session resumption standards, session identifiers and session
+tickets, are merged into a single PSK mode which will allow to streamline
+implementations.
 
 The proposed 0-RTT mode is promising, for custom application communication
-based on TLS but also for browsers, where a `GET /` request to your favorite
-news page (given most of them would support HTTPS) will deliver content
-blazingly fast as if no TLS was involved.
-
-Securing 0-RTT is still in draft. There will likely be changes and proposed
-APIs. Future looks interesting.
+based on TLS but also for browsers, where a `GET / HTTP/1.1` request to your
+favorite news page could deliver content blazingly fast as if no TLS was
+involved. The security aspects of zero round-trip handshakes will become more
+clear as the draft progresses.
