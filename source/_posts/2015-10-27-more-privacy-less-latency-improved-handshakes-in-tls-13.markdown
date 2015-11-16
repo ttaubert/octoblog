@@ -277,7 +277,7 @@ due to TLS' reliable delivery guarantee if an attacker can force a server to
 lose its state, as well as with multiple servers in loosely-synchronized data
 centers.
 
-Maintaing a consistent global state is possible, but only in some limited
+Maintaining a consistent global state is possible, but only in some limited
 circumstances, namely for very sophisticated operators or situations where
 there is a single server with good state management. We will need something
 better.
@@ -333,7 +333,7 @@ before.
 
 Static RSA mode will no longer be available, forward secrecy will be the
 default. The two session resumption standards, session identifiers and session
-tickets, are merged into a single PSK mode which will allow to streamline
+tickets, are merged into a single PSK mode which will allow streamlining
 implementations.
 
 The proposed 0-RTT mode is promising, for custom application communication
