@@ -171,7 +171,7 @@ configuration or abort.
 
 **Authentication:** The Diffie-Hellman parameters itself aren't signed anymore,
 authentication will be a tad more explicit in TLS v1.3. The server sends a
-`CertificateVerify` message that contains a MAC of all handshake message
+`CertificateVerify` message that contains a hash of all handshake message
 exchanged so far, signed with the certificate's private key. The client then
 simply verifies the signature with the certificate's public key.
 
