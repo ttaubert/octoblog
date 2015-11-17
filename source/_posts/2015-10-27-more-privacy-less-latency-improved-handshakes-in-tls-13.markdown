@@ -88,9 +88,9 @@ certificate's public key and only then proceeds with the handshake.
 
 ## Abbreviated Handshakes in TLS 1.2
 
-Already [SSLv2](https://tools.ietf.org/html/draft-hickman-netscape-ssl-00)
-states session identifiers as a way to resume previously established TLS/SSL
-sessions. [Session resumption](https://blog.cloudflare.com/tls-session-resumption-full-speed-and-secure/)
+Since [SSLv2](https://tools.ietf.org/html/draft-hickman-netscape-ssl-00)
+clients have been able to use session identifiers as a way to resume previously
+established TLS/SSL sessions. [Session resumption](https://blog.cloudflare.com/tls-session-resumption-full-speed-and-secure/)
 is important because a full handshake can take time: it has a high latency as
 it needs two round-trips and might involve expensive computation to exchange
 keys, or sign and verify certificates.
