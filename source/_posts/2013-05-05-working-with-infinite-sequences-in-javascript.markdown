@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Working with infinite sequences in JavaScript"
+title: "Infinite Sequences in JavaScript"
 date: 2013-05-06 12:00
 ---
 
@@ -202,7 +202,7 @@ As a last example we will implement a function that flattens nested sequences.
 {% codeblock lang:js %}
 function* flatten(it) {
   for (let x of it) {
-    if (typeof(x["@@iterator"]) == "function") {
+    if (typeof(x[Symbol.iterator]) == "function") {
       yield* flatten(x);
     } else {
       yield x;
