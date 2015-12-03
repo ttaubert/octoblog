@@ -325,11 +325,10 @@ way to make them work.
 ## Summing up
 
 TLS v1.3 will bring major improvements to handshakes, how exactly will be
-finalized in the coming months (or years?). They will be more private by
-default as all information not needed to set up a secure channel will be
-encrypted as early as possible. Clients will need only a single round-trip to
-establish secure and authenticated connections to servers they never spoke to
-before.
+finalized in the coming months. They will be more private by default as all
+information not needed to set up a secure channel will be encrypted as early
+as possible. Clients will need only a single round-trip to establish secure
+and authenticated connections to servers they never spoke to before.
 
 Static RSA mode will no longer be available, forward secrecy will be the
 default. The two session resumption standards, session identifiers and session

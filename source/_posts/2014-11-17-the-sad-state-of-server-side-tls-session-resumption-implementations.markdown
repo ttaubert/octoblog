@@ -7,8 +7,7 @@ date: 2014-11-17 18:00
 The probably oldest complaint about TLS is that its handshake is slow and
 together with the transport encryption has a lot of CPU overhead. This
 certainly [is not true anymore](https://istlsfastyet.com/) if configured
-correctly (even if [some companies](http://techblog.netflix.com/2014/10/message-security-layer-modern-take-on.html)
-choose to ignore that).
+correctly.
 
 One of the most important features to improve user experience for visitors
 accessing your site via TLS is session resumption.
