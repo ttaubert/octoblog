@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Snappy: Fixing new tab page performance regressions"
+title: "Fixing new tab page performance regressions"
 date: 2012-08-14 12:00
 ---
 

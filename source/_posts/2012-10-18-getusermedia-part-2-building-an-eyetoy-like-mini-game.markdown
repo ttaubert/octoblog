@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "getUserMedia() part 2: building an EyeToy-like mini-game"
+title: "getUserMedia() part #2"
+subtitle: "Building an EyeToy-like mini-game"
 date: 2012-10-18 22:00
 ---
 
@@ -63,7 +64,7 @@ screencast below:
 
 <iframe class="embed"
  src="http://player.vimeo.com/video/51703468?title=1&amp;byline=1&amp;portrait=1"
- width="500" height="195" frameborder="0"
+ width="100%" height="300" frameborder="0"
  webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
 
 ## I know...

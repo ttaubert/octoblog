@@ -1,9 +1,9 @@
 ---
 layout: default
+title: "Talks"
+class: page
+is_list: true
 ---
 
-{% assign index = true %}
-{% for post in site.talks %}
-{% assign content = post.content %}
-  {% include article.html %}
-{% endfor %}
+{% assign posts = site.talks %}
+{% include list.html %}

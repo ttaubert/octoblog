@@ -2,12 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>{% if page.title %}{{ page.title }} - {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.subtitle %}{{ page.title }} - {{ page.subtitle }} - {{ site.title }}{% elsif page.title %}{{ page.title }} - {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
     {% capture description %}{% if page.description %}{{ page.description }}{% else %}{{ content | raw_content }}{% endif %}{% endcapture %}
-    <meta name="description" content="{{ description | strip_html | condense_spaces | truncate:150 }}">
+    {% if page.is_list != true %}<meta name="description" content="{{ description | strip_html | condense_spaces | truncate:150 }}">{% endif %}
     <meta content="{{ site.author }}" name="author">
-    <link href="{{ root_url }}/stylesheets/screen.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="{{ root_url }}/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="{{ root_url }}/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
     <link href="{{ root_url }}/favicon.ico" rel="icon" type="image/ico">
     <link href="{{ site.subscribe_rss }}" rel="alternate" title="{{site.title}}" type="application/atom+xml">
   </head>

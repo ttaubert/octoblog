@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "Infinite Sequences in JavaScript"
+subtitle: "Experiments with ES6 generators"
 date: 2013-05-06 12:00
 ---
 

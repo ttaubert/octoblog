@@ -1,0 +1,12 @@
+<div class="container">
+  {% for post in posts %}
+  <article>
+    <h1><a href="{{ root_url }}{{ post.url }}">{{ post.title }}</a></h1>
+    {% if post.subtitle %}<h2>{{ post.subtitle }}</h2>{% endif %}
+    <p>
+      {{ post.content | strip_html | condense_spaces | truncate:300 }}
+      <a class="more" href="{{ root_url }}{{ post.url }}">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  {% endfor %}
+</div>

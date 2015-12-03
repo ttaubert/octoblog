@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Implementing a PBKDF2-based password storage scheme for Firefox OS"
+title: "A Firefox OS password storage"
+subtitle: "PBKDF2 and the WebCrypto API in the wild"
 date: 2015-05-18 14:00:00 +0100
 ---
 

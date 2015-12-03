@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Using the WebCrypto API to generate .onion names for Tor hidden services"
+title: "Generating .onion names for Tor hidden services"
+subtitle: "Tinkering with the WebCrypto API"
 date: 2014-11-02 16:00
 ---
 

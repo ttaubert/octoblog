@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "The sad state of server-side TLS Session Resumption implementations"
+title: "Botching Forward Secrecy"
+subtitle: "The sad state of server-side TLS Session Resumption implementations"
 date: 2014-11-17 18:00
 ---
 

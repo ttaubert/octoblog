@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Firefox Add-on: Customizable Shortcuts"
+title: "Customizable Shortcuts"
+subtitle: "A Firefox Add-on"
 date: 2011-04-21 14:03
 ---
 

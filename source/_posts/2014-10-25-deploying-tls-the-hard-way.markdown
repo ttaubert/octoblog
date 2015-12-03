@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "Deploying TLS the hard way"
+subtitle: "Configuring HTTPS for your domain(s)"
 date: 2014-10-27 19:00
 ---
 

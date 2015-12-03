@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "Are we small, yet?"
+subtitle: "A histogram of Firefox download sizes"
 date: 2012-04-11 00:22
 ---
 

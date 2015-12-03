@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "Stop. Iteration time!"
+subtitle: "Implementing ES6 generators and iterators"
 date: 2013-05-03 18:00
 ---
 
@@ -236,8 +237,8 @@ used to store values passed to *yield* or *return* in a generator function.
 
 {% codeblock lang:js %}
 {
-  next() -> { done: false , value: any }
-          | { done: true[, value: any] }
+  next() -> { done: false , value: any  }
+          | { done: true [, value: any] }
 }
 {% endcodeblock %}
 

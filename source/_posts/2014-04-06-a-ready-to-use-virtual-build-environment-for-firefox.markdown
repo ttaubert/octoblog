@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "A ready-to-use virtual build environment for Firefox"
+title: "The Mozilla build VM"
+subtitle: "A virtual build environment for Firefox"
 date: 2014-04-07 18:00
 ---
 

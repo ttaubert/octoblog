@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "getUserMedia() part 3: simple motion detection in a live video"
+title: "getUserMedia() part #3"
+subtitle: "Simple motion detection in a live video"
 date: 2013-02-27 12:00
 ---
 
@@ -105,7 +106,7 @@ the screencast below:
 
 <iframe class="embed"
  src="http://player.vimeo.com/video/60650211?title=1&amp;byline=1&amp;portrait=1"
- width="500" height="195" frameborder="0"
+ width="100%" height="300" frameborder="0"
  webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
 
 You can create some really great demos with this simple technique. Here is a

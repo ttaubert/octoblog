@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "CSS transitions for dynamically created DOM elements"
+title: "CSS transitions for dynamic DOM elements"
 date: 2012-09-23 20:00
 ---
 

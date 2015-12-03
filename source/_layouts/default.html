@@ -1,24 +1,12 @@
 {% capture root_url %}{{ site.root | strip_slash }}{% endcapture %}
 {% include head.html %}
 
-<body>
-  <div class="container-fluid">
-    <div class="row-fluid">
-      <div class="col span3">
-        {% include header.html %}
-        {% include navigation.html %}
-      </div>
-      <div id="main" class="col span6">
-        <section>
-          <h1 class="hidden">Content</h1>
-          {{ content | expand_urls: root_url }}
-        </section>
-      </div>
-      <div class="col span1"></div>
-      <div class="col span2">
-        {% include_array default_asides %}
-      </div>
-    </div>
-  </div>
+<body{% if page.class %} class="{{ page.class }}"{% endif %}>
+  <section id="wrapper">
+    {% include navigation.html %}
+    {{ content | expand_urls: root_url }}
+  </section>
+
+  {% include footer.html %}
 </body>
 </html>

@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Firefox Panorama: Deferred loading of inactive groups"
+title: "Deferred loading of inactive tab groups"
 date: 2011-05-20 17:59
 ---
 

@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "More Privacy, Less Latency - Improved Handshakes in TLS version 1.3"
+title: "More Privacy, Less Latency"
+subtitle: "Improved Handshakes in TLS version 1.3"
 date: 2015-11-16 18:00:00 +0100
 ---
 

@@ -1,6 +1,7 @@
 ---
 layout: post
-title: "Building a live green screen with getUserMedia() and MediaStreams"
+title: "getUserMedia() part #1"
+subtitle: "Building a live green screen"
 date: 2012-10-17 20:00
 ---
 
@@ -97,7 +98,7 @@ Alternatively, here is a screencast of the demo:
 
 <iframe class="embed"
  src="http://player.vimeo.com/video/51593914?title=1&amp;byline=1&amp;portrait=1"
- width="500" height="191" frameborder="0"
+ width="100%" height="300" frameborder="0"
  webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
 
 ## The end

@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "Firefox Electrolysis 101"
+subtitle: "Writing code for multi-process Firefox"
 date: 2011-08-10 18:21
 ---
 
