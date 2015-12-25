@@ -164,11 +164,11 @@ extension to be included in the `ServerHello` and `ClientHello` messages.
 Moving this data into Hello extensions keeps the handshake compatible with TLS
 v1.2 as it doesn't change the order of messages.
 
-The client sends a list of *KeyShare* values, a value consisting of a named
+The client sends a list of *KeyShareEntry* values, each consisting of a named
 (EC)DH group and an ephemeral public key. If the server accepts it must respond
 with one of the proposed groups and its own public key. If the server does not
-support any of the given key shares the client may try again with a different
-configuration or abort.
+support any of the given key shares the server will request retrying the
+handshake or abort the connection with a fatal `handshake_failure` alert.
 
 **Authentication:** The Diffie-Hellman parameters itself aren't signed anymore,
 authentication will be a tad more explicit in TLS v1.3. The server sends a
@@ -226,8 +226,9 @@ With the very first TLS record the client sends its `ClientHello` and, changing
 the order of messages, directly appends application data (e.g. `GET / HTTP/1.1`).
 Everything after the `ClientHello` will be encrypted with the
 [static secret](https://tlswg.github.io/tls13-spec/#key-schedule), derived from
-the client's ephemeral *KeyShare* and the semi-static DH parameters given in
-the server's configuration.
+the client's ephemeral *KeyShareEntry* and the semi-static DH parameters given
+in the server's configuration. The `end_of_early_data` alert indicates the end
+of the flight.
 
 The server, if able and willing to decrypt, responds with its default set of
 messages and immediately appends the contents of the requested resource. *That's
