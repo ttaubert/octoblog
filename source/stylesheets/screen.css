@@ -1,13 +1,17 @@
 @font-face {
   font-family: "FiraSans";
   font-weight: 400;
-  src: url("/fonts/FiraSans-Regular.otf");
+  src: url("/fonts/FiraSans-Regular.eot");
+  src: url("/fonts/FiraSans-Regular.eot?#iefix") format("embedded-opentype"),
+       url("/fonts/FiraSans-Regular.woff") format("woff");
 }
 
 @font-face {
   font-family: "FiraSans";
   font-weight: 700;
-  src: url("/fonts/FiraSans-Medium.otf");
+  src: url("/fonts/FiraSans-Medium.eot");
+  src: url("/fonts/FiraSans-Medium.eot?#iefix") format("embedded-opentype"),
+       url("/fonts/FiraSans-Medium.woff") format("woff");
 }
 
 /* GENERAL */
