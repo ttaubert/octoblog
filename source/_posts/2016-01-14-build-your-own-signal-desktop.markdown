@@ -120,5 +120,14 @@ great to have automatic updates, and maybe even signed builds.
 
 Remember, Signal Desktop is beta, and completely untested with NW.js. If you
 want to help file bugs, but only after checking that those affect the Chrome
-App too. If you want to fix a bug only occurring with NW.js it's probably best
-to file a pull request.
+App too. If you want to fix a bug only occurring in the standalone version
+it's probably best to file a pull request and cross fingers.
+
+## But what about security?
+
+Honestly, I don't know. I would love to get some more insights from people that
+know more about NW.js and whether that comes with all the protections Chromium
+can offer. Another interesting question is whether bundling Signal Desktop with
+NW.js is in any way worse (from a security perspective) than installing it as a
+Chrome extension. If you happen to have an opinion about that, I would love to
+hear it.
