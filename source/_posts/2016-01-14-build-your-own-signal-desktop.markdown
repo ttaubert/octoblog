@@ -35,8 +35,8 @@ $ cd signal-build
 ## [OS X] Packaging Signal and NW.js
 
 Download the latest beta of NW.js and `unzip` it. We'll extract the application
-and use that as a template for our copy of Signal. The NW.js project
-does unfortunately not seem to provide a secure source (or at least hashes)
+and use it as a template for our Signal clone. The NW.js project does
+unfortunately not seem to provide a secure source (or at least hashes)
 for their downloads.
 
 {% codeblock lang:text %}
@@ -45,8 +45,8 @@ $ unzip nwjs-sdk-v0.13.0-beta3-osx-x64.zip
 $ cp -r nwjs-sdk-v0.13.0-beta3-osx-x64/nwjs.app SignalPrivateMessenger.app
 {% endcodeblock %}
 
-Next, clone Signal itself and use NPM to install the necessary modules. Run
-the `grunt` automation tool to build and package the application.
+Next, clone the Signal repository and use NPM to install the necessary modules.
+Run the `grunt` automation tool to build and package the application.
 
 {% codeblock lang:text %}
 $ git clone https://github.com/WhisperSystems/Signal-Desktop.git
@@ -55,8 +55,8 @@ $ npm install
 $ node_modules/grunt-cli/bin/grunt
 {% endcodeblock %}
 
-Finally, simply to copy the `dist` folder containing all of the juicy Signal
-app to the application template we created a few moments ago.
+Finally, simply to copy the `dist` folder containing all the juicy Signal files
+into the application template we created a few moments ago.
 
 {% codeblock lang:text %}
 $ cp -r dist ../SignalPrivateMessenger.app/Contents/Resources/app.nw
@@ -69,7 +69,7 @@ page!
 
 ## [Linux] Packaging Signal and NW.js
 
-The build instructions on Linux aren't too different but I'll write them down,
+The build instructions for Linux aren't too different but I'll write them down,
 if just for convenience. Start by cloning the Signal Desktop repository and
 build the Chrome App.
 
@@ -88,10 +88,10 @@ $ cd dist
 $ zip -r ../../package.nw *
 {% endcodeblock %}
 
-Download the NW.js binary, `unzip` it, and change into the newly created
-directory. Move the `package.nw` file we created earlier to where the `nw`
-binary is and we're done. The `nwjs-sdk-v0.13.0-beta3-linux-x64` folder does
-now contain the standalone Signal app.
+Back to the top. Download the NW.js binary, `unzip` it, and change into the
+newly created directory. Move the `package.nw` file we created earlier next to
+the `nw` binary and we're done. The `nwjs-sdk-v0.13.0-beta3-linux-x64` folder
+does now contain the standalone Signal app.
 
 {% codeblock lang:text %}
 $ cd ../..
@@ -101,7 +101,7 @@ $ cd nwjs-sdk-v0.13.0-beta3-linux-x64
 $ mv ../package.nw .
 {% endcodeblock %}
 
-Finally, launch NW.js. You should now see a welcome page!
+Finally, launch NW.js. You should see a welcome page!
 
 {% codeblock lang:text %}
 $ ./nw
@@ -119,6 +119,6 @@ has bugs and so we have to use the SDK build for now. In the future it would be
 great to have automatic updates, and maybe even signed builds.
 
 Remember, Signal Desktop is beta, and completely untested with NW.js. If you
-want to help file bugs but only after checking that those affect the Chrome App
-too. If you want to fix a bug only occurring with NW.js it's probably best to
-file a pull request.
+want to help file bugs, but only after checking that those affect the Chrome
+App too. If you want to fix a bug only occurring with NW.js it's probably best
+to file a pull request.
