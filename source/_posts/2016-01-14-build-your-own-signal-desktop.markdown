@@ -16,7 +16,7 @@ other browsers it's also a shitty user experience. If you too want your
 messaging app not tied to a browser then let's just build our own standalone
 variant of Signal Desktop.
 
-## Build your very own Signal
+## NW.js beta with Chrome App support
 
 Signal Desktop is a Chrome App, so the easiest way to turn it into a standalone
 app is to use [NW.js](http://nwjs.io/). Conveniently, their next release v0.13
