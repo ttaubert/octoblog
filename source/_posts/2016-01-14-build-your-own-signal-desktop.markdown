@@ -1,27 +1,27 @@
 ---
 layout: post
 title: "Build your own Signal Desktop"
-subtitle: "How to package the Signal Private Messenger and NW.js into a standalone desktop application"
+subtitle: "Package the Signal Private Messenger and NW.js into a standalone app"
 date: 2016-01-15 16:00:00 +0100
 ---
 
 The Signal Private Messenger is great. **Use it.** It's probably the best secure
 messenger on the market. When recently a desktop app was announced people were
-eager to join the beta and even happier when the invite finally showed up in
-their inbox. So was I, it's a great app and works surprisingly well for a beta.
+eager to join the beta and even happier when an invite finally showed up in
+their inbox. So was I, it's a great app and works surprisingly well for an early
+version.
 
-The only problem I and a few other people have with it is that it's a Chrome
-App. It probably wouldn't have been too hard to make it work in Firefox but
-I appreciate the effort the developers put in so far. I thought about helping
-to make it compatible with Firefox but I don't think this is what I or even
-other people want.
+The only problem is that it's a Chrome App. Apart from excluding folks with
+other browsers it's also a shitty user experience. If you too want your
+messaging app not tied to a browser then let's just build our own standalone
+variant of Signal Desktop.
 
 ## Build your very own Signal
 
-People want a standalone app. Just accepting the fact that it's a Chrome app
-we can use NW.js as they just introduced Chrome App support in version 0.13,
-that is currently in Beta. I'll show you how to build your very own Signal
-Private Messenger as a standalone desktop application.
+Signal Desktop is a Chrome App, so the easiest way to turn it into a standalone
+app is to use [NW.js](http://nwjs.io/). Conveniently, their next release v0.13
+will ship with Chrome App support and is available for download as a beta
+version.
 
 First, make sure you have `git` and `npm` installed. Then open a terminal and
 prepare a temporary build directory to which we can download a few things and
