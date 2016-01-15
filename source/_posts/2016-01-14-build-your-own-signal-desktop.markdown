@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Build your own Signal Desktop"
-subtitle: "Package the Signal Private Messenger and NW.js into a standalone app"
+subtitle: "Packaging the Signal Private Messenger and NW.js into a standalone app"
 date: 2016-01-15 16:00:00 +0100
 ---
 
@@ -46,7 +46,7 @@ $ cp -r nwjs-sdk-v0.13.0-beta3-osx-x64/nwjs.app SignalPrivateMessenger.app
 {% endcodeblock %}
 
 Next, clone the Signal repository and use NPM to install the necessary modules.
-Run the `grunt` automation tool to build and package the application.
+Run the `grunt` automation tool to build the application.
 
 {% codeblock lang:text %}
 $ git clone https://github.com/WhisperSystems/Signal-Desktop.git
@@ -71,7 +71,7 @@ page!
 
 The build instructions for Linux aren't too different but I'll write them down,
 if just for convenience. Start by cloning the Signal Desktop repository and
-build the Chrome App.
+build.
 
 {% codeblock lang:text %}
 $ git clone https://github.com/WhisperSystems/Signal-Desktop.git
@@ -88,7 +88,7 @@ $ cd dist
 $ zip -r ../../package.nw *
 {% endcodeblock %}
 
-Back to the top. Download the NW.js binary, `unzip` it, and change into the
+Back to the top. Download the NW.js binary, extract it, and change into the
 newly created directory. Move the `package.nw` file we created earlier next to
 the `nw` binary and we're done. The `nwjs-sdk-v0.13.0-beta3-linux-x64` folder
 does now contain the standalone Signal app.
@@ -123,11 +123,11 @@ want to help file bugs, but only after checking that those affect the Chrome
 App too. If you want to fix a bug only occurring in the standalone version
 it's probably best to file a pull request and cross fingers.
 
-## But what about security?
+## Is this secure?
 
-Honestly, I don't know. I would love to get some more insights from people that
-know more about NW.js and whether that comes with all the protections Chromium
-can offer. Another interesting question is whether bundling Signal Desktop with
-NW.js is in any way worse (from a security perspective) than installing it as a
-Chrome extension. If you happen to have an opinion about that, I would love to
-hear it.
+Great question! I don't know. I would love to get some more insights from people
+that know more about the NW.js security model and whether it comes with all the
+protections Chromium can offer. Another interesting question is whether bundling
+Signal Desktop with NW.js is in any way worse (from a security perspective) than
+installing it as a Chrome extension. If you happen to have an opinion about
+that, I would love to hear it.
