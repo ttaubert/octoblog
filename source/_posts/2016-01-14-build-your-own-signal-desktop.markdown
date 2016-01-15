@@ -2,7 +2,7 @@
 layout: post
 title: "Build your own Signal Desktop"
 subtitle: "Packaging the Signal Private Messenger and NW.js into a standalone app"
-date: 2016-01-15 16:00:00 +0100
+date: 2016-01-15 15:00:00 +0100
 ---
 
 The Signal Private Messenger is great. **Use it.** It's probably the best secure
