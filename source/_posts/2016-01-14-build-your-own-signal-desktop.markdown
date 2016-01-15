@@ -131,3 +131,8 @@ protections Chromium can offer. Another interesting question is whether bundling
 Signal Desktop with NW.js is in any way worse (from a security perspective) than
 installing it as a Chrome extension. If you happen to have an opinion about
 that, I would love to hear it.
+
+Another important thing to keep in mind is that when building Signal on your
+own you will possibly miss automatic and signed security updates from the
+Chrome Web Store. Keep an eye on the repository and rebuild your app from
+time to time to not fall behind too much.
