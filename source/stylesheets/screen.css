@@ -251,10 +251,6 @@ code {
   background-color: #ffc;
 }
 
-.err {
-  border: 1px solid #f00;
-}
-
 .k, .gh, .gp, .gs, .gu, .kc, .kd, .kn, .kr, .nc, .ni, .ne, .nn, .nt, .ow, .se, .si {
   font-weight: bold;
 }
