@@ -5,9 +5,7 @@ subtitle: "Improved Handshakes in TLS version 1.3"
 date: 2015-11-16 18:00:00 +0100
 ---
 
-> *Up to this writing, TLS v1.3 (draft-11) has not been finalized and the
-> proposals presented here might change. I will do my best to update this post
-> timely.*
+> *Please note that this post is about draft-11 of the TLS v1.3 standard.*
 
 *TLS must be [fast](https://istlsfastyet.com/).* Adoption will greatly benefit
 from speeding up the initial handshake that authenticates and secures the
