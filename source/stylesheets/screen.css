@@ -46,7 +46,7 @@ a:hover, a:focus {
 
 .navbar-brand {
   text-transform: uppercase;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   font-size: 30px;
   line-height: 32px;
   background: url(/images/profile.png) 15px 13px no-repeat;
@@ -71,7 +71,7 @@ a:hover, a:focus {
 .navbar-nav > li > a {
   padding: 0 6px;
   text-transform: uppercase;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   line-height: 32px;
   font-size: 133%;
   color: #333;
@@ -125,7 +125,7 @@ header {
 #article-header h1,
 #article-header h2 {
   margin: 0 0 0.25em;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   font-weight: 400;
   color: #fff;
 }
@@ -146,7 +146,7 @@ header {
 .more {
   margin-left: 5px;
   font-weight: bold;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
 }
 
 /* CONTENT */
@@ -179,13 +179,13 @@ h1 {
 
 h2 {
   text-transform: uppercase;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   font-weight: 700;
   font-size: 28px;
 }
 
 h3 {
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   font-weight: 700;
   font-size: 20px;
   line-height: 27px;
@@ -202,7 +202,7 @@ h3 {
   margin-top: 0;
   font-size: 28px;
   font-weight: bold;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   text-transform: uppercase;
 }
 
@@ -280,7 +280,7 @@ footer .container {
 footer a, footer span {
   margin-right: 15px;
   vertical-align: middle;
-  font-family: "FiraSans";
+  font-family: "FiraSans", Helvetica;
   line-height: 30px;
   font-size: 17px;
   color: #fff;
