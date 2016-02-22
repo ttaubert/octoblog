@@ -259,7 +259,7 @@ code {
   font-style: italic;
 }
 
-.c, .c1, .cm {
+.c, .c1, .cm, .gd {
   opacity: 0.6;
 }
 
