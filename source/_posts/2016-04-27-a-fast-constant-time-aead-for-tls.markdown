@@ -34,5 +34,6 @@ with a negligible performance impact even on low-end devices.
 [Firefox 47](https://www.mozilla.org/en-US/firefox/47.0beta/releasenotes/)
 will ship with two new ECDHE/ChaCha20 cipher suites as specified in the
 [latest draft](https://tools.ietf.org/html/draft-ietf-tls-chacha20-poly1305-04).
-In the near future we will work on prioritizing the new ChaCha20 cipher suites
-over AES-GCM on devices with CPUs not supporting AES-NI instructions.
+We are looking forward to see the adoption of these increase and will, as a
+next step, work on prioritizing them over AES-GCM suites on devices not
+supporting AES-NI.
