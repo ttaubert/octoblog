@@ -2,6 +2,7 @@
 layout: post
 title: "Six months on the Security Engineering team"
 date: 2016-04-14 15:49:08 +0200
+published: false
 ---
 
 It's been roughly six months now that I officially switched to the security
