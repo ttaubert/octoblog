@@ -40,9 +40,9 @@ unfortunately not seem to provide a secure source (or at least hashes)
 for their downloads.
 
 {% codeblock lang:text %}
-$ wget http://dl.nwjs.io/v0.14.3/nwjs-sdk-v0.14.3-osx-x64.zip
-$ unzip nwjs-sdk-v0.14.3-osx-x64.zip
-$ cp -r nwjs-sdk-v0.14.3-osx-x64/nwjs.app SignalPrivateMessenger.app
+$ wget http://dl.nwjs.io/v0.14.4/nwjs-sdk-v0.14.4-osx-x64.zip
+$ unzip nwjs-sdk-v0.14.4-osx-x64.zip
+$ cp -r nwjs-sdk-v0.14.4-osx-x64/nwjs.app SignalPrivateMessenger.app
 {% endcodeblock %}
 
 Next, clone the Signal repository and use NPM to install the necessary modules.
@@ -95,9 +95,9 @@ does now contain the standalone Signal app.
 
 {% codeblock lang:text %}
 $ cd ../..
-$ wget http://dl.nwjs.io/v0.13.0-beta3/nwjs-sdk-v0.13.0-beta3-linux-x64.tar.gz
-$ tar xfz nwjs-sdk-v0.13.0-beta3-linux-x64.tar.gz
-$ cd nwjs-sdk-v0.13.0-beta3-linux-x64
+$ wget http://dl.nwjs.io/v0.14.4/nwjs-sdk-v0.14.4-linux-x64.tar.gz
+$ tar xfz nwjs-sdk-v0.14.4-linux-x64.tar.gz
+$ cd nwjs-sdk-v0.14.4-linux-x64
 $ mv ../package.nw .
 {% endcodeblock %}
 
