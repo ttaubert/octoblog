@@ -80,11 +80,11 @@ process that is able to handle all incoming API calls much faster.
 After working on this on and off for more than six months, so even before I
 officially joined the security engineering team, I managed to finally get it
 landed, with a lot of help from Boris Zbarsky who had to adapt our WebIDL code
-generation quite a bit. The WebCrypto API can now finally be used from (service)
-workers.
+generation quite a bit. The WebCrypto API can now finally be used from
+(Service)Workers.
 
 ## What's next?
 
 In the near future I'll be working further on improving our continuous
-integration infrastructure for NSS, and cleaning up the library and its tests.
+integration infrastructure for NSS, and clean up the library and its tests.
 I will hopefully find the time to write more about it as we progress.
