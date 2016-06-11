@@ -5,33 +5,63 @@ subtitle: "Using Taskcluster ..."
 date: 2016-06-07 17:17:01 +0200
 ---
 
-The following image shows the result of a few weeks of work, the
-[TreeHerder](https://github.com/mozilla/treeherder/) UI displaying the effects
-of pushing one or multiple changesets to the [NSS repository](https://hg.mozilla.org/projects/nss):
+The following image shows the [TreeHerder](https://github.com/mozilla/treeherder/)
+UI and the effects of pushing one or multiple changesets to the
+[NSS repository](https://hg.mozilla.org/projects/nss). All this is the result
+of only a few weeks of work (on our side at least):
 
 {% img /images/treeherder.png The TreeHerder UI showing the NSS repository %}
 
-Using [Taskcluster](https://docs.taskcluster.net/) it nowadays is surprisingly
+With [Taskcluster](https://docs.taskcluster.net/) it's nowadays surprisingly
 easy to set up and manage your own continous integration infrastructure in the
-Mozilla world. I will use this post to explain the steps we took as well as the
+Mozilla world. Having spent the last few weeks at setting up exactly that for
+NSS I want to seize the chance to write about all the steps we took and the
 challenges we overcame. Even if you don't contribute to Mozilla you might be
-interested in a few more details of our next-generation task execution framework.
+interested in the nitty-gritty of our next-generation task execution framework.
+
+## What's the goal?
+
+The development of NSS as of now is heavily supported by RedHat's
+[Kai Engert](https://kuix.de/) and his fleet of buildbots. One can see them in
+action by looking at our [Waterfall diagram](http://test.nss-crypto.org/)
+showing the build status of the latest pushes to the NSS repository.
+
+The problem with the current setup is that these buildbots are unfortunately
+rather hard to maintain and slow. Build and test tasks are run sequentially,
+all NSS tests are a big monolithic chunk. Some machines take 10-15 hours,
+after the machine became available, before you will be notified about
+potential breakage.
+
+So the first thing that needs to be done is to replicate the current setup as
+good as possible and then split the monolithic test run into many small tasks
+that can run in parallel. Builds will be prepare by build tasks, test tasks
+will later download those builds and use them to run tests.
+
+We want a great turnaround time, you should know whether a push broke the tree
+after not more than 15-30 minutes. In addition to the all of that we also want
+to run a few more tools, like code formatters and static analyzers. We want a
+[TreeHerder UI](https://treeherder.mozilla.org/#/jobs?repo=nss) that gives a
+good overview of all current build and test tasks, as well as an IRC and email
+notification system so we don't have to watch the tree all day.
+
+As Linux is usually the easiest platform to develop on, and Taskcluster already
+offers excellent support for Linux tasks, let's get started with that.
 
 ## Docker for Linux tasks
 
 To execute Linux tasks, Taskcluster uses Docker. So the first thing we had to
 do was to create a Docker image based on one of the official Linux images. It
-will have to contain all dependencies needed to build NSS/NSPR, as well as the
-scripts to build and run tests. The Docker image can be built from the files
-contained in the [automation/taskcluster/docker](https://hg.mozilla.org/projects/nss/file/tip/automation/taskcluster/docker)
+must contain all dependencies needed to build NSS/NSPR, as well as the scripts
+to build and run tests. Our Docker image can be built from the files contained
+in the [automation/taskcluster/docker](https://hg.mozilla.org/projects/nss/file/tip/automation/taskcluster/docker)
 directory.
 
 Once we had NSS and its tests building and running in Docker locally, the next
-step was to kick off a Taskcluster tasks to see if the same holds true when
-run in our "cloud". Using the [Task Creator](https://tools.taskcluster.net/task-creator/)
+step was to kick off Taskcluster tasks to see if the same holds true in the
+"cloud". Using the [Task Creator](https://tools.taskcluster.net/task-creator/)
 it's not too hard to spawn a one-off task, experiment with your Docker image,
-as well as with the task definition. Taskcluster will automatically pull your
-image from DockerHub if you specify the correct repository:
+and with the task definition. Taskcluster will automatically pull your image
+from DockerHub if you give it the name of your repository:
 
 ```json
 {
@@ -51,14 +81,19 @@ image from DockerHub if you specify the correct repository:
 }
 ```
 
-Using this we were able to rather quickly run a successful build and tests on
-the Taskcluster infrastructure. Now instead of kicking those off manually the
-next logical step is to spawn tasks automatically when something is pushed.
+As Docker is well-documented this whole step turned out not to be too difficult
+and we were able to rather quickly run successful build and test tasks on the
+Taskcluster infrastructure. Now instead of kicking those off manually the
+next logical step is to spawn tasks automatically when changesets are
+pushed to the repository.
 
 ## Using taskcluster-github
 
-Using taskcluster-github is very similar to how TravisCI works, you put a
-configuration into the root of your repository that will contain task
+Triggering tasks on repository pushes will probably remind you of services like
+Travis CI, CircleCI, or AppVeyor, if you worked with any of those before.
+Taskcluster offers a very similar tool called
+[taskcluster-github](https://github.com/taskcluster/taskcluster-github) that
+also uses a configuration file in the root of your repository for task
 definitions.
 
 Luckily, you don't have to mess up your repository until you get the
@@ -83,17 +118,16 @@ few scopes, i.e. permissions. Talk to the nice folks in [#taskcluster](irc://irc
 and they can create the necessary role your repository needs to create tasks.
 
 ## move scripts into the repository
-
-asdf
-
 ## Splitting in Build and Test runs
 
 artifacts...
 
 ## how to decision tasks
-
-bla....
-
 ## mozilla-taskcluster (with HG)
+## TreeHerder repo config
+## TreeHerder extra config
+## more tools
 
-bla....
+e.g. static analyzers etc.
+
+## irc and email notifications
