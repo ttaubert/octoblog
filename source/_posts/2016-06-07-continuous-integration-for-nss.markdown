@@ -6,19 +6,19 @@ subtitle: "Automated builds and tests using Mozilla's Taskcluster framework"
 date: 2016-06-14 17:17:01 +0200
 ---
 
-The following image shows the [TreeHerder](https://github.com/mozilla/treeherder/)
-UI and the effects of pushing one or multiple changesets to the
+The following image shows our [TreeHerder dashboard](https://treeherder.mozilla.org/#/jobs?repo=nss)
+and the effects of pushing one or multiple changesets to the
 [NSS repository](https://hg.mozilla.org/projects/nss). All this is the result
-of quite a moderate amount of work (on our side at least):
+of a rather moderate amount of work (on our side at least):
 
 {% img /images/treeherder.png The TreeHerder dashboard showing the NSS repository %}
 
 With [Taskcluster](https://docs.taskcluster.net/) it's nowadays surprisingly
 easy to set up and manage continous integration for Mozilla projects. Having
-spent the last few weeks at setting up exactly that for NSS I want to seize
-the chance to write about all the steps we took and the challenges we overcame.
-Even if you don't contribute to Mozilla you might be interested in the
-nitty-gritty of our next-generation task execution framework.
+spent the last few weeks doing exactly that for NSS I want to seize the chance
+to write about our experience - and even if you don't manage a Mozilla project
+you might be interested in the nitty-gritty of our next-generation task
+execution framework.
 
 ## What's the goal?
 
@@ -27,26 +27,28 @@ The development of NSS as of now is heavily supported by RedHat's
 action by looking at our [Waterfall diagram](http://test.nss-crypto.org/)
 showing the build status of the latest pushes to the NSS repository.
 
-The problem with the current setup is that these buildbots are unfortunately
-rather hard to maintain and slow. Build and test tasks are run sequentially,
-all NSS tests are a big monolithic chunk. On some machines it takes 10-15
-hours, that is after they became available, before you will be notified
-about potential breakage.
+The problem with the current setup is that it's unfortunately rather complex
+and the bots are slow. Build and test tasks are run sequentially, all NSS tests
+as a big monolithic chunk. On some machines it takes 10-15 hours, that is after
+they became available, before you will be notified about potential breakage.
 
 So the first thing that needs to be done is to replicate the current setup as
 good as possible and then split monolithic test runs into many small tasks that
 can be run in parallel. Builds will be prepared by build tasks, test tasks will
 later download and use them to run tests.
 
-We want a good turnaround time, ideally one should know whether a push broke
-the tree after not more than 15-30 minutes. In addition to all of that we also
-want to run a few more tools, like code formatters and static analyzers. We want
-a [TreeHerder UI](https://treeherder.mozilla.org/#/jobs?repo=nss) that gives a
-good overview of all current build and test tasks, as well as an IRC and email
-notification system so we don't have to watch the tree all day.
+A good turnaround time is essential, ideally one should know whether a push
+broke the tree after not more than 15-30 minutes. In addition to all of that
+we also want to run a few more tools, like code formatters, static analyzers,
+and interoperability test suites. We want a [TreeHerder](https://github.com/mozilla/treeherder/)
+dashboard that gives a good overview of all current build and test tasks, as
+well as an IRC and email notification system so we don't have to watch the
+tree all day.
 
-As Linux is usually the easiest platform to develop on, and Taskcluster already
-offers excellent support for Linux tasks, let's get started with that.
+As Taskcluster already offers excellent Linux support, let's concentrate on
+that. When everything is done we will be able to add Windows and OS X tasks
+to the setup without a lot of work, except for some fiddling with the respective
+toolchains.
 
 ## Docker for Linux tasks
 
