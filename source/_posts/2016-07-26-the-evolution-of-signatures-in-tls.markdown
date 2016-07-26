@@ -160,7 +160,7 @@ has changed significantly and covers the complete handshake, up until
 h = Hash(Handshake Context + Certificate) + Hash(Resumption Context)
 ```
 
-It includes amongst other data the client and server random, key shares, the
+This includes amongst other data the client and server random, key shares, the
 cipher suite, the certificate, and resumption information to prevent replay and
 downgrade attacks. With static key exchange algorithms gone the
 [CertificateVerify message](https://tlswg.github.io/tls13-spec/#rfc.section.4.3.2)
