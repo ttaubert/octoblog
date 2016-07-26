@@ -41,8 +41,8 @@ h = Hash(ClientHello.random + ServerHello.random + ServerParams)
 ```
 
 The `ServerParams` are the actual data to be signed, the `*Hello.random` values
-are prepended to prevent replay attacks. If you wondered, that is also the
-reason why TLS 1.3 puts a [downgrade sentinel](https://tlswg.github.io/tls13-spec/#server-hello)
+are prepended to prevent replay attacks. This is the reason TLS 1.3 puts a
+[downgrade sentinel](https://tlswg.github.io/tls13-spec/#server-hello)
 at the end of `ServerHello.random` for clients to check.
 
 The [ServerKeyExchange message](https://tools.ietf.org/html/rfc2246#section-7.4.3)
@@ -77,16 +77,13 @@ If a client does not include the `signature_algorithms` extension then it is
 assumed to support RSA, DSA, or ECDSA (depending on the negotiated cipher suite)
 with SHA-1 as the hash function.
 
-Not only were all hash functions of the SHA-2 family introduced, ECDSA was also
-added as a new signature algorithm. Note that the extension does not allow to
+Besides adding all SHA-2 family hash functions, TLS 1.2 also introduced ECDSA
+as a new signature algorithm. Note that the extension does not allow to
 restrict the curve used for a given scheme, P-521 with SHA-1 is therefore
 perfectly legal.
 
 A new requirement for RSA signatures is that the hash has to be wrapped in a
 DER-encoded `DigestInfo` sequence before passing it to the RSA sign function.
-This unfortunately led to attacks like [Bleichenbacher'06](https://www.ietf.org/mail-archive/web/openpgp/current/msg00999.html)
-and [BERserk](http://www.intelsecurity.com/advanced-threat-research/berserk.html)
-because it turns out that handling ASN.1 correctly is hard.
 
 ```
 DigestInfo ::= SEQUENCE {
@@ -95,8 +92,11 @@ DigestInfo ::= SEQUENCE {
 }
 ```
 
-As in TLS 1.1, a `ServerKeyExchange` message is sent only when static RSA/DH
-key exchange is not used. The hash computation did not change either:
+This unfortunately led to attacks like [Bleichenbacher'06](https://www.ietf.org/mail-archive/web/openpgp/current/msg00999.html)
+and [BERserk](http://www.intelsecurity.com/advanced-threat-research/berserk.html)
+because it turns out handling ASN.1 correctly is hard. As in TLS 1.1, a
+`ServerKeyExchange` message is sent only when static RSA/DH key exchange is not
+used. The hash computation did not change either:
 
 ```
 h = Hash(ClientHello.random + ServerHello.random + ServerParams)
@@ -147,20 +147,21 @@ name, to be enforced by implementations. SHA-1 signature schemes SHOULD NOT be
 offered, if needed for backwards compatibility then only as the lowest priority
 after all other schemes.
 
-The current draft-13 still lists RSA-PSS as the only valid signature algorithm
-allowed to sign handshake messages. The rsa\_pkcs1\_\* values refer to
-signatures which appear in certificates and are not defined for use in signed
-handshake messages. There *is* hope.
+The current draft-13 still lists RSASSA-PSS as the only valid signature algorithm
+allowed to sign handshake messages with an RSA key. The rsa\_pkcs1\_\* values
+solely refer to signatures which appear in certificates and are not defined for
+use in signed handshake messages. There *is* hope.
 
-Due to attacks like [SLOTH](http://www.mitls.org/pages/attacks/SLOTH) the
-computation of the hashes to be signed has changed significantly and covers the
-complete handshake up until this point:
+To prevent various downgrade attacks like [FREAK](https://freakattack.com/) and [Logjam](https://weakdh.org/) the computation of the hashes to be signed
+has changed significantly and covers the complete handshake, up until
+`CertificateVerify`:
 
 ```
 h = Hash(Handshake Context + Certificate) + Hash(Resumption Context)
 ```
 
-It includes the client and server random, key shares, the certificate, and
-resumption information to prevent replay and downgrade attacks. With static key
-exchange algorithms gone the [CertificateVerify message](https://tlswg.github.io/tls13-spec/#rfc.section.4.3.2)
+It includes amongst other data the client and server random, key shares, the
+cipher suite, the certificate, and resumption information to prevent replay and
+downgrade attacks. With static key exchange algorithms gone the
+[CertificateVerify message](https://tlswg.github.io/tls13-spec/#rfc.section.4.3.2)
 is now the one carrying the signature.
