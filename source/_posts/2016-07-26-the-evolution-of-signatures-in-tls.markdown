@@ -5,10 +5,10 @@ subtitle: "Signature algorithms and schemes in TLS 1.0 - 1.3"
 date: 2016-07-26 16:00:00 +0200
 ---
 
-This blog post will take a closer look at the evolution of signature
-algorithms and schemes in the TLS protocol since version 1.0. I started taking
-notes for myself but then decided to polish and publish them, hoping that
-others will benefit as well.
+This post will take a look at the evolution of signature algorithms and schemes
+in the TLS protocol since version 1.0. I at first started taking notes for
+myself but then decided to polish and publish them, hoping that others will
+benefit as well.
 
 (Let's ignore client authentication for simplicity.)
 
@@ -40,15 +40,16 @@ signature only the SHA-1 digest. Hashes will be computed as follows:
 h = Hash(ClientHello.random + ServerHello.random + ServerParams)
 ```
 
-The `ServerParams` is the actual data to be signed, the `*Hello.random` values
+The `ServerParams` are the actual data to be signed, the `*Hello.random` values
 are prepended to prevent replay attacks. If you wondered, that is also the
 reason why TLS 1.3 puts a [downgrade sentinel](https://tlswg.github.io/tls13-spec/#server-hello)
 at the end of `ServerHello.random` for clients to check.
 
 The [ServerKeyExchange message](https://tools.ietf.org/html/rfc2246#section-7.4.3)
-is sent only when static RSA/DH key exchange is *not* used, that means we have
-a DHE\_\* cipher suite, an RSA\_EXPORT\_\* suite downgraded due to export
-restrictions, or a DH\_anon\_\* suite where both parties don't authenticate.
+containing the signature is sent only when static RSA/DH key exchange is *not*
+used, that means we have a DHE\_\* cipher suite, an RSA\_EXPORT\_\* suite
+downgraded due to export restrictions, or a DH\_anon\_\* suite where both
+parties don't authenticate.
 
 ## Signature algorithms in TLS 1.2
 
@@ -95,7 +96,7 @@ DigestInfo ::= SEQUENCE {
 ```
 
 As in TLS 1.1, a `ServerKeyExchange` message is sent only when static RSA/DH
-key exchange is not used. Hash computation did not change either:
+key exchange is not used. The hash computation did not change either:
 
 ```
 h = Hash(ClientHello.random + ServerHello.random + ServerParams)
