@@ -2,7 +2,7 @@
 layout: post
 title: "The Evolution of Signatures in TLS"
 subtitle: "Signature algorithms and schemes in TLS 1.0 - 1.3"
-date: 2016-07-25 12:11:37 +0200
+date: 2016-07-26 16:00:00 +0200
 ---
 
 This blog post will take a closer look at the evolution of signature
@@ -150,18 +150,14 @@ signatures which appear in certificates and are not defined for use in signed
 handshake messages.
 
 Due to attacks like [SLOTH](http://www.mitls.org/pages/attacks/SLOTH) the
-computation of the hashes to be signed has changed significantly:
+computation of the hashes to be signed has changed significantly and covers the
+complete handshake up until this point:
 
 ```
 h = Hash(Handshake Context + Certificate) + Hash(Resumption Context)
 ```
 
-The signature will now cover the complete handshake up until this point,
-including the client and server random, and resumption information to prevent
-replay and downgrade attacks.
-
-With static key exchange algorithms gone (yay, forward secrecy) the
-[CertificateVerify message](https://tlswg.github.io/tls13-spec/#rfc.section.4.3.2)
-is now the one carrying the signature. The key exchange was moved into the
-`key_share` hello extension and is thus also automatically covered by the
-signature.
+It includes the client and server random, key shares, the certificate, and
+resumption information to prevent replay and downgrade attacks. With static key
+exchange algorithms gone the [CertificateVerify message](https://tlswg.github.io/tls13-spec/#rfc.section.4.3.2)
+is now the one carrying the signature.
