@@ -7,8 +7,8 @@ date: 2016-07-26 16:00:00 +0200
 
 This blog post will take a closer look at the evolution of signature
 algorithms and schemes in the TLS protocol since version 1.0. I started taking
-notes for myself but then decided to publish this, hoping that others will
-benefit as well.
+notes for myself but then decided to polish and publish them, hoping that
+others will benefit as well.
 
 (Let's ignore client authentication for simplicity.)
 
@@ -40,9 +40,9 @@ signature only the SHA-1 digest. Hashes will be computed as follows:
 h = Hash(ClientHello.random + ServerHello.random + ServerParams)
 ```
 
-The `ServerParams` is the important data to be signed, the
-`*Hello.random` values are prepended to prevent replay attacks. If you wondered,
-that is also the reason why TLS 1.3 puts a [downgrade sentinel](https://tlswg.github.io/tls13-spec/#server-hello)
+The `ServerParams` is the actual data to be signed, the `*Hello.random` values
+are prepended to prevent replay attacks. If you wondered, that is also the
+reason why TLS 1.3 puts a [downgrade sentinel](https://tlswg.github.io/tls13-spec/#server-hello)
 at the end of `ServerHello.random` for clients to check.
 
 The [ServerKeyExchange message](https://tools.ietf.org/html/rfc2246#section-7.4.3)
@@ -54,8 +54,8 @@ restrictions, or a DH\_anon\_\* suite where both parties don't authenticate.
 
 [TLS 1.2](https://tools.ietf.org/html/rfc5246) brought bigger changes to
 signature algorithms by introducing the [signature\_algorithms extension](https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1).
-This is a `ClientHello` extension allowing clients to signal supported (or
-preferred) signature algorithms and hash functions.
+This is a `ClientHello` extension allowing clients to signal supported and
+preferred signature algorithms and hash functions.
 
 ```c
 enum {
@@ -72,9 +72,9 @@ struct {
 } SignatureAndHashAlgorithm;
 ```
 
-If a client does not include the above extension then it is assumed to support
-RSA, DSA, or ECDSA (depending on the cipher suite) with SHA-1 as the hash
-function.
+If a client does not include the `signature_algorithms` extension then it is
+assumed to support RSA, DSA, or ECDSA (depending on the negotiated cipher suite)
+with SHA-1 as the hash function.
 
 Not only were all hash functions of the SHA-2 family introduced, ECDSA was also
 added as a new signature algorithm. Note that the extension does not allow to
@@ -82,9 +82,10 @@ restrict the curve used for a given scheme, P-521 with SHA-1 is therefore
 perfectly legal.
 
 A new requirement for RSA signatures is that the hash has to be wrapped in a
-DER-encoded `DigestInfo` sequence before passing it to the RSA encryption
-function. This unfortunately has led to attacks like [BERserk](http://www.intelsecurity.com/advanced-threat-research/berserk.html)
-because writing ASN.1 parsers is still hard.
+DER-encoded `DigestInfo` sequence before passing it to the RSA sign function.
+This unfortunately led to attacks like [Bleichenbacher'06](https://www.ietf.org/mail-archive/web/openpgp/current/msg00999.html)
+and [BERserk](http://www.intelsecurity.com/advanced-threat-research/berserk.html)
+because it turns out that handling ASN.1 correctly is hard.
 
 ```
 DigestInfo ::= SEQUENCE {
@@ -104,7 +105,8 @@ h = Hash(ClientHello.random + ServerHello.random + ServerParams)
 
 The `signature_algorithms` extension introduced by TLS 1.2 was revamped in
 [TLS 1.3](https://tlswg.github.io/tls13-spec/#rfc.section.4.2.2) and MUST now
-be sent if the client offers a single non-PSK cipher suite.
+be sent if the client offers a single non-PSK cipher suite. The format is
+backwards compatible and keeps old code points.
 
 ```c
 enum {
@@ -139,15 +141,15 @@ specification. TLS 1.2 algorithm/hash combinations not listed here
 are deprecated and MUST NOT be offered or negotiated.
 
 New code points for RSA-PSS schemes, as well as Ed25519 and Ed448-Goldilocks
-were added. The ECDSA schemes are now tied to the curve given by the code point
+were added. ECDSA schemes are now tied to the curve given by the code point
 name, to be enforced by implementations. SHA-1 signature schemes SHOULD NOT be
-offered, if needed for backwards compatibility then only as the lowest priority,
-i.e. after all other schemes.
+offered, if needed for backwards compatibility then only as the lowest priority
+after all other schemes.
 
 The current draft-13 still lists RSA-PSS as the only valid signature algorithm
-allowed to sign handshake messages. The rsa\_pkcs1\_\* values refer solely to
+allowed to sign handshake messages. The rsa\_pkcs1\_\* values refer to
 signatures which appear in certificates and are not defined for use in signed
-handshake messages.
+handshake messages. There *is* hope.
 
 Due to attacks like [SLOTH](http://www.mitls.org/pages/attacks/SLOTH) the
 computation of the hashes to be signed has changed significantly and covers the
