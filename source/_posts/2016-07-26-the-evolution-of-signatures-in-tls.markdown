@@ -107,7 +107,7 @@ h = Hash(ClientHello.random + ServerHello.random + ServerParams)
 The `signature_algorithms` extension introduced by TLS 1.2 was revamped in
 [TLS 1.3](https://tlswg.github.io/tls13-spec/#rfc.section.4.2.2) and MUST now
 be sent if the client offers a single non-PSK cipher suite. The format is
-backwards compatible and keeps old code points.
+backwards compatible and keeps some old code points.
 
 ```c
 enum {
@@ -147,10 +147,10 @@ name, to be enforced by implementations. SHA-1 signature schemes SHOULD NOT be
 offered, if needed for backwards compatibility then only as the lowest priority
 after all other schemes.
 
-The current draft-13 still lists RSASSA-PSS as the only valid signature algorithm
+The current draft-13 lists RSASSA-PSS as the only valid signature algorithm
 allowed to sign handshake messages with an RSA key. The rsa\_pkcs1\_\* values
 solely refer to signatures which appear in certificates and are not defined for
-use in signed handshake messages. There *is* hope.
+use in signed handshake messages.
 
 To prevent various downgrade attacks like [FREAK](https://freakattack.com/) and [Logjam](https://weakdh.org/) the computation of the hashes to be signed
 has changed significantly and covers the complete handshake, up until
