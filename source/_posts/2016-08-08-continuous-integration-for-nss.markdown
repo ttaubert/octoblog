@@ -11,17 +11,15 @@ It is the result of only a few weeks of work (on our side):
 
 {% img /images/treeherder.png The TreeHerder dashboard showing the NSS repository %}
 
-[Taskcluster](https://docs.taskcluster.net/) makes it easy to set up and manage
-continuous integration for Mozilla projects. Having spent the last few weeks
-doing that for NSS I'll share how to go about setting it up for your project.
-Even if you don't manage a Mozilla project you might be interested in the
-nitty-gritty of our next-generation task execution framework.
+Based on my experience from building a [Taskcluster](https://docs.taskcluster.net/)
+CI for NSS over the last weeks, I want to share a rough outline of the process
+of setting this up for basically any Mozilla project, using NSS as an example.
 
 ## What is the goal?
 
 The development of NSS has for a long time been heavily supported by a fleet of
 buildbots. You can see them in action by looking at our waterfall diagram
-showing the build status of the latest pushes to the NSS repository.
+showing the build and test statuses of the latest pushes to the NSS repository.
 
 {% img /images/buildbots.png The waterfall diagram showing buildbot statuses %}
 
@@ -69,7 +67,7 @@ Taskcluster will automatically pull your image from Docker Hub:
   "created": " ... ",
   "deadline": " ... ",
   "payload": {
-    "image": "ttaubert/nss-ci:0.0.19",
+    "image": "ttaubert/nss-ci:0.0.21",
     "command": [
       "/bin/bash",
       "-c",
@@ -81,8 +79,8 @@ Taskcluster will automatically pull your image from Docker Hub:
 }
 ```
 
-Docker is well-documented, so this step shouldn't be too difficult and you
-should be able to confirm everything runs fine in almost no time. Now instead
+Docker and task definitions are well-documented, so this step shouldn't be too
+difficult and you should be able to confirm everything runs fine. Now instead
 of kicking off tasks manually the next logical step is to spawn tasks
 automatically when changesets are pushed to the repository.
 
@@ -162,7 +160,7 @@ artifacts so that it picks those up and makes them available to the public.
   "created": " ... ",
   "deadline": " ... ",
   "payload": {
-    "image": "ttaubert/nss-ci:0.0.19",
+    "image": "ttaubert/nss-ci:0.0.21",
     "artifacts": {
       "public": {
         "type": "directory",
@@ -211,7 +209,7 @@ like to generate these JSON files, e.g. Python, Ruby, Node, ...
 ```yaml
 task:
   payload:
-    image: "ttaubert/nss-ci:0.0.19"
+    image: "ttaubert/nss-ci:0.0.21"
 
     maxRunTime: 1800
 
@@ -287,8 +285,8 @@ fifth row of the image at the top of this post:
 ## IRC and email notifications
 
 Taskcluster is a very modular system and offers many APIs. It's built with
-mostly Node, and thus there many Node libraries available to interact with the
-many parts. The communication between those is realized by [Pulse](https://wiki.mozilla.org/Auto-tools/Projects/Pulse),
+mostly Node, and thus there are many Node libraries available to interact with
+the many parts. The communication between those is realized by [Pulse](https://wiki.mozilla.org/Auto-tools/Projects/Pulse),
 a managed RabbitMQ cluster.
 
 The last missing piece we wanted is an IRC and email notification system, a bot
@@ -297,16 +295,15 @@ It was a piece of cake to write [nss-tc](https://github.com/ttaubert/nss-taskclu
 that uses Taskcluster Node.JS libraries and Mercurial JSON APIs to connect to
 the task queue and listen for task definitions and failures.
 
-## A view from above
+## A rough overview
 
-I could have probably written a post with details about each of the steps
-outlined here but I think it's much more helpful to start with a good overview
-of all necessary steps to get the CI for a project up and running. The steps
-itself will require some more time but their progression is hopefully much more
-obvious now if you haven't had too much of a clue about Taskcluster and TreeHerder
-so far.
+I could have probably written a detailed post for each of the steps outlined
+here but I think it's much more helpful to start with an overview of what's
+needed to get the CI for a project up and running. Each step and each part of
+the system is hopefully more obvious now if you haven't had too much interaction
+with Taskcluster and TreeHerder so far.
 
-*Thanks to the Taskcluster team, especially John, Greg, and Pete. They helped us
-pull this off in a matter of weeks and we already have Windows tasks running,
-static analysis, ASan+LSan, and are in the process of setting up workers for
-ARM builds and tests.*
+*Thanks to the Taskcluster team, especially John Ford, Greg Arndt, and Pete
+Moore! They helped us pull this off in a matter of weeks and besides Linux
+builds and tests we already have Windows tasks, static analysis, ASan+LSan,
+and are in the process of setting up workers for ARM builds and tests.*
