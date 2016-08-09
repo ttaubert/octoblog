@@ -2,7 +2,7 @@
 layout: post
 title: "Continuous Integration for NSS"
 subtitle: "Automating builds and tests with Mozilla's Taskcluster framework"
-date: 2016-08-08 18:00:00 +0200
+date: 2016-08-09 16:00:00 +0200
 ---
 
 The following image shows our [TreeHerder dashboard](https://treeherder.mozilla.org/#/jobs?repo=nss)
@@ -47,8 +47,18 @@ the image containing all NSS dependencies, as well as the scripts to build and
 run tests, can be found in the [automation/taskcluster/docker](https://hg.mozilla.org/projects/nss/file/tip/automation/taskcluster/docker)
 directory.
 
+For a start, the fastest way to get something up and running (or building) is
+to use `ADD` in the Dockerfile to bake your scripts into the image. That way
+you can just pass them as the *command* in the task definition later.
+
+```bash
+# Add build and test scripts.
+ADD bin /home/worker/bin
+RUN chmod +x /home/worker/bin/*
+```
+
 Once you have NSS and its tests building and running in a local Docker container,
-the next step is to kick off a Taskcluster task in the *cloud*. You can use the
+the next step is to run a Taskcluster task in the *cloud*. You can use the
 [Task Creator](https://tools.taskcluster.net/task-creator/) to spawn a one-off
 task, experiment with your Docker image, and with the task definition.
 Taskcluster will automatically pull your image from Docker Hub:
@@ -61,7 +71,9 @@ Taskcluster will automatically pull your image from Docker Hub:
   "payload": {
     "image": "ttaubert/nss-ci:0.0.19",
     "command": [
-      ...
+      "/bin/bash",
+      "-c",
+      "bin/build.sh"
     ],
     "maxRunTime": 3600
   },
@@ -293,3 +305,8 @@ of all necessary steps to get the CI for a project up and running. The steps
 itself will require some more time but their progression is hopefully much more
 obvious now if you haven't had too much of a clue about Taskcluster and TreeHerder
 so far.
+
+*Thanks to the Taskcluster team, especially John, Greg, and Pete. They helped us
+pull this off in a matter of weeks and we already have Windows tasks running,
+static analysis, ASan+LSan, and are in the process of setting up workers for
+ARM builds and tests.*
