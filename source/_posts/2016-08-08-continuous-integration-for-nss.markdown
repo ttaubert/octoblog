@@ -6,7 +6,7 @@ date: 2016-08-09 16:00:00 +0200
 ---
 
 The following image shows our [TreeHerder dashboard](https://treeherder.mozilla.org/#/jobs?repo=nss)
-after pushing a changesets to the [NSS repository](https://hg.mozilla.org/projects/nss).
+after pushing a changeset to the [NSS repository](https://hg.mozilla.org/projects/nss).
 It is the result of only a few weeks of work (on our side):
 
 {% img /images/treeherder.png The TreeHerder dashboard showing the NSS repository %}
