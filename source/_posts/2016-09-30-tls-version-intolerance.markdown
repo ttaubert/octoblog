@@ -7,20 +7,21 @@ date: 2016-09-30 16:00:00 +0200
 
 A few weeks ago I listened to Hanno Böck talk about
 [TLS version intolerance](https://www.int21.de/slides/berlinsec-versionintolerance/)
-at the Berlin AppSec & Crypto Meetup. With TLS 1.3 just around the corner there
-again are growing concerns about faulty TLS stacks found in HTTP servers, load
-balancers, routers, firewalls, and similar software and devices.
+at the Berlin AppSec & Crypto Meetup. He explained how with TLS 1.3 just around
+the corner there again are growing concerns about faulty TLS stacks found in
+HTTP servers, load balancers, routers, firewalls, and similar software and
+devices.
 
-This post will explain version intolerance, how version fallbacks work and why
-they're insecure, as well as describe the downgrade protection mechanisms
-available in TLS 1.2 and 1.3. It will end with a look at the future of version
-negotiation in TLS and a proposal that aims to prevent similar problems in the
-future.
+I decided to dig a little deeper and will use this post to explain version
+intolerance, how version fallbacks work and why they're insecure, as well as
+describe the downgrade protection mechanisms available in TLS 1.2 and 1.3. It
+will end with a look at version negotiation in TLS 1.3 and a proposal that
+aims to prevent similar problems in the future.
 
 ## What is version intolerance?
 
-Every time a new TLS version is specified, browsers usually are the fastet to
-implement and update their deployments. Most major browsers vendors have a few
+Every time a new TLS version is specified, browsers usually are the fastest to
+implement and update their deployments. Most major browser vendors have a few
 people involved in the standardization process to guide the standard and give
 early feedback about implementation issues.
 
@@ -68,16 +69,15 @@ Or even worse:
 The same can happen with the infamous F5 load balancer that can't handle
 `ClientHello` messages with a length between 256 and 512 bytes. Other devices
 abort the connection when receiving a large `ClientHello` split into multiple
-TLS records. TLS 1.3 will likely cause more problems of this kind due to more
-extensions with client key shares.
+TLS records. TLS 1.3 might actually cause more problems of this kind due to
+more extensions and client key shares.
 
 ## What are version fallbacks?
 
-As browsers usually want to ship new TLS versions as soon as possible, enabled
-by default to keep their users safe, more than a decade ago browsers vendors
-saw a need to prevent connection failures due to version intolerance. The easy
-solution was to decrease the advertised version number by one with every failed
-attempt:
+As browsers usually want to ship new TLS versions as soon as possible, more
+than a decade ago vendors saw a need to prevent connection failures due to
+version intolerance. The easy solution was to decrease the advertised version
+number by one with every failed attempt:
 
 > **Client:** Hi! The highest TLS version I support is 1.2.  
 > **Server:** ALERT! Handshake failure. (Or FIN. Or hang.)  
@@ -96,13 +96,9 @@ What makes these fallbacks insecure is that the connection can be downgraded by
 a MITM, by sending alerts or TCP packets to the client, or blocking packets
 from the server. To the client this is indistinguishable from a network error.
 
-In the case of a vulnerability in TLS 1.1 that an attacker wants to exploit, she
-could trigger the client's version fallback mechanism and thus force a 1.1
-connection, even if both parties support 1.2.
-
 The [POODLE](https://www.openssl.org/~bodo/ssl-poodle.pdf) attack is one
 example where an attacker abuses the version fallback to force an SSL 3.0
-connection. In response to this browsers vendors disabled version fallbacks to
+connection. In response to this browser vendors disabled version fallbacks to
 SSL 3.0, and then SSL 3.0 entirely, to prevent even up-to-date clients from
 being exploited. Insecure version fallback in browsers pretty much break the
 actual version negotiation mechanisms.
@@ -128,7 +124,7 @@ than advertised by the client, it MUST abort the connection.
 
 The drawback here however is that a client even if it implements fallback with
 a Signaling Cipher Suite Value doesn't know the highest protocol version
-supported by the server, and whether it implements a TLS_FALLBACK_SCSV check.
+supported by the server, and whether it implements a `TLS_FALLBACK_SCSV` check.
 Common web servers will likely be updated faster than others, but router or
 load balancer manufacturers might not deem it important enough to implement
 and ship updates for.
@@ -194,8 +190,8 @@ Ivan Ristić, as of July 2016,
 This a very high number and would affect way too many people. Alas, with TLS
 1.3 we have only limited downgrade protection for forward-secure cipher
 suites. And that is assuming that most servers either support TLS 1.3 or
-update their 1.2 implementations. TLS_FALLBACK_SCSV, if supported by the
-server, will help as long as there are no attacks tempering with the list
+update their 1.2 implementations. `TLS_FALLBACK_SCSV`, if supported by the
+server, will help as long as there are no attacks tampering with the list
 of cipher suites.
 
 The TLS working group has been thinking about how to handle intolerance without
@@ -227,7 +223,7 @@ road.
 
 ## GREASE-ing the future
 
-David Benjaming, following Adam Langley's advice to
+David Benjamin, following Adam Langley's advice to
 [*have one joint and keep it well oiled*](https://www.imperialviolet.org/2016/05/16/agility.html),
 proposed [GREASE](https://tools.ietf.org/html/draft-davidben-tls-grease-01)
 (Generate Random Extensions And Sustain Extensibility), a mechanism to prevent
