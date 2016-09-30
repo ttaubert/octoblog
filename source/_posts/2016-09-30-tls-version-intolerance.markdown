@@ -234,8 +234,8 @@ places where capabilities are advertised by the client, and the best match
 selected by the server. Servers MUST ignore unknown values to allow introducing
 new capabilities to the ecosystem without breaking interoperability.
 
-These values will be advertised pseudo-randomly to hopefully break misbehaving
-servers early in the implementation process. Proposed injection points are
-cipher suites, supported groups, extensions, and ALPN identifiers. Should the
-server respond with a GREASE value selected in the `ServerHello` message the
-client MUST abort the connection.
+These values will be advertised pseudo-randomly to break misbehaving servers
+early in the implementation process. Proposed injection points are cipher
+suites, supported groups, extensions, and ALPN identifiers. Should the server
+respond with a GREASE value selected in the `ServerHello` message the client
+MUST abort the connection.
