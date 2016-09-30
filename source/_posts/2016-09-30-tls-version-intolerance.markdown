@@ -7,10 +7,10 @@ date: 2016-09-30 16:00:00 +0200
 
 A few weeks ago I listened to Hanno Böck talk about
 [TLS version intolerance](https://www.int21.de/slides/berlinsec-versionintolerance/)
-at the Berlin AppSec & Crypto Meetup. He explained how with TLS 1.3 just around
-the corner there again are growing concerns about faulty TLS stacks found in
-HTTP servers, load balancers, routers, firewalls, and similar software and
-devices.
+at the [Berlin AppSec & Crypto Meetup](https://berlinsec.github.io/). He
+explained how with TLS 1.3 just around the corner there again are growing
+concerns about faulty TLS stacks found in HTTP servers, load balancers,
+routers, firewalls, and similar software and devices.
 
 I decided to dig a little deeper and will use this post to explain version
 intolerance, how version fallbacks work and why they're insecure, as well as
