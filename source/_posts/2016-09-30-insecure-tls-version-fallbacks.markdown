@@ -2,19 +2,19 @@
 layout: post
 title: "Insecure TLS version fallbacks"
 subtitle: "Working around buggy or intolerant TLS stacks"
-date: 2016-09-29 15:09:04 +0200
+date: 2016-09-30 16:00:00 +0200
 ---
 
-A few weeks ago I listened to [Hanno](https://twitter.com/hanno) talk about
+A few weeks ago I listened to Hanno Böck talk about
 [TLS version intolerance](https://www.int21.de/slides/berlinsec-versionintolerance/)
-at the Berlin AppSec & Crypto Meetup. With TLS 1.3 just around the corner
-there again are growing concerns about buggy TLS stacks found in HTTP
-servers, load balancers, firewalls, and similar software and devices.
+at the Berlin AppSec & Crypto Meetup. With TLS 1.3 just around the corner there
+again are growing concerns about faulty TLS stacks found in HTTP servers, load
+balancers, routers, firewalls, and similar software and devices.
 
-Abolished in Firefox 37, and Chrome 45/50, browsers might have to bring back
+Abolished in Firefox 37 and Chrome 45/50, browsers might have to bring back
 insecure version fallbacks for TLS. This post will explain how version
-fallbacks work and why they're insecure, as well as describe downgrade
-protection mechanisms in TLS 1.2 and 1.3.
+fallbacks work and why they're insecure, as well as describe the downgrade
+protection mechanisms available in TLS 1.2 and 1.3.
 
 ## What is version intolerance?
 
@@ -25,7 +25,7 @@ and give early feedback about implementation issues.
 
 As soon as the spec is finished, and often far before that feat is done, clients
 will have been equipped with support for the new TLS protocol version and happily
-announce this to any server they connect to. This goes somewhat like this:
+announce this to any server they connect to:
 
 > **Client:** Hi! The highest TLS version I support is 1.2.  
 > **Server:** Hi! I too support TLS 1.2 so let's use that to communicate.  
@@ -44,7 +44,7 @@ version unknown to the server. Should the client insist on any specific version
 and not agree with the one picked by the server it will have to terminate the
 connection.
 
-Unfortunately, there are a few servers and lots of devices out there that
+Unfortunately, there are a few servers and more devices out there that
 implement TLS version negotiation incorrectly. The conversation might go
 like this:
 
@@ -55,18 +55,30 @@ like this:
 Or:
 
 > **Client:** Hi! The highest TLS version I support is 1.2.  
+> **Server:** TCP FIN! I don't know that version.  
+> *[Connection will be terminated.]*
+
+Or even worse:
+
+> **Client:** Hi! The highest TLS version I support is 1.2.  
 > **Server:** (I don't know this version so let's just not respond.)  
 > *[Connection will hang.]*
 
+The same can happen with the infamous F5 load balancer that can't handle
+`ClientHello` messages with a length between 256 and 512 bytes. Other devices
+abort the connection when receiving a large `ClientHello` split into multiple
+TLS records. TLS 1.3 will likely cause more problems of this kind due to more
+extensions with client key shares.
+
 ## What are version fallbacks?
 
-As browsers want to ship new TLS versions in their clients, enabled by default
-to make their users safer, there was a need to handle connections failing due
-to version intolerance. The solution was to simply decrease the advertised
+As browsers usually want to ship new TLS versions as soon as possible, enabled
+by default to keep users safe, there was a need to handle connections failing
+due to version intolerance. The easy solution was to decrease the advertised
 version number by one with every failed attempt:
 
 > **Client:** Hi! The highest TLS version I support is 1.2.  
-> **Server:** ALERT! Handshake failure. (Or hang.)  
+> **Server:** ALERT! Handshake failure. (Or FIN. Or hang.)  
 > *[TLS version fallback to 1.1.]*  
 > **Client:** Hi! The highest TLS version I support is 1.1.  
 > **Server:** Hi! I support TLS 1.1 so let's use that to communicate.  
@@ -171,21 +183,60 @@ non-forward-secure cipher suites the protection can be bypassed.
 
 ## The comeback of insecure fallbacks?
 
-In an effort to both secure all and satisfy technical users browsers will want
-to enable TLS 1.3 soon by default. On the other hand, if measurements show
-this breaks a significant fractions of TLS handshakes due to version
-intolerance they might decide to bring back insecure version fallbacks.
+Unfortunately, current measurements show that enabling TLS 1.3 by default would
+break a significant fraction of TLS handshakes due to version intolerance.
+According to Ivan Ristić, as of July 2016,
+[3.2% of servers from the SSL Pulse data set reject TLS 1.3 handshakes](https://blog.qualys.com/ssllabs/2016/08/02/tls-version-intolerance-in-ssl-pulse).
 
-With TLS 1.3 we have only limited downgrade protection for forward-secure cipher
+This a very high number and would affect way too many people. Alas, with TLS
+1.3 we have only limited downgrade protection for forward-secure cipher
 suites. And that is assuming that most servers either support TLS 1.3 or
 update their 1.2 implementations, which is quite unlikely. TLS_FALLBACK_SCSV,
 if supported by the server, will help as long as there are no attacks tempering
 with the list of cipher suites.
 
-Let me leave you with a warm feeling and a quote from Adam Langley:
+The TLS working group has been thinking about how to handle intolerance without
+bringing back version fallbacks, and there might be light at the end of the
+tunnel.
 
-> It's taken about 15 years to get to the point where web browsers don't have
-> to work around broken version negotiation in TLS and that's mostly because
-> we only have three active versions of TLS. When we try to add a fourth
-> (TLS 1.3) in the next year, we'll have to add back the workaround, no doubt.  
-> https://www.imperialviolet.org/2016/05/16/agility.html
+## Version negotiation with extensions
+
+The next version of the proposed TLS 1.3 spec, draft 16, will introduce a new
+version negotiation mechanism based on extensions. The current `ClientHello.version`
+field will be frozen to TLS 1.2, i.e. `{3, 3}`, and renamed to `legacy_version`.
+Any number greater than that MUST be ignored by servers.
+
+To negotiate a TLS 1.3 connection the protocol now requires the client to send
+a `supported_versions` extension. This is a list of versions the client supports,
+in preference order, with the most preferred version first. Clients MUST send
+this extension as servers are required to negotiate TLS 1.2 if it's not present.
+Any to the server unknown version numbers MUST be ignored.
+
+This still leaves potential problems with big `ClientHello` messages, or
+choking on unknown extensions, unaddressed but according to David Benjamin
+[the main problem is `ClientHello.version`](https://www.ietf.org/mail-archive/web/tls/current/msg20679.html).
+We should now be fine to ship browsers with TLS 1.3 enabled by default, without
+bringing back insecure version fallbacks.
+
+However, it's not unlikely that implementers will screw up even the new version
+negotiation mechanism and we'll have similar problems in a few years down the
+road.
+
+## GREASE-ing the future
+
+David Benjaming, following Adam Langley's advice to
+[*have one joint and keep it well oiled*](https://www.imperialviolet.org/2016/05/16/agility.html),
+proposed [GREASE](https://tools.ietf.org/html/draft-davidben-tls-grease-01)
+(Generate Random Extensions And Sustain Extensibility), a mechanism to prevent
+extensibility failures in the TLS ecosystem.
+
+The heart of the mechanism is to have clients inject "unknown values" into
+places where capabilities are advertised by the client, and the best match
+selected by the server. Servers MUST ignore unknown values to allow introducing
+new capabilities to the ecosystem without breaking interoperability.
+
+These values will be advertised pseudo-randomly to hopefully break misbehaving
+servers early in the implementation process. Proposed injection points are
+cipher suites, supported groups, extensions, and ALPN identifiers. Should the
+server respond with a GREASE value selected in the `ServerHello` message the
+client MUST abort the connection.
