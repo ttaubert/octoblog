@@ -1,7 +1,7 @@
 ---
 layout: post
-title: "Insecure TLS version fallbacks"
-subtitle: "Working around buggy or intolerant TLS stacks"
+title: "TLS version intolerance"
+subtitle: "Working around bugs in legacy TLS stacks"
 date: 2016-09-30 16:00:00 +0200
 ---
 
