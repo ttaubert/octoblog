@@ -11,17 +11,18 @@ at the Berlin AppSec & Crypto Meetup. With TLS 1.3 just around the corner there
 again are growing concerns about faulty TLS stacks found in HTTP servers, load
 balancers, routers, firewalls, and similar software and devices.
 
-Abolished in Firefox 37 and Chrome 45/50, browsers might have to bring back
-insecure version fallbacks for TLS. This post will explain how version
-fallbacks work and why they're insecure, as well as describe the downgrade
-protection mechanisms available in TLS 1.2 and 1.3.
+This post will explain version intolerance, how version fallbacks work and why
+they're insecure, as well as describe the downgrade protection mechanisms
+available in TLS 1.2 and 1.3. It will end with a look at the future of version
+negotiation in TLS and a proposal that aims to prevent similar problems in the
+future.
 
 ## What is version intolerance?
 
-Every time there is a new TLS version around the corner, browsers are usually
-the fastet to implement and update their deployments. All big browsers vendors
-have a few people involved in the standardization process to guide the standard
-and give early feedback about implementation issues.
+Every time a new TLS version is specified, browsers usually are the fastet to
+implement and update their deployments. Most major browsers vendors have a few
+people involved in the standardization process to guide the standard and give
+early feedback about implementation issues.
 
 As soon as the spec is finished, and often far before that feat is done, clients
 will have been equipped with support for the new TLS protocol version and happily
@@ -73,9 +74,10 @@ extensions with client key shares.
 ## What are version fallbacks?
 
 As browsers usually want to ship new TLS versions as soon as possible, enabled
-by default to keep users safe, there was a need to handle connections failing
-due to version intolerance. The easy solution was to decrease the advertised
-version number by one with every failed attempt:
+by default to keep their users safe, more than a decade ago browsers vendors
+saw a need to prevent connection failures due to version intolerance. The easy
+solution was to decrease the advertised version number by one with every failed
+attempt:
 
 > **Client:** Hi! The highest TLS version I support is 1.2.  
 > **Server:** ALERT! Handshake failure. (Or FIN. Or hang.)  
@@ -84,15 +86,15 @@ version number by one with every failed attempt:
 > **Server:** Hi! I support TLS 1.1 so let's use that to communicate.  
 > *[TLS 1.1 connection will be established.]*
 
-A client supporting everything from TLS 1.0 to TLS 1.2 will start trying to
-establish a 1.2 connection, then a 1.1 connection, and if even that fails a
+A client supporting everything from TLS 1.0 to TLS 1.2 would start trying to
+establish a 1.2 connection, then a 1.1 connection, and if even that failed a
 1.0 connection.
 
 ## Why are these insecure?
 
 What makes these fallbacks insecure is that the connection can be downgraded by
-a MITM, by sending alerts to the client, or blocking packets from the server.
-To the client this is indistinguishable from a network error.
+a MITM, by sending alerts or TCP packets to the client, or blocking packets
+from the server. To the client this is indistinguishable from a network error.
 
 In the case of a vulnerability in TLS 1.1 that an attacker wants to exploit, she
 could trigger the client's version fallback mechanism and thus force a 1.1
@@ -100,16 +102,16 @@ connection, even if both parties support 1.2.
 
 The [POODLE](https://www.openssl.org/~bodo/ssl-poodle.pdf) attack is one
 example where an attacker abuses the version fallback to force an SSL 3.0
-connection, and then exploit the vulnerability. Insecure version fallback in
-browsers pretty much breaks the actual version negotiation mechanisms. In
-response to this browsers vendors disabled version fallbacks to SSLv3, and then
-SSLv3 entirely, to prevent even up-to-date clients from being exploited.
+connection. In response to this browsers vendors disabled version fallbacks to
+SSL 3.0, and then SSL 3.0 entirely, to prevent even up-to-date clients from
+being exploited. Insecure version fallback in browsers pretty much break the
+actual version negotiation mechanisms.
 
-Insecure version fallbacks have been disabled since
+Version fallbacks have been disabled since
 [Firefox 37](https://bugzilla.mozilla.org/show_bug.cgi?id=1084025) and
 [Chrome 50](https://www.chromestatus.com/feature/5685183936200704). Browser
-telemetry data showed it was no longer necessary as TLS 1.2 and correct version
-negotiation was widely enough deployed.
+telemetry data showed it was no longer necessary as after years, TLS 1.2 and
+correct version negotiation was deployed widely enough.
 
 ## The TLS_FALLBACK_SCSV cipher suite
 
@@ -153,7 +155,8 @@ hopefully not become a problem anytime soon.
 
 With neither the client version nor its cipher suites (for the SCSV) included
 in the hash signed by the server's certificate in TLS 1.2, how do you secure
-TLS 1.3 against downgrades like FREAK and Logjam? Stuff it in `ServerHello.random`.
+TLS 1.3 against downgrades like FREAK and Logjam? Stuff a special value into
+`ServerHello.random`.
 
 The TLS WG decided to put static values (sometimes called downgrade sentinels)
 into the server's nonce sent with the `ServerHello` message. TLS 1.3 servers
@@ -171,9 +174,9 @@ server SHOULD set the last eight bytes of the nonce to:
 0x44 0x4F 0x57 0x4E 0x47 0x52 0x44 0x00
 ```
 
-A client MUST check if the server nonce ends with any of the two sentinels and
-in such a case abort the connection. The problem with this downgrade protection
-is that the TLS 1.3 spec here introduces an update to TLS 1.2 and requires
+If not connecting with a downgraded version, a client MUST check whether the
+server nonce ends with any of the two sentinels and in such a case abort the
+connection. The TLS 1.3 spec here introduces an update to TLS 1.2 that requires
 servers and clients to update their implementation.
 
 Unfortunately, this downgrade protection relies on a `ServerKeyExchange`
@@ -183,17 +186,17 @@ non-forward-secure cipher suites the protection can be bypassed.
 
 ## The comeback of insecure fallbacks?
 
-Unfortunately, current measurements show that enabling TLS 1.3 by default would
-break a significant fraction of TLS handshakes due to version intolerance.
-According to Ivan Ristić, as of July 2016,
+Current measurements show that enabling TLS 1.3 by default would break a
+significant fraction of TLS handshakes due to version intolerance. According to
+Ivan Ristić, as of July 2016,
 [3.2% of servers from the SSL Pulse data set reject TLS 1.3 handshakes](https://blog.qualys.com/ssllabs/2016/08/02/tls-version-intolerance-in-ssl-pulse).
 
 This a very high number and would affect way too many people. Alas, with TLS
 1.3 we have only limited downgrade protection for forward-secure cipher
 suites. And that is assuming that most servers either support TLS 1.3 or
-update their 1.2 implementations, which is quite unlikely. TLS_FALLBACK_SCSV,
-if supported by the server, will help as long as there are no attacks tempering
-with the list of cipher suites.
+update their 1.2 implementations. TLS_FALLBACK_SCSV, if supported by the
+server, will help as long as there are no attacks tempering with the list
+of cipher suites.
 
 The TLS working group has been thinking about how to handle intolerance without
 bringing back version fallbacks, and there might be light at the end of the
@@ -212,11 +215,11 @@ in preference order, with the most preferred version first. Clients MUST send
 this extension as servers are required to negotiate TLS 1.2 if it's not present.
 Any to the server unknown version numbers MUST be ignored.
 
-This still leaves potential problems with big `ClientHello` messages, or
-choking on unknown extensions, unaddressed but according to David Benjamin
+This still leaves potential problems with big `ClientHello` messages or
+choking on unknown extensions unaddressed, but according to David Benjamin
 [the main problem is `ClientHello.version`](https://www.ietf.org/mail-archive/web/tls/current/msg20679.html).
-We should now be fine to ship browsers with TLS 1.3 enabled by default, without
-bringing back insecure version fallbacks.
+We will hopefully be able to ship browsers that have TLS 1.3 enabled by default,
+without bringing back insecure version fallbacks.
 
 However, it's not unlikely that implementers will screw up even the new version
 negotiation mechanism and we'll have similar problems in a few years down the
