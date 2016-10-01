@@ -2,7 +2,7 @@
 layout: post
 title: "Finding bugs with Cryptol and SAW"
 subtitle: "Using formal verification for fun and profit"
-date: 2016-03-01 12:00:00 +0100
+date: 2017-03-01 12:00:00 +0100
 published: false
 ---
 
