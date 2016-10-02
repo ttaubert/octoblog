@@ -209,7 +209,7 @@ To negotiate a TLS 1.3 connection the protocol now requires the client to send
 a `supported_versions` extension. This is a list of versions the client supports,
 in preference order, with the most preferred version first. Clients MUST send
 this extension as servers are required to negotiate TLS 1.2 if it's not present.
-Any to the server unknown version numbers MUST be ignored.
+Any version numbers unknown to the server MUST be ignored.
 
 This still leaves potential problems with big `ClientHello` messages or
 choking on unknown extensions unaddressed, but according to David Benjamin
