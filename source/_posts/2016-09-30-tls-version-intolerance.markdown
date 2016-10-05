@@ -133,7 +133,7 @@ and ship updates for.
 
 It's been long known to be problematic that signatures in TLS 1.2 don't cover
 the list of cipher suites and other messages sent before server authentication.
-They sign the ephemeral DH params sent by the server and include the
+They sign the ephemeral DH parameters sent by the server and include the
 `*Hello.random` values as nonces to prevent replay attacks:
 
 ```text
