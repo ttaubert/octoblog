@@ -5,5 +5,5 @@ class: page
 is_list: true
 ---
 
-{% assign posts = site.talks %}
+{% assign posts = site.talks | sort: 'date' | reverse %}
 {% include list.html %}
