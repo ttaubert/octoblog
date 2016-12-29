@@ -191,6 +191,14 @@ h3 {
   line-height: 27px;
 }
 
+article time {
+  display: block;
+  margin-bottom: 1em;
+  font-weight: 700;
+  opacity: 0.8;
+  color: #333;
+}
+
 /* (PAGE) CONTENT */
 
 .page article {
@@ -213,6 +221,11 @@ h3 {
   text-transform: none;
   font-size: 20px;
   opacity: 0.8;
+}
+
+.page article time {
+  margin-bottom: 0.5em;
+  font-style: normal;
 }
 
 /* IMAGES */

@@ -1,6 +1,7 @@
 <div class="container">
   {% for post in posts %}
   <article>
+    <time pubdate="pubdate">{{ post.date | date: "%B %-d, %Y" }}</time>
     <h1><a href="{{ root_url }}{{ post.url }}">{{ post.title }}</a></h1>
     {% if post.subtitle %}<h2>{{ post.subtitle }}</h2>{% endif %}
     <p>

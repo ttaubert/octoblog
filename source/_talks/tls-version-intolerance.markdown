@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "TLS version intolerance (2016)"
+title: "TLS version intolerance"
 subtitle: "Working around bugs in legacy TLS stacks"
 date: 2016-10-06 19:00
 ---

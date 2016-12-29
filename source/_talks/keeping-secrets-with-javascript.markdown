@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Keeping secrets with JavaScript (2014)"
+title: "Keeping secrets with JavaScript"
 subtitle: "An Introduction to the WebCrypto API"
 alias: [/blog/2014/09/keeping-secrets-with-javascript, /blog/2014/10/keeping-secrets-with-javascript]
 date: 2014-10-29 17:00
