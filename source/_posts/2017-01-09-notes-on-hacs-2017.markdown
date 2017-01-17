@@ -19,25 +19,27 @@ The formal verification community was represented by projects such as [miTLS](ht
 
 Crypto libraries were represented by one or multiple maintainers of [OpenSSL](https://github.com/openssl/openssl/), [BoringSSL](https://boringssl.googlesource.com/boringssl/), [Bouncy Castle](https://bouncycastle.org/), [NSS](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS), [BearSSL](https://bearssl.org/), [\*ring\*](https://github.com/briansmith/ring), and [s2n](https://github.com/awslabs/s2n). Other invited projects included [LLVM](http://llvm.org/), [Tor](https://www.torproject.org/), [libFuzzer](https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer), [BitCoin](https://bitcoin.org/), and [Signal](https://whispersystems.org/). *(I'm probably missing a few, sorry.)*
 
-Additionally, there were some attendants not directly involved with any of the above projects but who were experts in formal verification or synthesis, constant-time implementation of crypto algorithms, fast arithmetic in assembler, elliptic curves, etc.
+Additionally, there were some attendants not directly involved with any of the above projects but who are experts in formal verification or synthesis, constant-time implementation of crypto algorithms, fast arithmetic in assembler, elliptic curves, etc.
 
 All in all, somewhere between 70 and 80 people.
 
 ## HACS - Day 1
 
-After short one-sentence introductions on early Saturday morning we immediately started with simultaneous round-table discussions, focused on topics such as "*The state of crypto libraries*", "*Efficient fuzzing*", "*Challenges crypto libraries*", "*TLS implementation woes*", "*The LLVM ecosystem*", "*Fast and constant-time low-level algorithm implementations*", and "*Formal verification and synthesis with Coq*".
+After short one-sentence introductions on early Saturday morning we immediately started with simultaneous round-table discussions, focused on topics such as "*The state of crypto libraries*", "*Challenges in implementing crypto libraries*", "*Efficient fuzzing*", "*TLS implementation woes*", "*The LLVM ecosystem*", "*Fast and constant-time low-level algorithm implementations*", "*Formal verification/synthesis with Coq*", and others.
 
-These discussions were hosted by a rotating set of people, not always leading discussions by expertise, sometimes merely moderating, asking questions, and making sure we stay on track. We did this for three hours until lunch, and continued to discuss over food with the people we just met this morning. For the rest of the day, discussions became longer and more focused.
+These discussions were hosted by a rotating set of people, not always leading by expertise, sometimes merely moderating, asking questions, and making sure we stay on track. We did this until lunch, and continued to discuss over food with the people we just met this morning. For the rest of the day, discussions became longer and more focused.
 
-By this point people slowly started to sense what it is they want to focus on this weekend. They got to meet most of the other attendants, found out about their skills and ideas, came up with their own for collaboration and possible projects for this weekend or the future.
+By this point people slowly started to sense what it is they want to focus on this weekend. They got to meet most of the other attendants, found out about their skills, projects, and ideas; thought about possibilities for collaboration on projects for this weekend or the months to come.
 
-After the first day we split into groups and went for dinner. Most people's brains were probably somewhat fried (as was mine) after hours of talking and discussing. You never once managed to take out your laptop to look at your emails which, was great. Nor did I see other people even try doing it that much.
+In the evening we split into groups and went for dinner. Most people's brains were probably somewhat fried (as was mine) after hours of talking and discussing. Everyone was so engaged that you not once found the time to take out your laptop or phone, or had the desire to do so, which was great.
 
 ## HACS - Day 2
 
-The second day, early Sunday morning, continued much like the previous. We started off with a brainstorming session to come up with ideas for what we think the group should be working on. The rest of the day was filled with long discussion revolving around topics derived from earlier ones.
+The second day, early Sunday morning, continued much like the previous. We started off with a brainstorming session for what we think the group should be working on. The rest of the day was filled with long and focused discussion that were mostly a continuation from the day before.
 
-A fun thing at the end of Sunday was the *skill sharing* part, where you could propose a specific skill you would like to share with others. If you didn't find a convincing skill to share you could pick one of the offerers. My pick was Chris Hawblitzel from Microsoft Research, who tried to explain in about 45 minutes how Z3 works, what its limitiations are, and what higher-level languages exist that make it a little more usable. Thank you Chris!
+A highlight of the day was the *skill sharing* session, where participants could propose a specific skill to share with others. If you didn't find something to share you could be one of the 50% of the group that gets to learn from others.
+
+My lucky pick was Chris Hawblitzel from Microsoft Research, who did his best to explain to me (in about 45 minutes) how Z3 works, what its limitiations are, and what higher-level languages exist that make it a little more usable. Thank you, Chris!
 
 We ended the day with signing up for one or multiple projects for the last day.
 
@@ -45,14 +47,17 @@ We ended the day with signing up for one or multiple projects for the last day.
 
 The third day of the workshop was optional, a hacking day with maybe roughly 50% attendance. Some folks took the chance to arrive a little later after two days of intense discussions and socializing. By now you knew most people's names, and you better did because no one cared to wear name tags anymore.
 
-Now was the time to get together with the people from the projects you signed up for and get the laptops out (if needed).
+It was the time to get together with the people from the projects you signed up for and get your laptop out (if needed). I can't possibly remember all the things people worked on but here are a few examples:
 
-prng verification, fuzzing bearssl/tor, verifying primitives with cryptol/saw, der-ascii for tls records, integrating synthesized code, ...
+* Verify DRBG implementations, various other crypto algorithms, and/or integrate synthesized implementations for different crypto libraries.
+* Brainstorm and experiment with a generic comparative fuzzing API for libFuzzer.
+* Come up with an ASCII representation for TLS records, similar to [DER ASCII](https://github.com/google/der-ascii), that could be used to write TLS implementation tests or feed fuzzers.
+* Start fuzzing projects like BearSSL and Tor. I do remember that at least BearSSL quickly found a tiny (~900 byte) buffer overflow :)
 
-## It was a blast
+## See you again next year?
 
-I want to thank all the organizers (that I've already mentioned above) for spending the time to organize such a great event. It always pays off to bring communities closer together, tie new connections, and foster collaboration.
+I want to thank all the organizers (and sponsors) for spending their time (or money) planning and hosting such a great event. It always pays off to bring communities closer together and foster collaboration between projects and individuals.
 
-I got to meet dozens of different, highly intelligent and motivated people, and left with new connections and a much bigger sense of community. I'm thankful for all the attendants that participated in all discussions and projects, shared their skills, and were ready to address their shortcomings, always open to suggestions from others.
+I got to meet dozens of highly intelligent and motivated people, and left with a much bigger sense of community. I'm grateful to all the attendants that participated in discussions and projects, shared their skills, asked hard questions, and were always open to suggestions from others.
 
-I hope to be invited again to future workshops, see folks again from this year, and check in on the progress we've made at improving the verification of crypto code across the whole ecosystem.
+I hope to be invited again to future workshops and check in on the progress we've made at improving the verification and quality assurance of crypto code across the ecosystem.
