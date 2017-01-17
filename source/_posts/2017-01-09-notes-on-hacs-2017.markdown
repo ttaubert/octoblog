@@ -13,7 +13,7 @@ What I want to write about is a lesser-known event that took place right after R
 
 Its stated goal is to bring together crypto-implementers and verification people from open source, industry, and academia; introduce them and their projects to each other, and develop practical collaborations that improve verification of crypto code.
 
-## Projects & People
+## The projects & people
 
 The formal verification community was represented by projects such as [miTLS](http://www.mitls.org/), [HACL\*](https://github.com/mitls/hacl-star), [Project Everest](https://project-everest.github.io/), [Z3](https://github.com/Z3Prover/z3/), [VeriFast](https://people.cs.kuleuven.be/~bart.jacobs/nfm2011.pdf), [tis-interpreter](http://trust-in-soft.com/tis-interpreter/), [ct-verif](https://fdupress.net/files/ctverif.pdf), [Cryptol](http://cryptol.net/)/[SAW](http://saw.galois.com/), [Entroposcope](http://formal.iti.kit.edu/~klebanov/software/entroposcope/), and other formal verification and synthesis projects based on [Coq](https://coq.inria.fr/) or [F\*](https://fstar-lang.org/).
 
@@ -27,7 +27,7 @@ All in all, somewhere between 70 and 80 people.
 
 After short one-sentence introductions on early Saturday morning we immediately started with simultaneous round-table discussions, focused on topics such as "*The state of crypto libraries*", "*Challenges in implementing crypto libraries*", "*Efficient fuzzing*", "*TLS implementation woes*", "*The LLVM ecosystem*", "*Fast and constant-time low-level algorithm implementations*", "*Formal verification/synthesis with Coq*", and others.
 
-These discussions were hosted by a rotating set of people, not always leading by expertise, sometimes merely moderating, asking questions, and making sure we stay on track. We did this until lunch, and continued to discuss over food with the people we just met this morning. For the rest of the day, discussions became longer and more focused.
+These discussions were hosted by a rotating set of people, not always leading by pure expertise, sometimes also moderating, asking questions, and making sure we stay on track. We did this until lunch, and continued to talk over food with the people we just met. For the rest of the day, discussions became longer and more focused.
 
 By this point people slowly started to sense what it is they want to focus on this weekend. They got to meet most of the other attendants, found out about their skills, projects, and ideas; thought about possibilities for collaboration on projects for this weekend or the months to come.
 
@@ -39,7 +39,7 @@ The second day, early Sunday morning, continued much like the previous. We start
 
 A highlight of the day was the *skill sharing* session, where participants could propose a specific skill to share with others. If you didn't find something to share you could be one of the 50% of the group that gets to learn from others.
 
-My lucky pick was Chris Hawblitzel from Microsoft Research, who did his best to explain to me (in about 45 minutes) how Z3 works, what its limitiations are, and what higher-level languages exist that make it a little more usable. Thank you, Chris!
+My lucky pick was Chris Hawblitzel from Microsoft Research, who did his best to explain to me (in about 45 minutes) how Z3 works, what its limitations are, and what higher-level languages exist that make it a little more usable. Thank you, Chris!
 
 We ended the day with signing up for one or multiple projects for the last day.
 
