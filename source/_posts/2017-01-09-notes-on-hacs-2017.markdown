@@ -1,0 +1,58 @@
+---
+layout: post
+title: "Notes on HACS 2017"
+subtitle: "The High Assurance Crypto Software workshop"
+date: 2017-01-17 16:00:00 +0200
+---
+
+[Real World Crypto](https://www.realworldcrypto.com/rwc2017/) is probably one of my favorite conferences. It's a fine mix of practical and theoretical talks, plus a bunch of great hallway, lunch, and dinner conversations. It was broadcasted live for the first time this year, and the talks are [available online](https://www.totalwebcasting.com/view/?func=VOFF&id=columbia&date=2017-01-04&seq=1). But I'm not going to talk more about RWC, [others have](https://www.netmeister.org/blog/rwc2017.html) [covered it](https://alxdavids.xyz/2017/01/13/notes-from-rwc2017/) [perfectly](https://www.cryptologie.net/article/380/real-world-crypto-2017-day-1/).
+
+## The HACS workshop
+
+What I want to write about is a lesser-known event that took place right after RWC, called HACS - the High Assurance Crypto Software workshop. An intense, highly interactive two-day workshop in its second year, organized by Ben Laurie, Gilles Barthe, Peter Schwabe, Meredith Whittaker, and Trevor Perrin.
+
+Its stated goal is to bring together crypto-implementers and verification people from open source, industry, and academia; introduce them and their projects to each other, and develop practical collaborations that improve verification of crypto code.
+
+## Projects & People
+
+The formal verification community was represented by projects such as [miTLS](http://www.mitls.org/), [HACL\*](https://github.com/mitls/hacl-star), [Project Everest](https://project-everest.github.io/), [Z3](https://github.com/Z3Prover/z3/), [VeriFast](https://people.cs.kuleuven.be/~bart.jacobs/nfm2011.pdf), [tis-interpreter](http://trust-in-soft.com/tis-interpreter/), [ct-verif](https://fdupress.net/files/ctverif.pdf), [Cryptol](http://cryptol.net/)/[SAW](http://saw.galois.com/), [Entroposcope](http://formal.iti.kit.edu/~klebanov/software/entroposcope/), and other formal verification and synthesis projects based on [Coq](https://coq.inria.fr/) or [F\*](https://fstar-lang.org/).
+
+Crypto libraries were represented by one or multiple maintainers of [OpenSSL](https://github.com/openssl/openssl/), [BoringSSL](https://boringssl.googlesource.com/boringssl/), [Bouncy Castle](https://bouncycastle.org/), [NSS](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS), [BearSSL](https://bearssl.org/), [\*ring\*](https://github.com/briansmith/ring), and [s2n](https://github.com/awslabs/s2n). Other invited projects included [LLVM](http://llvm.org/), [Tor](https://www.torproject.org/), [libFuzzer](https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer), [BitCoin](https://bitcoin.org/), and [Signal](https://whispersystems.org/). *(I'm probably missing a few, sorry.)*
+
+Additionally, there were some attendants not directly involved with any of the above projects but who were experts in formal verification or synthesis, constant-time implementation of crypto algorithms, fast arithmetic in assembler, elliptic curves, etc.
+
+All in all, somewhere between 70 and 80 people.
+
+## HACS - Day 1
+
+After short one-sentence introductions on early Saturday morning we immediately started with simultaneous round-table discussions, focused on topics such as "*The state of crypto libraries*", "*Efficient fuzzing*", "*Challenges crypto libraries*", "*TLS implementation woes*", "*The LLVM ecosystem*", "*Fast and constant-time low-level algorithm implementations*", and "*Formal verification and synthesis with Coq*".
+
+These discussions were hosted by a rotating set of people, not always leading discussions by expertise, sometimes merely moderating, asking questions, and making sure we stay on track. We did this for three hours until lunch, and continued to discuss over food with the people we just met this morning. For the rest of the day, discussions became longer and more focused.
+
+By this point people slowly started to sense what it is they want to focus on this weekend. They got to meet most of the other attendants, found out about their skills and ideas, came up with their own for collaboration and possible projects for this weekend or the future.
+
+After the first day we split into groups and went for dinner. Most people's brains were probably somewhat fried (as was mine) after hours of talking and discussing. You never once managed to take out your laptop to look at your emails which, was great. Nor did I see other people even try doing it that much.
+
+## HACS - Day 2
+
+The second day, early Sunday morning, continued much like the previous. We started off with a brainstorming session to come up with ideas for what we think the group should be working on. The rest of the day was filled with long discussion revolving around topics derived from earlier ones.
+
+A fun thing at the end of Sunday was the *skill sharing* part, where you could propose a specific skill you would like to share with others. If you didn't find a convincing skill to share you could pick one of the offerers. My pick was Chris Hawblitzel from Microsoft Research, who tried to explain in about 45 minutes how Z3 works, what its limitiations are, and what higher-level languages exist that make it a little more usable. Thank you Chris!
+
+We ended the day with signing up for one or multiple projects for the last day.
+
+## HACS - Day 3
+
+The third day of the workshop was optional, a hacking day with maybe roughly 50% attendance. Some folks took the chance to arrive a little later after two days of intense discussions and socializing. By now you knew most people's names, and you better did because no one cared to wear name tags anymore.
+
+Now was the time to get together with the people from the projects you signed up for and get the laptops out (if needed).
+
+prng verification, fuzzing bearssl/tor, verifying primitives with cryptol/saw, der-ascii for tls records, integrating synthesized code, ...
+
+## It was a blast
+
+I want to thank all the organizers (that I've already mentioned above) for spending the time to organize such a great event. It always pays off to bring communities closer together, tie new connections, and foster collaboration.
+
+I got to meet dozens of different, highly intelligent and motivated people, and left with new connections and a much bigger sense of community. I'm thankful for all the attendants that participated in all discussions and projects, shared their skills, and were ready to address their shortcomings, always open to suggestions from others.
+
+I hope to be invited again to future workshops, see folks again from this year, and check in on the progress we've made at improving the verification of crypto code across the whole ecosystem.
