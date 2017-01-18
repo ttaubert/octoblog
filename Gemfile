@@ -14,6 +14,7 @@ group :development do
   gem 'rubypants', '~> 0.2.0'
   gem 'rb-fsevent', '~> 0.9'
   gem 'stringex', '~> 1.4.0'
+  gem 'pygments.rb', :path => "~/workspace/pygments.rb"
 end
 
 gem 'sinatra', '~> 1.4.2'
