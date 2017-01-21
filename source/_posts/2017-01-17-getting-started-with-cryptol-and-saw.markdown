@@ -1,20 +1,13 @@
 ---
 layout: post
-title: "Getting started with Cryptol and SAW"
+title: "Cryptol and SAW"
+subtitle: "Part 2: Using SAW to verify a C++ implementation against a Cryptol spec"
 date: 2017-01-21 16:00:00 +0100
 ---
 
-Some introduction...
+Building on the [previous post](#) I'm going to show writing a Cryptol specification and using SAW to prove the correctness of a constant-time C++ implemenation of the same algorithm.
 
-What people can expect from this post
-
-## The setup
-
-LLVM, SAW, Z3, from previous post
-
-http://cryptol.net/downloads.html (2.4)
-
-make sure to set PATH
+Apart from introducing very simple Cryptol we're also going to take a look at SAW's `llvm_verify` function that allows much more complicated verifications. Instead of only simple variables we're also going to deal with pointers that will take the result of the computation.
 
 ## Constant-time multiplication
 

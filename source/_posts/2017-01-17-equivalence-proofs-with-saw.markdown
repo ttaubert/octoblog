@@ -1,11 +1,11 @@
 ---
 layout: post
 title: "Equivalence proofs with SAW"
-subtitle: "Formally verifying that f(x,y) = g(x,y)"
+subtitle: "Part 1: Comparing implementations for correctness"
 date: 2017-01-20 16:00:00 +0100
 ---
 
-[SAW](http://saw.galois.com/), the Software Analysis Workbench, and [Cryptol](http://cryptol.net/), a DSL for specifying crypto algorithms, are powerful tools for formally verifying C, C++, and even Rust or JavaScript implementations, i.e. almost anything that compiles to LLVM bitcode.
+[SAW](http://saw.galois.com/), the Software Analysis Workbench, and [Cryptol](http://cryptol.net/), a DSL for specifying crypto algorithms, are powerful tools for formally verifying C, C++, and even Rust implementations, i.e. almost anything that compiles to LLVM bitcode.
 
 Verifying the implementation of a specific algorithm not only helps you to weed out bugs early, it lets you *prove* that your code is correct and contains no further bugs - assuming you made no mistakes writing your algorithm specification.
 
@@ -21,11 +21,11 @@ Here is what you need to get started:
 
 You will need clang 3.8, later versions seem currently not supported. Xcode's latest clang would (probably) work for this small example but give you headaches with more advanced verification later.
 
-Put all those tools somewhere you're comfortable with, and don't forget to update your `$PATH` environment variable. Especially if you already have clang on your system.
+Unzip and copy the tools someplace you like, just don't forget to update your `$PATH` environment variable. Especially if you already have clang on your system.
 
 ## Simple addition
 
-Let's start with defining a simple addition function `add(a, b)` that takes two `uint8_t` arguments and returns a `uint8_t`. It deals with overflows so that `123 + 200 = 255`, that is we cap the number at `UINT8_MAX` instead of wrapping around.
+Let's start with defining an addition function `add(a, b)` that takes two `uint8_t` arguments and returns a `uint8_t`. It deals with overflows so that `123 + 200 = 255`, that is it caps the number at `UINT8_MAX` instead of wrapping around.
 
 {% codeblock lang:cpp %}
 uint8_t add(uint8_t a, uint8_t b) {
@@ -34,7 +34,7 @@ uint8_t add(uint8_t a, uint8_t b) {
 }
 {% endcodeblock %}
 
-That's such a simple function that we probably won't write a test for it. If it compiles we're somewhat confident it'll work just fine:
+That's such a trivial function that we probably wouldn't write a test for it. If it compiles we're somewhat confident it'll work just fine:
 
 {% codeblock lang:text %}
 $ clang -c -emit-llvm -o add.bc add.c
@@ -44,7 +44,7 @@ Note that the above command will not produce a binary or shared library, but ins
 
 ## Constant-time addition
 
-Now let's imagine that we actually want to use `add` as part of a bignum library to implement cryptographic algorithms, and thus want it to have a constant runtime, independent of the arguments given.
+Now imagine that we actually want to use `add` as part of a bignum library to implement cryptographic algorithms, and thus want it to have a constant runtime, independent of the arguments given.
 
 {% codeblock lang:cpp %}
 uint8_t msb(uint8_t x) {
@@ -60,7 +60,7 @@ uint8_t add(uint8_t a, uint8_t b) {
 }
 {% endcodeblock %}
 
-If `a + b < a`, i.e. the addition overflows, `lt(a + b, a)` will return `0xff` and change the return value into `UINT8_MAX = 0xff`. Otherwise it returns `0x00` and the return value will simply be `a + b`. That's easy enough, but did we get the other stuff right?
+If `a + b < a`, i.e. the addition overflows, `lt(a + b, a)` will return `0xff` and change the return value into `UINT8_MAX = 0xff`. Otherwise it returns `0x00` and the return value will simply be `a + b`. That's easy enough, but did we get `msb` and `lt` right?
 
 {% codeblock lang:text %}
 $ clang -c -emit-llvm -o cadd.bc cadd.c
@@ -70,25 +70,21 @@ Let's compile the constant-time `add` function to LLVM bitcode too and then fina
 
 ## The SAW script
 
-Time to write some SAW code! First, we load the LLVM bitcode from our files `add.bc` and `cadd.bc` as modules into the variables `m1` and `m2`, respectively.
+First, we load the LLVM bitcode from the files we created earlier, `add.bc` and `cadd.bc`, as modules into the variables `m1` and `m2`, respectively.
 
 {% codeblock lang:saw %}
-{% raw %}
 m1 <- llvm_load_module "add.bc";
 m2 <- llvm_load_module "cadd.bc";
-{% endraw %}
 {% endcodeblock %}
 
-Next, we'll extract the `add` functions defined in each of these modules and store them in `add` and `cadd`, the latter being our constant-time implementation. `llvm_pure` indicates that a function always returns the same result given the same parameters, and thus has no side-effects.
+Next, we'll extract the `add` functions defined in each of these modules and store them in `add` and `cadd`, the latter being our constant-time implementation. `llvm_pure` indicates that a function always returns the same result given the same arguments, and thus has no side-effects.
 
 {% codeblock lang:saw %}
-{% raw %}
 add <- llvm_extract m1 "add" llvm_pure;
 cadd <- llvm_extract m2 "add" llvm_pure;
-{% endraw %}
 {% endcodeblock %}
 
-Last, we define a theorem `thm` stating that for all arguments `x` and `y` both functions have the same return value, that they are equivalent to each other. We choose to prove this theorem using the ABC theorem prover.
+Last, we define a theorem `thm` stating that for all arguments `x` and `y` both functions have the same return value, that they are equivalent to each other. We choose to prove this theorem with the ABC tool from UC Berkeley.
 
 {% codeblock lang:saw %}
 {% raw %}
@@ -101,7 +97,7 @@ We're all set now, time to actually prove something.
 
 ## Proving equivalence
 
-Make sure you have `saw` and `z3` in your PATH, and pass it the file we created in the previous section. SAW will run the script and automatically prove our theorem.
+Make sure you have `saw` and `z3` in your `$PATH`. Run SAW and pass it the file we created in the previous section --- it will run the script and automatically prove our theorem.
 
 {% codeblock lang:text %}
 $ saw add.saw
@@ -110,7 +106,7 @@ Loading file "add.saw"
 Valid
 {% endcodeblock %}
 
-`Valid`, that was easy. Maybe too easy. Would SAW even detect if we sneak a minor mistake into the program? Let's find out!
+`Valid`, that was easy. Maybe too easy. Would SAW even detect if we sneak a minor mistake into the program? Let's find out...
 
 {% codeblock lang:diff %}
  uint8_t lt(uint8_t a, uint8_t b) {
@@ -119,7 +115,7 @@ Valid
  }
 {% endcodeblock %}
 
-The diff above changes the behavior of `lt` just slightly, a bug that could have definitely been introduced by accident. Let's run SAW again and see whether it spots it:
+The diff above changes the behavior of `lt` just slightly, a bug that could have been introduced by accident. Let's run SAW again and see whether it spots it:
 
 {% codeblock lang:text %}
 $ saw add.saw
@@ -130,10 +126,10 @@ prove: 1 unsolved subgoal(s)
 Invalid: [x = 240, y = 0])
 {% endcodeblock %}
 
-And, as expected, it did! The two functions disagree on the return value at `x = 240` and `y = 0`. SAW of course doesn't know which function is at fault here, but we know and can revert the change.
+`Invalid`! The two functions disagree on the return value at `[x = 240, y = 0]`. SAW of course doesn't know which function is at fault, but we would be confident enough in our reference implementation to know where to look.
 
 ## Next: Some Cryptol and more SAW
 
-In the second post (that's yet to be written) I'll talk about verifying the implementation of a slightly more complex function. I'll show how you can use Cryptol to write a specification, and use more advanced SAW commands for verification.
+In the second post (yet to be written) I'll talk about verifying the implementation of a slightly more complex function. I'll show how you can use Cryptol to write a specification, and use more advanced SAW commands for verification.
 
 In the meantime, play around with the examples above and maybe come up with some of your own. Write a straightforward implementation of an algorithm that you can be certain to get right, and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.
