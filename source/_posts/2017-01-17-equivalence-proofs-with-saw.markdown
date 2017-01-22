@@ -1,9 +1,13 @@
 ---
 layout: post
-title: "Equivalence proofs with SAW"
-subtitle: "Part 1: Comparing implementations for correctness"
+title: "Finding bugs with Cryptol and SAW"
+subtitle: "Part 1: Equivalence proofs with SAW"
 date: 2017-01-20 16:00:00 +0100
 ---
+
+> Part 1: Equivalence proofs with SAW  
+> [Part 2: Verifying a C++ implementation against a Cryptol specification](#)  
+> [Part 3: Equivalence proofs with SAW](#)
 
 [SAW](http://saw.galois.com/), the Software Analysis Workbench, and [Cryptol](http://cryptol.net/), a DSL for specifying crypto algorithms, are powerful tools for formally verifying C, C++, and even Rust implementations, i.e. almost anything that compiles to LLVM bitcode.
 
@@ -60,7 +64,7 @@ uint8_t add(uint8_t a, uint8_t b) {
 }
 {% endcodeblock %}
 
-If `a + b < a`, i.e. the addition overflows, `lt(a + b, a)` will return `0xff` and change the return value into `UINT8_MAX = 0xff`. Otherwise it returns `0x00` and the return value will simply be `a + b`. That's easy enough, but did we get `msb` and `lt` right?
+If `a + b < a`, i.e. the addition overflows, `lt(a + b, a)` will return `0xff` and change the return value into `UINT8_MAX = 0xff`. Otherwise it returns `0` and the return value will simply be `a + b`. That's easy enough, but did we get `msb` and `lt` right?
 
 {% codeblock lang:text %}
 $ clang -c -emit-llvm -o cadd.bc cadd.c
