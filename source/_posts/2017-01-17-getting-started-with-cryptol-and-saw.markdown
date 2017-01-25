@@ -1,12 +1,13 @@
 ---
 layout: post
-title: "Finding bugs with Cryptol and SAW"
-subtitle: "Part 2: Verifying a C++ implementation against a Cryptol specification"
+title: "Writing a Cryptol specification"
+subtitle: "Exploring formal verification (part 2)"
 date: 2017-01-21 16:00:00 +0100
+published: false
 ---
 
 > [Part 1: Equivalence proofs with SAW](#)  
-> Part 2: Verifying a C++ implementation against a Cryptol specification  
+> Part 2: Writing a Cryptol specification  
 > [Part 3: Equivalence proofs with SAW](#)
 
 In the [previous post](#) I showed how to prove the equivalence of two different C++ implementations of the same algorithm. This post covers writing an algorithm specification in Cryptol and using that to prove the correctness of a constant-time C++ implementation.
@@ -102,9 +103,10 @@ That's as simple as it gets. We multiply two 8-bit integers and out comes a 16-b
 
 {% codeblock lang:saw %}
 {% raw %}
-time (llvm_verify m "mul" [] do {
+llvm_verify m "mul" [] do {
   a <- llvm_var "a" (llvm_int 8);
   b <- llvm_var "b" (llvm_int 8);
+
   llvm_ptr "hi" (llvm_int 8);
   hi <- llvm_var "*hi" (llvm_int 8);
   llvm_ptr "lo" (llvm_int 8);
@@ -115,7 +117,7 @@ time (llvm_verify m "mul" [] do {
   llvm_ensure_eq "*lo" {{ res.1 }};
 
   llvm_verify_tactic abc;
-});
+};
 {% endraw %}
 {% endcodeblock %}
 
@@ -126,7 +128,6 @@ $ saw cmul.saw
 Loading module Cryptol
 Loading file "cmul.saw"
 Successfully verified @mul
-Time: 14.257227s
 {% endcodeblock %}
 
 ## TODO

@@ -1,10 +1,14 @@
 ---
 layout: post
-title: "Finding bugs with Cryptol and SAW"
-subtitle: "Using formal verification for fun and profit"
+title: "Finding and fixing real-world bugs"
+subtitle: "Exploring formal verification (part 3)"
 date: 2017-03-01 12:00:00 +0100
 published: false
 ---
+
+> [Part 1: Equivalence proofs with SAW](#)  
+> [Part 2: Writing a Cryptol specification](#)  
+> Part 3: Equivalence proofs with SAW
 
 A colleague of mine recently stumbled upon a rather old piece of code in our
 code base. After fixing a small issue reported by a static analyzer he went on
@@ -106,7 +110,7 @@ In order to convert a sequence of 16-bit integers `xs : [n][16]` into a
 sequence of overlapping 16-bit integer pairs `[n]([16], [16])` we add a
 function called `pair`:
 
-{% codeblock lang:cry %}
+{% codeblock lang:saw %}
 pairs xs = [ (x, y) | x <- take`{back=1} xs | y <- drop`{1} xs ]
 {% endcodeblock %}
 
@@ -192,7 +196,7 @@ Here's a SAW script that uses symbolic execution to generate a model of an LLVM
 program. We set up the initial symbolic state and define inputs matching a
 length of four bytes for `utf16_to_utf8_len`.
 
-{% codeblock lang:text %}
+{% codeblock lang:saw %}
 import "utf16_to_utf8_len.cry";
 print "Extracting reference term";
 l <- llvm_load_module "utf16_to_utf8_len.bc";

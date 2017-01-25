@@ -1,35 +1,35 @@
 ---
 layout: post
-title: "Finding bugs with Cryptol and SAW"
-subtitle: "Part 1: Equivalence proofs with SAW"
+title: "Equivalence proofs with SAW"
+subtitle: "Exploring formal verification"
 date: 2017-01-20 16:00:00 +0100
 ---
 
-> Part 1: Equivalence proofs with SAW  
-> [Part 2: Verifying a C++ implementation against a Cryptol specification](#)  
-> [Part 3: Equivalence proofs with SAW](#)
+This is the first of a small series of posts that will merely scratch the surface of the world of formal verification, using [SAW](http://saw.galois.com/), the Software Analysis Workbench, and [Cryptol](http://cryptol.net/), a DSL for specifying crypto algorithms. Both are powerful tools for verifying C, C++, and even Rust code, i.e. almost anything that compiles to LLVM bitcode.
 
-[SAW](http://saw.galois.com/), the Software Analysis Workbench, and [Cryptol](http://cryptol.net/), a DSL for specifying crypto algorithms, are powerful tools for formally verifying C, C++, and even Rust implementations, i.e. almost anything that compiles to LLVM bitcode.
+Verifying the implementation of a specific algorithm not only helps you weed out bugs early, it lets you *prove* that your code is correct and contains no further bugs - assuming you made no mistakes writing your algorithm specification.
 
-Verifying the implementation of a specific algorithm not only helps you to weed out bugs early, it lets you *prove* that your code is correct and contains no further bugs - assuming you made no mistakes writing your algorithm specification.
+Even if you don't know a lot about formal verification (like me) it's easy to experiment with just Cryptol and SAW, and get a glimpse of what's possible with these tools.
 
 In this first post I'll show how you can use SAW to prove equality of multiple implementations of the same algorithm, potentially written in different languages.
 
-## Setting up SAW
+## Setting up your workspace
 
-Here is what you need to get started:
+To get started, download the latest SAW and Z3, as well as clang 3.8:
 
 * SAW: http://saw.galois.com/builds/nightly/
 * Z3: https://github.com/Z3Prover/z3/releases
 * LLVM 3.8: http://releases.llvm.org/download.html
 
-You will need clang 3.8, later versions seem currently not supported. Xcode's latest clang would (probably) work for this small example but give you headaches with more advanced verification later.
+You need clang 3.8, later versions seem currently not supported. Xcode's latest clang would (probably) work for this small example but give you headaches with more advanced verification later.
 
 Unzip and copy the tools someplace you like, just don't forget to update your `$PATH` environment variable. Especially if you already have clang on your system.
 
-## Simple addition
+Let's start with a simple example.
 
-Let's start with defining an addition function `add(a, b)` that takes two `uint8_t` arguments and returns a `uint8_t`. It deals with overflows so that `123 + 200 = 255`, that is it caps the number at `UINT8_MAX` instead of wrapping around.
+## Unsigned addition without overflow
+
+We define an addition function `add(a, b)` that takes two `uint8_t` arguments and returns a `uint8_t`. It deals with overflows so that `123 + 200 = 255`, that is it caps the number at `UINT8_MAX` instead of wrapping around.
 
 {% codeblock lang:cpp %}
 uint8_t add(uint8_t a, uint8_t b) {
@@ -48,7 +48,7 @@ Note that the above command will not produce a binary or shared library, but ins
 
 ## Constant-time addition
 
-Now imagine that we actually want to use `add` as part of a bignum library to implement cryptographic algorithms, and thus want it to have a constant runtime, independent of the arguments given.
+Now imagine that we actually want to use `add` as part of a bignum library to implement cryptographic algorithms, and thus want it to have a [constant runtime](https://cryptocoding.net/index.php/Coding_rules#Avoid_branchings_controlled_by_secret_data), independent of the arguments given.
 
 {% codeblock lang:cpp %}
 uint8_t msb(uint8_t x) {
@@ -70,9 +70,9 @@ If `a + b < a`, i.e. the addition overflows, `lt(a + b, a)` will return `0xff` a
 $ clang -c -emit-llvm -o cadd.bc cadd.c
 {% endcodeblock %}
 
-Let's compile the constant-time `add` function to LLVM bitcode too and then finally use SAW to prove that both our addition functions are equivalent to each other.
+Let's compile the constant-time `add` function to LLVM bitcode too and finally use SAW to prove that both our addition functions are equivalent to each other.
 
-## The SAW script
+## Writing the SAW script
 
 First, we load the LLVM bitcode from the files we created earlier, `add.bc` and `cadd.bc`, as modules into the variables `m1` and `m2`, respectively.
 
@@ -132,8 +132,12 @@ Invalid: [x = 240, y = 0])
 
 `Invalid`! The two functions disagree on the return value at `[x = 240, y = 0]`. SAW of course doesn't know which function is at fault, but we would be confident enough in our reference implementation to know where to look.
 
+I can't possibly explain how this all works in detail, but I can give you a rough idea. What SAW does is parse the LLVM bitcode and [symbolically execute](https://en.wikipedia.org/wiki/Symbolic_execution) it on symbolic inputs to translate it into a circuit representation.
+
+This circuit is then, together with your theorems, fed into a theorem prover. Z3 is an [automated theorem prover](https://en.wikipedia.org/wiki/Automated_theorem_proving), and ABC a tool for logic synthesis and verification, but both are able to prove equality using automated reasoning.
+
 ## Next: Some Cryptol and more SAW
 
-In the second post (yet to be written) I'll talk about verifying the implementation of a slightly more complex function. I'll show how you can use Cryptol to write a specification, and use more advanced SAW commands for verification.
+In the second post (yet to be written) I'll talk about verifying the implementation of a slightly more complex function. I'll show how you can use Cryptol to write a specification, and introduce more advanced SAW commands for verification.
 
-In the meantime, play around with the examples above and maybe come up with some of your own. Write a straightforward implementation of an algorithm that you can be certain to get right, and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.
+In the meantime, if you're interested, play around with the examples above and maybe come up with your own. Write a straightforward implementation of an algorithm that you can be certain to get right, and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.
