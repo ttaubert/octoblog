@@ -13,9 +13,9 @@ Apart from rather simple Cryptol I'm also going to introduce [SAW](http://saw.ga
 
 Part 1 dealt with addition, in part 2 we're going to look at multiplication. Let's implement a function `mul(a, b, *hi, *lo)` that multiplies `a` and `b`, and stores the eight most significant bits of the product in `*hi`, and the eight LSBs in `*lo`.
 
-This time we'll make it run in constant time right away and won't bother implementing a simpler version first. Instead, we will write a Cryptol specification to verify LLVM bitcode afterwards --- you will be amazed how simple that is.
+This time we'll make it run in constant time right away and won't bother implementing a trivial version first. Instead, we will write a Cryptol specification to verify LLVM bitcode afterwards --- you will be amazed how simple that is.
 
-### Start with helper functions
+### Some helper functions
 
 The first two functions of our C/C++ implementation will seem familiar if you've read the previous part of the series. `msb` hasn't changed, and `ge` is the negated version of `lt`. `nz` returns `0xff` if the given argument `x` is non-zero, `0` otherwise.
 
@@ -68,9 +68,9 @@ It's relatively easy to see that `a * b` can be rewritten as `(a1 * 2^4 + a0) * 
 $ clang -c -emit-llvm -o cmul.bc cmul.c
 {% endcodeblock %}
 
-Compile the code to LLVM bitcode as before so that we can load it into SAW when we finished writing our specification.
+Compile the code to LLVM bitcode as before so that we can load it into SAW later.
 
-## The Cryptol reference implementation
+## The Cryptol specification
 
 To automate verification we'll again write a SAW script. It will contain the necessary verification commands and details, as well as a Cryptol specification.
 
@@ -93,17 +93,17 @@ The built-in function ``take`{n} x`` returns a sequence with only the first `n` 
 
 The first line of the definition gives the return value, a tuple with the first and the last 8 bits of `prod`. The Cryptol type system can automatically infer that the variable `prod` must hold a 16-bit sequence if the result of the ``take`{8}`` and ``drop`{8}`` function calls is a sequence of 8 bits each.
 
-`prod` is the result of multiplying the zero-padded arguments `a` and `b`. `zero # x` means it appends `x` to 8 zero bits, and it again knows that number from the type system. If you want to learn more about the language, take a look at [Programming Cryptol](http://www.cryptol.net/files/ProgrammingCryptol.pdf).
+`prod` is the result of multiplying the zero-padded arguments `a` and `b`. `zero # x` appends `x` to 8 zero bits, and that number is again determined by the type system. If you want to learn more about the language, take a look at [Programming Cryptol](http://www.cryptol.net/files/ProgrammingCryptol.pdf).
 
 That's about as simple as it gets. We multiply two 8-bit integers and out comes a 16-bit integer, split into two halves. Now let's use the specification to verify our constant-time implementation.
 
-## Proving equivalence
+## SAW's llvm_verify function
 
-We will add the LLVM SAW instructions to the same file `cmul.saw` containing the Cryptol implementation. The `llvm_verify` call here takes module `m`, extracts the symbol `"mul"`, and uses the given body given after `do` for verification.
+We will add LLVM SAW instructions to the same file that contains the Cryptol code from above. The `llvm_verify` call here takes module `m`, extracts the symbol `"mul"`, and uses the body given after `do` for verification.
 
-First we need to declare the symbolic inputs given by our C/C++ implementation. With `llvm_var` we tell SAW that `"a"` and `"b"` are 8-bit integer arguments, and map those to the SAW variables `a` and `b`.
+We need to declare all symbolic inputs as given by our C/C++ implementation. With `llvm_var` we tell SAW that `"a"` and `"b"` are 8-bit integer arguments, and map those to the SAW variables `a` and `b`.
 
-Arguments `"hi"` and `"lo"` are declared as pointers to 8-bit integers using `llvm_ptr`. And because we want to dereference the pointers later refer to their values for verification we declare `"*hi"` and `"*lo"` as 8-bit integers.
+The arguments `"hi"` and `"lo"` are declared as pointers to 8-bit integers using `llvm_ptr`. And because we want to dereference the pointers and refer to their values later we declare `"*hi"` and `"*lo"` as 8-bit integers too.
 
 {% codeblock lang:saw cmul.saw https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw [gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw] %}
 {% raw %}
@@ -125,15 +125,15 @@ llvm_verify m "mul" [] do {
 {% endraw %}
 {% endcodeblock %}
 
-We specify no constraints for any of the given arguments and expect our verification to cover all possible inputs. I will hopefully find the time to talk about how to use such constraints in a later post.
+We specify no constraints for any of the arguments and expect the verification to consider all possible inputs. I will talk a bit more about such constraints and how these are useful in a later post.
 
-With `llvm_ensure_eq` we tell SAW what values we expect *after* the symbolic execution of our C/C++ implementation. We expect `"*hi"` to be equal to the first 8-bit integer element of the tuple returned by `mul`, and `"*lo"` to be equal to the second 8-bit integer.
+With `llvm_ensure_eq` we tell SAW what values we expect *after* symbolic execution. We expect `"*hi"` to be equal to the first 8-bit integer element of the tuple returned by `mul`, and `"*lo"` to be equal to the second 8-bit integer.
 
 `llvm_verify_tactic` chooses UC Berkely's ABC tool again and off we go.
 
-## Verifying against a Cryptol specification
+## Verification with SAW
 
-Again, make sure you have `saw` and `z3` in your `$PATH`. If you haven't downloaded those tools yet, take a look again at the early sections of the [previous post](/blog/2017/01/equivalence-proofs-with-saw/). Run SAW and pass it the file we just created.
+Again, make sure you have `saw` and `z3` in your `$PATH`. If you haven't downloaded the binaries yet, take a look at the early sections of the [previous post](/blog/2017/01/equivalence-proofs-with-saw/).
 
 {% codeblock lang:text %}
 $ saw cmul.saw
@@ -142,10 +142,10 @@ Loading file "cmul.saw"
 Successfully verified @mul
 {% endcodeblock %}
 
-*Successfully verified @mul.* It lets us know that for all possible inputs `a` and `b`, and actually `*hi` and `*lo` too, our constant-time C/C++ implementation behaves as stated by the SAW verification script and our Cryptol specification.
+*Successfully verified @mul.* SAW tells us that for all possible inputs `a` and `b`, and actually `hi` and `lo` too, our constant-time C/C++ implementation behaves as stated by the SAW verification script and is thereby equivalent to our Cryptol specification.
 
 ## Next: Finding bugs and more LLVM commands
 
-In the next post I'm planning to write a little more Cryptol, talk about specifying constraints on LLVM arguments and return values, and will have an example that's a little closer to the real world.
+For the next post I'm planning to introduce and write more Cryptol, talk about specifying constraints on LLVM arguments and return values, and provide an example for finding bugs in a real-world codebase.
 
 And while you wait, why not try your hand at optimizing `mul` to use only three instead of four multiplications with the [Karatsuba algorithm](https://en.wikipedia.org/wiki/Karatsuba_algorithm)? You can reuse the above Cryptol specification to verify you got it right.

@@ -136,6 +136,6 @@ This circuit is then, together with our theorems, fed into a theorem prover. Z3 
 
 ## Next: Some Cryptol and more SAW
 
-In [the second post](/blog/2017/02/simple-cryptol-specifications/) I'll talk about verifying the implementation of a slightly more complex function, also written in C/C++. I'll show how you can use Cryptol to write a simple specification, and introduce more advanced SAW commands for verification.
+In [the second post](/blog/2017/02/simple-cryptol-specifications/) I talk about verifying the implementation of a slightly more complex function, also written in C/C++, and show how you can use Cryptol to write a simple specification, as well as introduce more advanced SAW commands for verification.
 
-In the meantime, if you found this interesting, play around with the examples above and come up with your own. Write a straightforward implementation of an algorithm that you can be certain to get right, and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.
+If you found this interesting, play around with the examples above and come up with your own. Write a straightforward implementation of an algorithm that you can be certain to get right and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.
