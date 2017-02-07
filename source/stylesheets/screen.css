@@ -276,6 +276,14 @@ code {
   opacity: 0.6;
 }
 
+.code figcaption {
+  padding: 0 5px;
+}
+
+.code figcaption > span {
+  display: none;
+}
+
 /* FOOTER */
 footer {
   position: relative;

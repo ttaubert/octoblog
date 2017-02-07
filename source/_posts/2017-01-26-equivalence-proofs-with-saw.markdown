@@ -31,7 +31,7 @@ Let's start with a simple example.
 
 We define an addition function `add(a, b)` that takes two `uint8_t` arguments and returns a `uint8_t`. It deals with overflows so that `123 + 200 = 255`, that is it caps the number at `UINT8_MAX` instead of wrapping around.
 
-{% codeblock lang:cpp %}
+{% codeblock lang:cpp add.c https://gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-c [gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-c] %}
 uint8_t add(uint8_t a, uint8_t b) {
   uint8_t sum = a + b;
   return sum < a ? UINT8_MAX : sum;
@@ -50,11 +50,13 @@ Note that the above command will not produce a binary or shared library, but ins
 
 Now imagine that we actually want to use `add` as part of a bignum library to implement cryptographic algorithms, and thus want it to have a [constant runtime](https://cryptocoding.net/index.php/Coding_rules#Avoid_branchings_controlled_by_secret_data), independent of the arguments given. Here's how you could do this:
 
-{% codeblock lang:cpp %}
+{% codeblock lang:cpp cadd.c https://gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-cadd-c [gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-cadd-c] %}
+// 0xff if MSB(x) = 1 else 0x00
 uint8_t msb(uint8_t x) {
   return 0 - (x >> (8 * sizeof(x) - 1));
 }
 
+// 0xff if a < b else 0x00
 uint8_t lt(uint8_t a, uint8_t b) {
   return msb(a ^ ((a ^ b) | ((a - b) ^ b)));
 }
@@ -76,26 +78,22 @@ Let's compile the constant-time `add` function to LLVM bitcode too and use SAW t
 
 SAW executes scripts to automate theorem proving, and we need to write one in order to check that our two implementations are equivalent. The first thing our script does is load the LLVM bitcode from the files we created earlier, `add.bc` and `cadd.bc`, as modules into the variables `m1` and `m2`, respectively.
 
-{% codeblock lang:saw %}
+{% codeblock lang:saw add.saw https://gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-saw [gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-saw] %}
+{% raw %}
 m1 <- llvm_load_module "add.bc";
 m2 <- llvm_load_module "cadd.bc";
-{% endcodeblock %}
 
-Next, we'll extract the `add` functions defined in each of these modules and store them in `add` and `cadd`, the latter being our constant-time implementation. `llvm_pure` indicates that a function always returns the same result given the same arguments, and thus has no side-effects.
-
-{% codeblock lang:saw %}
 add <- llvm_extract m1 "add" llvm_pure;
 cadd <- llvm_extract m2 "add" llvm_pure;
-{% endcodeblock %}
 
-Last, we define a theorem `thm` stating that for all arguments `x` and `y` both functions have the same return value, that they are equivalent to each other. We choose to prove this theorem with the ABC tool from UC Berkeley.
-
-{% codeblock lang:saw %}
-{% raw %}
 let thm = {{ \x y -> add x y == cadd x y }};
 prove_print abc thm;
 {% endraw %}
 {% endcodeblock %}
+
+Next, we'll extract the `add` functions defined in each of these modules and store them in `add` and `cadd`, the latter being our constant-time implementation. `llvm_pure` indicates that a function always returns the same result given the same arguments, and thus has no side-effects.
+
+Last, we define a theorem `thm` stating that for all arguments `x` and `y` both functions have the same return value, that they are equivalent to each other. We choose to prove this theorem with the ABC tool from UC Berkeley.
 
 We're all set now, time to actually prove something.
 
@@ -138,6 +136,6 @@ This circuit is then, together with our theorems, fed into a theorem prover. Z3 
 
 ## Next: Some Cryptol and more SAW
 
-In the second post (yet to be written) I'll talk about verifying the implementation of a slightly more complex function. I'll show how you can use Cryptol to write a simple specification, and introduce more advanced SAW commands for verification.
+In [the second post](/blog/2017/02/simple-cryptol-specifications/) I'll talk about verifying the implementation of a slightly more complex function, also written in C/C++. I'll show how you can use Cryptol to write a simple specification, and introduce more advanced SAW commands for verification.
 
 In the meantime, if you found this interesting, play around with the examples above and come up with your own. Write a straightforward implementation of an algorithm that you can be certain to get right, and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.
