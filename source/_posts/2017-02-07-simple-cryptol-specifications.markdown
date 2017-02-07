@@ -5,9 +5,9 @@ subtitle: "Exploring formal verification (part 2)"
 date: 2017-02-07 16:00:00 +0100
 ---
 
-In the [previous post](/blog/2017/01/equivalence-proofs-with-saw/) I showed how to prove equivalence of two different implementations of the same algorithm in C++. This post will cover writing an algorithm specification in [Cryptol](http://cryptol.net/) to prove the correctness of a constant-time C++ implementation.
+In the [previous post](/blog/2017/01/equivalence-proofs-with-saw/) I showed how to prove equivalence of two different implementations of the same algorithm. This post will cover writing an algorithm specification in [Cryptol](http://cryptol.net/) to prove the correctness of a constant-time C/C++ implementation.
 
-Apart from rather simple Cryptol I'm also going to introduce [SAW](http://saw.galois.com/)'s `llvm_verify` function that allows much more complex verification. Our function will not only take scalar inputs but also store the result of the computation using pointer arguments.
+Apart from rather simple Cryptol I'm also going to introduce [SAW](http://saw.galois.com/)'s `llvm_verify` function that allows much more complex verification. We need this as our function will not only take scalar inputs but also store the result of the computation using pointer arguments.
 
 ## Constant-time multiplication
 
@@ -17,7 +17,7 @@ This time we'll make it run in constant time right away and won't bother impleme
 
 ### Start with helper functions
 
-The first two functions of our C++ implementation will seem familiar if you've read the previous part of the series. `msb` hasn't changed, and `ge` is the negated version of `lt`. `nz` returns `0xff` if the given argument `x` is non-zero, `0` otherwise.
+The first two functions of our C/C++ implementation will seem familiar if you've read the previous part of the series. `msb` hasn't changed, and `ge` is the negated version of `lt`. `nz` returns `0xff` if the given argument `x` is non-zero, `0` otherwise.
 
 {% codeblock lang:cpp cmul.c https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-c [gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-c] %}
 // 0xff if MSB(x) = 1 else 0x00
@@ -62,7 +62,7 @@ void mul(uint8_t a, uint8_t b, uint8_t *hi, uint8_t *lo) {
 }
 {% endcodeblock %}
 
-It's relatively easy to see that `a * b` can be rewritten as `(a1 * 2^4 + a0) * (b1 * 2^4 + b0)`. After multiplying and rearranging you'll get an equation that's very similar to `mul` above. Here's a [good introduction](http://people.mpi-inf.mpg.de/~mehlhorn/ftp/chapter2A-en.pdf) to computing with long integers if you want to know more.
+It's relatively easy to see that `a * b` can be rewritten as `(a1 * 2^4 + a0) * (b1 * 2^4 + b0)`, all four variables being 4-bit integers. After multiplying and rearranging you'll get an equation that's very similar to `mul` above. Here's a [good introduction](http://people.mpi-inf.mpg.de/~mehlhorn/ftp/chapter2A-en.pdf) to computing with long integers if you want to know more.
 
 {% codeblock lang:text %}
 $ clang -c -emit-llvm -o cmul.bc cmul.c
@@ -72,9 +72,11 @@ Compile the code to LLVM bitcode as before so that we can load it into SAW when 
 
 ## The Cryptol reference implementation
 
-To verify our C++ code we again need a SAW script. It will contain the necessary verification details and now also a Cryptol specification. Start by loading our bitcode into the module variable `m`.
+To automate verification we'll again write a SAW script. It will contain the necessary verification commands and details, as well as a Cryptol specification.
 
-{% codeblock lang:saw %}
+The specification doesn't need to be constant-time, all it needs to be is correct and as simple as possible. We declare a function `mul` taking two 8-bit integers and returning a tuple containing two 8-bit integers. Read the notation `[8]` as "sequence of 8 bits".
+
+{% codeblock lang:saw cmul.saw https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw [gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw] %}
 {% raw %}
 m <- llvm_load_module "cmul.bc";
 
@@ -87,9 +89,7 @@ let {{
 {% endraw %}
 {% endcodeblock %}
 
-After that comes the interesting part, our first Cryptol implementation. The specification doesn't need to be constant-time, all it needs to be is correct and as simple as possible. We declare a function `mul` taking two 8-bit integers and returning a tuple containing two 8-bit integers. Read the notation `[8]` as "sequence of 8 bits".
-
-The built-in function ``take`{n} x`` returns a sequence with only the first `n` items of `x`. ``drop`{n} x`` returns a sequence without the first `n` items of `x`. `zero` is a special value that has a number of use cases, here it represents a flexible sequence of all zero bits. `#` is the append operator for sequences.
+The built-in function ``take`{n} x`` returns a sequence with only the first `n` items of `x`. ``drop`{n} x`` returns sequence `x` without the first `n` items. `zero` is a special value that has a number of use cases, here it represents a flexible sequence of all zero bits. `#` is the append operator for sequences.
 
 The first line of the definition gives the return value, a tuple with the first and the last 8 bits of `prod`. The Cryptol type system can automatically infer that the variable `prod` must hold a 16-bit sequence if the result of the ``take`{8}`` and ``drop`{8}`` function calls is a sequence of 8 bits each.
 
@@ -99,7 +99,13 @@ That's about as simple as it gets. We multiply two 8-bit integers and out comes 
 
 ## Proving equivalence
 
-{% codeblock lang:saw %}
+We will add the LLVM SAW instructions to the same file `cmul.saw` containing the Cryptol implementation. The `llvm_verify` call here takes module `m`, extracts the symbol `"mul"`, and uses the given body given after `do` for verification.
+
+First we need to declare the symbolic inputs given by our C/C++ implementation. With `llvm_var` we tell SAW that `"a"` and `"b"` are 8-bit integer arguments, and map those to the SAW variables `a` and `b`.
+
+Arguments `"hi"` and `"lo"` are declared as pointers to 8-bit integers using `llvm_ptr`. And because we want to dereference the pointers later refer to their values for verification we declare `"*hi"` and `"*lo"` as 8-bit integers.
+
+{% codeblock lang:saw cmul.saw https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw [gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw] %}
 {% raw %}
 llvm_verify m "mul" [] do {
   a <- llvm_var "a" (llvm_int 8);
@@ -119,7 +125,15 @@ llvm_verify m "mul" [] do {
 {% endraw %}
 {% endcodeblock %}
 
-## Verification
+We specify no constraints for any of the given arguments and expect our verification to cover all possible inputs. I will hopefully find the time to talk about how to use such constraints in a later post.
+
+With `llvm_ensure_eq` we tell SAW what values we expect *after* the symbolic execution of our C/C++ implementation. We expect `"*hi"` to be equal to the first 8-bit integer element of the tuple returned by `mul`, and `"*lo"` to be equal to the second 8-bit integer.
+
+`llvm_verify_tactic` chooses UC Berkely's ABC tool again and off we go.
+
+## Verifying against a Cryptol specification
+
+Again, make sure you have `saw` and `z3` in your `$PATH`. If you haven't downloaded those tools yet, take a look again at the early sections of the [previous post](/blog/2017/01/equivalence-proofs-with-saw/). Run SAW and pass it the file we just created.
 
 {% codeblock lang:text %}
 $ saw cmul.saw
@@ -128,6 +142,10 @@ Loading file "cmul.saw"
 Successfully verified @mul
 {% endcodeblock %}
 
-## TODO
+*Successfully verified @mul.* It lets us know that for all possible inputs `a` and `b`, and actually `*hi` and `*lo` too, our constant-time C/C++ implementation behaves as stated by the SAW verification script and our Cryptol specification.
 
-implement a constant-time version of the [Karatsuba algorithm](https://en.wikipedia.org/wiki/Karatsuba_algorithm).
+## Next: Finding bugs and more LLVM commands
+
+In the next post I'm planning to write a little more Cryptol, talk about specifying constraints on LLVM arguments and return values, and will have an example that's a little closer to the real world.
+
+And while you wait, why not try your hand at optimizing `mul` to use only three instead of four multiplications with the [Karatsuba algorithm](https://en.wikipedia.org/wiki/Karatsuba_algorithm)? You can reuse the above Cryptol specification to verify you got it right.
