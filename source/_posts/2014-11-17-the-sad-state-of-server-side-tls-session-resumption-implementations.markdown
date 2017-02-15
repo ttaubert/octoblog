@@ -5,6 +5,10 @@ subtitle: "The sad state of server-side TLS Session Resumption implementations"
 date: 2014-11-17 18:00
 ---
 
+> *After you finished reading this one, please also read the
+> [follow-up post](/blog/2017/02/the-future-of-session-resumption/)
+> that covers session resumption changes in TLS 1.3.*
+
 The probably oldest complaint about TLS is that its handshake is slow and
 together with the transport encryption has a lot of CPU overhead. This
 certainly [is not true anymore](https://istlsfastyet.com/) if configured
