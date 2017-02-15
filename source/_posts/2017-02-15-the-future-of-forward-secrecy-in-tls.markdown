@@ -57,4 +57,4 @@ Note that 0-RTT data cannot be protected by the DHE secret, the early traffic se
 
 In theory, there should be no valid reason for a web client to be able to complete a TLS 1.3 handshake but not support `psk_dhe_ke`, as ephemeral Diffie-Hellman key exchanges are mandatory. An internal application talking TLS between peers would likely be a legitimate case for not supporting DHE.
 
-But also for TLS 1.3 it might make sense to properly configure session ticket key rotation and cache turnover, in case the odd client supports only `psk_ke`. It still makes sense especially for TLS 1.2, it will be around for probably longer than we wish and imagine.
+But also for TLS 1.3 it might make sense to properly configure session ticket key rotation and cache turnover in case the odd client supports only `psk_ke`. It still makes sense especially for TLS 1.2, it will be around for probably longer than we wish and imagine.
