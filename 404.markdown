@@ -1,0 +1,8 @@
+---
+layout: page
+title: "Page not found"
+class: page
+permalink: 404.html
+---
+
+The page you are looking for does not exist.
