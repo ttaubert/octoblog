@@ -5,6 +5,10 @@ subtitle: "Exploring formal verification (part 2)"
 date: 2017-02-07 16:00:00 +0100
 ---
 
+> [Part 1: Equivalence proofs with SAW](/blog/2017/01/equivalence-proofs-with-saw/)  
+> Part 2: Simple Cryptol specifications  
+> [Part 3: Finding and fixing real-world bugs](/blog/2017/06/finding-and-fixing-real-world-bugs/)
+
 In the [previous post](/blog/2017/01/equivalence-proofs-with-saw/) I showed how to prove equivalence of two different implementations of the same algorithm. This post will cover writing an algorithm specification in [Cryptol](http://cryptol.net/) to prove the correctness of a constant-time C/C++ implementation.
 
 Apart from rather simple Cryptol I'm also going to introduce [SAW](http://saw.galois.com/)'s `llvm_verify` function that allows much more complex verification. We need this as our function will not only take scalar inputs but also store the result of the computation using pointer arguments.
@@ -146,6 +150,6 @@ Successfully verified @mul
 
 ## Next: Finding bugs and more LLVM commands
 
-For the next post I'm planning to introduce and write more Cryptol, talk about specifying constraints on LLVM arguments and return values, and provide an example for finding bugs in a real-world codebase.
+In [the next post](/blog/2017/06/finding-and-fixing-real-world-bugs/) I'm going to introduce and write more Cryptol, talk about specifying constraints on LLVM arguments and return values, and provide an example for finding bugs in a real-world codebase.
 
 And while you wait, why not try your hand at optimizing `mul` to use only three instead of four multiplications with the [Karatsuba algorithm](https://en.wikipedia.org/wiki/Karatsuba_algorithm)? You can reuse the above Cryptol specification to verify you got it right.

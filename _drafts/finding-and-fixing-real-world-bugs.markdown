@@ -2,13 +2,12 @@
 layout: post
 title: "Finding and fixing real-world bugs"
 subtitle: "Exploring formal verification (part 3)"
-date: 2017-03-01 12:00:00 +0100
-published: false
+date: 2017-06-21T10:56:23+02:00
 ---
 
-> [Part 1: Equivalence proofs with SAW](#)  
-> [Part 2: Writing a Cryptol specification](#)  
-> Part 3: Equivalence proofs with SAW
+> [Part 1: Equivalence proofs with SAW](/blog/2017/01/equivalence-proofs-with-saw/)  
+> [Part 2: Simple Cryptol specifications](/blog/2017/02/simple-cryptol-specifications/)  
+> Part 3: Finding and fixing real-world bugs
 
 A colleague of mine recently stumbled upon a rather old piece of code in our
 code base. After fixing a small issue reported by a static analyzer he went on
