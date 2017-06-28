@@ -5,10 +5,6 @@ subtitle: "Exploring formal verification (part 1)"
 date: 2017-01-26 16:00:00 +0100
 ---
 
-> Part 1: Equivalence proofs with SAW  
-> [Part 2: Simple Cryptol specifications](/blog/2017/02/simple-cryptol-specifications/)  
-> [Part 3: Finding and fixing real-world bugs](/blog/2017/06/finding-and-fixing-real-world-bugs/)
-
 This is the first of a small series of posts that will scratch the surface of the world of formal verification. I will mainly use [SAW](http://saw.galois.com/), the Software Analysis Workbench, and [Cryptol](http://cryptol.net/), a DSL for specifying crypto algorithms. Both are powerful tools for verifying C, C++, and even Rust code, i.e. almost anything that compiles to LLVM bitcode.
 
 Verifying the implementation of a specific algorithm not only helps you weed out bugs early, it lets you *prove* that your code is correct and contains no further bugs - assuming you made no mistakes writing your algorithm specification in the first place.

@@ -1,13 +1,10 @@
 ---
 layout: post
-title: "Simple Cryptol specifications"
+title: "Writing simple Cryptol specifications"
 subtitle: "Exploring formal verification (part 2)"
+alias: /blog/2017/02/simple-cryptol-specifications/
 date: 2017-02-07 16:00:00 +0100
 ---
-
-> [Part 1: Equivalence proofs with SAW](/blog/2017/01/equivalence-proofs-with-saw/)  
-> Part 2: Simple Cryptol specifications  
-> [Part 3: Finding and fixing real-world bugs](/blog/2017/06/finding-and-fixing-real-world-bugs/)
 
 In the [previous post](/blog/2017/01/equivalence-proofs-with-saw/) I showed how to prove equivalence of two different implementations of the same algorithm. This post will cover writing an algorithm specification in [Cryptol](http://cryptol.net/) to prove the correctness of a constant-time C/C++ implementation.
 
