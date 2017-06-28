@@ -1,13 +1,12 @@
 ---
 layout: post
-title: "Verified, constant-time binary multiplication for GHASH"
+title: "Verified binary multiplication for GHASH"
 subtitle: "Exploring formal verification (part 3)"
 ---
 
-The [previous post](/blog/2017/02/simple-cryptol-specifications/) introduced some very basic Cryptol and SAWScript, and explained how to reason about the correctness of a constant-time integer multiplication written in C/C++.
+The [previous post](/blog/2017/02/simple-cryptol-specifications/) introduced some very basic Cryptol and SAWScript, and explained how to reason about the correctness of constant-time integer multiplication written in C/C++.
 
-This post will tell the story of how we rewrote the GHASH implementation
-for NSS and were able to potentially save dozens of work hours by using the [Software Analysis Workbench](http://saw.galois.com/) as part of our code review process.
+This post will touch on using formal verification as part of the code review process, in particular talk about how, by using the [Software Analysis Workbench](http://saw.galois.com/), we saved ourselves hours of debugging when rewriting the GHASH implementation for NSS.
 
 ## What's GHASH?
 
@@ -15,7 +14,7 @@ GHASH is part of the [Galois/Counter Mode](https://en.wikipedia.org/wiki/Galois/
 
 The core of GHASH is multiplication in GF(2^128), a characteristic-two finite field with coefficients in GF(2), they're either zero or one. Polynomials in GF(2^m) can be represented as m-bit numbers, with each bit corresponding to a term's coefficient. In GF(2^3) for example, `x^3 + x^2 + 1` may be represented as the binary number `0b101 = 5`.
 
-Additions and subtractions in finite fields are "carry-less" because the coefficients always have to be in GF(p), for any GF(p^m). As `m * n` is equivalent to adding `m` to itself `n` times, so we can call multiplication in finite fields "carry-less" too. In GF(2) addition is simply XOR, so we can say that finite field multiplication in GF(2^m) is equal to binary multiplication without carries.
+Additions and subtractions in finite fields are "carry-less" because the coefficients must be in GF(p), for any GF(p^m). As `m * n` is equivalent to adding `m` to itself `n` times, we can call multiplication in finite fields "carry-less" too. In GF(2) addition is simply XOR, so we can say that multiplication in GF(2^m) is equal to binary multiplication without carries.
 
 Note that the term carry-less only makes sense when talking about GF(2^m) fields that are easily represented as binary numbers. Otherwise one would rather talk about multiplication in finite fields without comparing it to standard integer multiplication.
 
@@ -23,9 +22,9 @@ Note that the term carry-less only makes sense when talking about GF(2^m) fields
 
 ## bmul() for 32-bit machines
 
-The basic implementation of our binary multiplication algorithm is taken straight from Thomas Pornin's excellent [constant-time crypto post](https://www.bearssl.org/constanttime.html#ghash-for-gcm). To cover older 32-bit machines we can at most multiply two `uint32_t` numbers and store the result in a `uint64_t`.
+The basic implementation of our binary multiplication algorithm is taken straight from Thomas Pornin's excellent [constant-time crypto post](https://www.bearssl.org/constanttime.html#ghash-for-gcm). To support 32-bit machines we can at most multiply two `uint32_t` numbers and store the result in a `uint64_t`.
 
-For the full GHASH, Karatsuba decomposition is used: multiplication of two 128-bit integers is broken down into nine calls to `bmul32(x, y, ...)`.
+For the full GHASH, Karatsuba decomposition is used: multiplication of two 128-bit integers is broken down into nine calls to `bmul32(x, y, ...)`. Let's take a look at the actual implementation:
 
 {% codeblock lang:cpp %}
 /* Binary multiplication x * y = r_high << 32 | r_low. */
@@ -72,15 +71,15 @@ bmul32(uint32_t x, uint32_t y, uint32_t *r_high, uint32_t *r_low)
 }
 {% endcodeblock %}
 
-If you read Thomas' explanation it's actually not too hard to follow. The main idea behind the algorithm are the bitmasks `m1 = 0b00010001...`, `m2 = 0b00100010...`, `m4 = 0b01000100...`, and `m8 = 0b10001000...`. They respectively have the first, second, third, and fourth bit of every nibble set. This leaves "holes" of 3 bits between each bit a mask keeps, so that with those applied we have at most a quarter of the 32 bits equal to 1.
+Thomas' explanation is not too hard to follow. The main idea behind the algorithm are the bitmasks `m1 = 0b00010001...`, `m2 = 0b00100010...`, `m4 = 0b01000100...`, and `m8 = 0b10001000...`. They respectively have the first, second, third, and fourth bit of every nibble set. This leaves "holes" of three bits between each bit a mask keeps, so that with those applied we have at most a quarter of the 32 bits equal to one.
 
-Per standard integer multiplication, 8 + 8 data bits can at most add up to `8 = 0b1000` carries. Which means that three-bit holes are more than sufficient to prevent carries from "spilling" over, and could handle up to `0b1111 = 15` data bits in each of the two integer operands.
+Per standard integer multiplication, eight times eight bits will at most add eight carry bits of value one together, thus we need holes per digit that can hold the value `8 = 0b1000`. Three-bit holes are more than sufficient to prevent carries from "spilling" over, they could handle up to `15 = 0b1111` data bits in each of the two integer operands.
 
 ## Review, tests, and verification
 
 The first version of the patch came with a bunch of new tests, the vectors taken from the [GCM specification](http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/). We previously had no such low-level coverage, all we had were a number of high-level AES-GCM tests.
 
-When reviewing, after looking at the patch itself and applying it locally to see whether it builds and tests succeed, the next step I wanted to try was to write a Cryptol specification to prove the correctness of `bmul32()`. Thanks to the built-in `pmult` function that merely took a few minutes.
+When reviewing, after looking at the patch itself and applying it locally to see whether it builds and tests succeed, the next step I wanted to try was to write a Cryptol specification to prove the correctness of `bmul32()`. Thanks to the built-in `pmult` function that took me only a few minutes.
 
 {% codeblock lang:saw  %}
 {% raw %}
@@ -129,9 +128,9 @@ Successfully verified @bmul32
 
 `bmul32()` is called nine times, each time performing 16 multiplications. That's 144 multiplications in total for one GHASH evaluation. If we had a `bmul64()` for 128-bit multiplication with `uint128_t` we'd need to call it only thrice.
 
-The naive approach here was to basically just double the bitsize of the arguments and internal types, and then also extend the bitmasks `m1`, `m2`, `m4`, and `m8`. This is what the first revision of the proposed patch did as well.
+The naive approach taken in the first patch revision was to basically just double the bitsize of the arguments and variables, and also extend the bitmasks `m1`, `m2`, `m4`, and `m8`.
 
-If you paid close attention to the previous section you might notice a problem here already. If not just read on and it will become clear to you in a few moments.
+If you paid close attention to the previous section you might notice a problem here already. If not just read on and it will become clear in a few moments.
 
 {% codeblock lang:cpp %}
 typedef unsigned __int128 uint128_t;
@@ -182,7 +181,7 @@ bmul64(uint64_t x, uint64_t y, uint64_t *r_high, uint64_t *r_low)
 
 ## Tests and another equivalence proof
 
-The above version of `bmul64()` passed the GHASH test vectors with flying colors. Reviewers were easily tricked into accepting it as a valid solution, especially as part of a big patch. Let's adapt the SAWScript and Cryptol and see what happens.
+The above version of `bmul64()` passed the GHASH test vectors with flying colors. When reviewing this multiple people though it looked just fine and is the logical thing to do, even if you just stared at the algorithm for a while. Humans can be quite fallible. Let's adapt the SAWScript and Cryptol and see what happens.
 
 {% codeblock lang:saw  %}
 {% raw %}
@@ -219,7 +218,7 @@ llvm_verify m "bmul64" [] (SpecBinaryMul 64);
 {% endraw %}
 {% endcodeblock %}
 
-We use two instances of the same spec to prove correctness of `bmul32()` and `bmul64()` sequentially. The latter will usually take a few minutes to yield results.
+We use two instances of the same spec to prove correctness of `bmul32()` and `bmul64()` sequentially. The latter should take a lot longer before yielding results.
 
 {% codeblock lang:text %}
 $ saw bmul.saw
@@ -242,7 +241,7 @@ Proof failed.)
 
 *Proof failed.* As you probably expected by now, the `bmul64()` implementation is erroneous and SAW gives us a very specific counterexample we can investigate further. It took us a while to understand the failure but it all seems very obvious in hindsight.
 
-## Fixing bmul64()
+## Fixing bmul64() bitmasks
 
 As already shown above, bitmasks leaving three-bit holes between data bits can avoid carry-spilling for up to two 15-bit integers. Using every fourth bit of a 64-bit argument however yields 16 data bits each, and carries can thus override data bits. We need bitmasks with four-bit holes.
 
@@ -293,24 +292,17 @@ bmul64(uint64_t x, uint64_t y, uint64_t *r_high, uint64_t *r_low)
 
 `m1`, ..., `m5` are the new bitmasks. `m1` equals `0b0010000100001...`, the others are each shifted by one. As there now are less than 64/4 data bits after applying bitmasks we need to perform 25 multiplications. With three calls to `bmul64()` that's 75 in total.
 
-We of course added an extra non-NIST test case that would cover overflows...
-
-{% codeblock lang:js %}
-{
-  hashKey: "0000000000000000fcefef64ffc4766c",
-  cipherText: "0000000000000000ffcef9ebbffdbd8b",
-  result: "3561e34e52d8b598f9937982512fff27"
-}
-{% endcodeblock %}
-
-show that it verifies
-SAW is happy after a few minutes tells us that it has *Successfully verified @bmul64.*.
+Run SAW again and, after about an hour, it will tell us it *successfully verified @bmul64*.
 
 {% codeblock lang:text %}
 $ saw bmul.saw
+Loading module Cryptol
+Loading file "bmul.saw"
+Successfully verified @bmul32
+Successfully verified @bmul64
 {% endcodeblock %}
 
-You might want to take a look at [Thomas Pornin's version](https://www.bearssl.org/gitweb/?p=BearSSL;a=blob;f=src/hash/ghash_ctmul64.c;h=a46f16fee977f6102abea7f7bcdf169a013c3e8e;hb=5f045c759957fdff8c85716e6af99e10901fdac0) of `bmul()` computing with `uint64_t` terms. This basically is the faulty version of `bmul64()` that SAW failed to verify, but as it's used here is correct because he calls it twice, the second time with the arguments reversed bitwise. This way he calls his version of `bmul64()` six times, for a total of 96 multiplications.
+You might want to take a look at [Thomas Pornin's version](https://www.bearssl.org/gitweb/?p=BearSSL;a=blob;f=src/hash/ghash_ctmul64.c;h=a46f16fee977f6102abea7f7bcdf169a013c3e8e;hb=5f045c759957fdff8c85716e6af99e10901fdac0) of `bmul64()`. This basically is the faulty version that SAW failed to verify, but as it's used here is correct because it's called, the second time with the arguments reversed bitwise. `bmul64()` is invoked six times, for a total of 96 multiplications.
 
 ## Wrapping up
 
@@ -319,7 +311,9 @@ thanks for reading that far
 Mention possible CI integration
 verifying all of ghash takes time... doesn't complete
 how did we save hours?
+We of course added an extra non-NIST test case that would cover overflows...
 
 never trust only test vectors
+not enough to just add those
 try to cover edge cases
 can't foresee all approaches to impl
