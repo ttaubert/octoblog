@@ -2,7 +2,6 @@
 layout: post
 title: "HTTP Public-Key-Pinning explained"
 subtitle: "The what, why, and how of RFC 7469"
-alias: /blog/2014/10/why-including-a-backup-pin-in-your-hpkp-header-is-a-good-idea/
 date: 2014-10-30 14:00
 ---
 
