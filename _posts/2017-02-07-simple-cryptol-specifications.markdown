@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Writing simple Cryptol specifications"
+title: "Simple Cryptol specifications"
 subtitle: "Exploring formal verification (part 2)"
 alias: /blog/2017/02/simple-cryptol-specifications/
 date: 2017-02-07 16:00:00 +0100
@@ -147,6 +147,6 @@ Successfully verified @mul
 
 ## Next: Finding bugs and more LLVM commands
 
-In [the next post](/blog/2017/06/finding-and-fixing-real-world-bugs/) I'm going to introduce and write more Cryptol, talk about specifying constraints on LLVM arguments and return values, and provide an example for finding bugs in a real-world codebase.
+In [the next post](/blog/2017/06/verified-binary-multiplication-for-ghash/) I'm going to introduce and write more Cryptol, talk about specifying constraints on LLVM arguments and return values, and provide an example for finding bugs in a real-world codebase.
 
 And while you wait, why not try your hand at optimizing `mul` to use only three instead of four multiplications with the [Karatsuba algorithm](https://en.wikipedia.org/wiki/Karatsuba_algorithm)? You can reuse the above Cryptol specification to verify you got it right.
