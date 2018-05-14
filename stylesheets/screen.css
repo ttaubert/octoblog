@@ -328,7 +328,6 @@ footer .main {
   font-size: 24px;
 }
 
-footer .job,
 footer .license:not(:hover):not(:focus) {
   opacity: 0.8;
 }

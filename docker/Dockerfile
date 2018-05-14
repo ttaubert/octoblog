@@ -1,4 +1,4 @@
-FROM ubuntu:17.04
+FROM ubuntu:latest
 MAINTAINER Tim Taubert <tim@timtaubert.de>
 
 RUN useradd -d /home/worker -s /bin/bash -m worker
