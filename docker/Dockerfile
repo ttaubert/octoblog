@@ -27,7 +27,7 @@ ENV HOST localhost
 ENV DOMSUF localdomain
 
 # Binaries.
-ENV PATH "${PATH}:/home/worker/.gem/ruby/2.3.0/bin"
+ENV PATH "${PATH}:/home/worker/.gem/ruby/2.5.0/bin"
 
 # Set a default command for debugging.
 CMD ["/bin/bash", "--login"]
