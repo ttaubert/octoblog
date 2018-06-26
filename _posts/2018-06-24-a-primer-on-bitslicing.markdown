@@ -13,56 +13,27 @@ It's a great overview but omits a few details. For the benefit of future me, as
 well as other current and future crypto implementers, I'll seize the chance to
 dive a a little deeper and provide further background.
 
-## Bitslicing
+## What is bitslicing?
 
-Construction of a n-bit processor by
-means of n 1-bit processors working in
-parallel
+*Bitslicing* is term coined by Matthew Kwan. He introduced it when improving
+upon Eli Biham's work on coming up with a fast DES implementation.
 
-This implied a decomposition of all data
-and operations into a set of atomic
-boolean operations
+The basic idea is to express a cipher in terms of single-bit logical operations
+- AND, XOR, OR, etc. - as if you were implementing it in hardware. These
+operations are then carried out for multiple instances of the cipher in
+parallel, using bitwise operations on a CPU.
 
-It consists of dedicating a (virtual)
-register to each bit in an orthogonal
-representation of the data
+In a bitsliced implementation, instead of having a single variable storing,
+say, a 32-bit number, you have one variable storing the lowest bit of the
+number (or, rather, of n numbers, where n is the number of bits your CPU can
+store in a register), another variable storing the second lowest bit(s) of
+the number(s), and so on.
 
-The program must be decomposed in
-atomic boolean operations
+## Bitslicing a simple S-box
 
-constant execution time
-parallelization
-
-## DES and S-Boxes
-
-8 different s-boxes with mapping 6 to 4 bits, each containing 64 4-bit values
-a function that takes 6 bits as input and produces 4 bits as output
-
-DES was designed for hardware, slow in software
-Dr Eli Biham presented his paper A Fast New DES Implementation in Software
-https://link.springer.com/content/pdf/10.1007%2FBFb0052352.pdf
-
-Idea was to use 64-bit processor with 64-bit registers as a SIMD parallel
-computer to compute 64 one-bit operations simultaneously
-
-e.g. XOR 64 bit with 64 bits and you get 64 resulting bits
-
-table lookups are very inefficient, since we have  to collect six bits, each
-bit from a  different word combine them into one index to the table, and after
-the table lookup take the four resultant bits and put each of them in a
-different word.
-
-also constant time, but more on that later
-
-can be represented by their logical gate circuit.  In such an implementation
-each S  box is typically represented  by about 100 gates, and thus we can
-implement an S  box by about 100 instructions
-
-## Bitslicing an S-box
-
-Imagine a 3-to-2-bit S-box represented as a simple lookup table with 8 entries
-to substitute a 3-bit number by a 2-bit number, i.e. `0b000` with `0b01`,
-`0b001` with `0b00`, etc.
+Imagine a 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box) represented
+as a simple lookup table with 8 entries to substitute a 3-bit number by a 2-bit
+number, i.e. `0b000` with `0b01`, `0b001` with `0b00`, etc.
 
 {% codeblock lang:cpp %}
 uint8_t SBOX[] = { 1, 0, 2, 3, 2, 3, 1, 0 };
@@ -109,7 +80,7 @@ uint8_t SBOXL[] = { 0, 0, 1, 1, 1, 1, 0, 0 };
 uint8_t SBOXR[] = { 1, 0, 0, 1, 0, 1, 1, 0 };
 {% endcodeblock %}
 
-{% img /images/sboxr.png The decision graph for SBOXR(a, b, c) %}
+{% img /images/sboxr.png The tree for SBOXR(a, b, c) %}
 
 Explain `~0`.
 
@@ -196,32 +167,56 @@ This reduces down to the XOR of `a` and `b`. Not a great S-box but yeah.
 
 We started with only nine operations - as we could already ignore the `c`
 parameter due to the structure of the S-box - and brought that number down
-to 1. We could now do the same for `SBOXR()` of course.
+to 1. We can now do the same for `SBOXR()`:
 
 {% codeblock lang:cpp %}
 uint8_t SBOXR(uint8_t a, uint8_t b, uint8_t c) {
-  uint8_t bc = b ^ c;
-  return mux(bc ^ ~0, bc, a);
+  return a ^ b ^ c ^ ~0;
 }
 {% endcodeblock %}
 
-That's five instead of twenty-one operations.
+That's three instead of twenty-one operations.
 The whole S-box...
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* x, uint8_t* y) {
   *x = a ^ b;
-  uint8_t bc = b ^ c;
-  *y = mux(bc ^ ~0, bc, a);
+  *y = *x ^ c ^ ~0;
 }
 {% endcodeblock %}
 
-With 6 operations we can compute 8 S-box lookups in parallel. Using `uint64_t`
-we could improve the throughput by a factor of 8x.
+With three operations we can compute 8 S-box lookups in parallel. That's much
+better than a simple table lookup. Using `uint64_t` we could improve the
+throughput by a factor of 8x.
 
 Better S-box...
 
 Rearrange the bits to get even lower?
+
+## DES and S-Boxes
+
+8 different s-boxes with mapping 6 to 4 bits, each containing 64 4-bit values
+a function that takes 6 bits as input and produces 4 bits as output
+
+DES was designed for hardware, slow in software
+Dr Eli Biham presented his paper A Fast New DES Implementation in Software
+https://link.springer.com/content/pdf/10.1007%2FBFb0052352.pdf
+
+Idea was to use 64-bit processor with 64-bit registers as a SIMD parallel
+computer to compute 64 one-bit operations simultaneously
+
+e.g. XOR 64 bit with 64 bits and you get 64 resulting bits
+
+table lookups are very inefficient, since we have  to collect six bits, each
+bit from a  different word combine them into one index to the table, and after
+the table lookup take the four resultant bits and put each of them in a
+different word.
+
+also constant time, but more on that later
+
+can be represented by their logical gate circuit.  In such an implementation
+each S  box is typically represented  by about 100 gates, and thus we can
+implement an S  box by about 100 instructions
 
 ## Bitslicing a DES S-box
 
@@ -236,38 +231,4 @@ uint8_t SBOX1[] = {
    4,  1, 14,  8, 13,  6,  2, 11, 15, 12,  9,  7,  3, 10,  5,  0,
   15, 12,  8,  2,  4,  9,  1,  7,  5, 11,  3, 14, 10,  0,  6, 13
 };
-{% endcodeblock %}
-
-{% codeblock lang:cpp %}
-uint8_t SBOXL(uint8_t a, uint8_t b, uint8_t c) {
-  if (a == 0) {
-    if (b == 0) {
-      if (c == 0) {
-        return 0; // 0b000
-      } else {
-        return 0; // 0b001
-      }
-    } else {
-      if (c == 0) {
-        return 1; // 0b010
-      } else {
-        return 1; // 0b011
-      }
-    }
-  } else {
-    if (b == 0) {
-      if (c == 0) {
-        return 1; // 0b100
-      } else {
-        return 1; // 0b101
-      }
-    } else {
-      if (c == 0) {
-        return 0; // 0b110
-      } else {
-        return 0; // 0b111
-      }
-    }
-  }
-}
 {% endcodeblock %}
