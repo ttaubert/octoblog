@@ -5,57 +5,57 @@ subtitle: "A primer on data orthogonalisation"
 date: 2018-06-24T12:19:54+02:00
 ---
 
-I was recently looking for a resource to brush up on bitsliced implementations
-of crypto algorithms. The only material I found was Thomas Pornin's excellent
-page on [constante-time crypto](https://www.bearssl.org/constanttime.html#bitslicing).
-
-It's a great overview but omits a few details. For the benefit of future me, as
-well as other current and future crypto implementers, I'll seize the chance to
-dive a a little deeper and provide further background.
+I recently found myself looking for resources to brush up on bitsliced
+implementations of crypto algorithms. There's not a lot out there, aside from
+Thomas Pornin's excellent page on [constante-time
+crypto](https://www.bearssl.org/constanttime.html#bitslicing). It's a great
+overview but omits a few details. For the benefit of future me, as well as
+other current and future crypto implementers, I'll take a stab at a simple yet
+comprehensive introduction.
 
 ## What is bitslicing?
 
-*Bitslicing* is term coined by Matthew Kwan. He introduced it when improving
+*Bitslicing* is a term coined by Matthew Kwan. He introduced it when improving
 upon Eli Biham's work on coming up with a fast DES implementation.
 
 The basic idea is to express a cipher in terms of single-bit logical operations
-- AND, XOR, OR, etc. - as if you were implementing it in hardware. These
-operations are then carried out for multiple instances of the cipher in
+- *AND*, *XOR*, *OR*, *NOT*, etc. - as if you were implementing it in hardware.
+These operations are then carried out for multiple instances of the cipher in
 parallel, using bitwise operations on a CPU.
 
-In a bitsliced implementation, instead of having a single variable storing,
-say, a 32-bit number, you have one variable storing the lowest bit of the
-number (or, rather, of n numbers, where n is the number of bits your CPU can
-store in a register), another variable storing the second lowest bit(s) of
-the number(s), and so on.
+{% img /images/slices.png Slicing an 8-bit variable %}
+
+In a bitsliced implementation, instead of having a single variable storing an
+8-bit number, you have eight variables (slices). The first storing the lowest
+bit of the number, the next storing the second lowest bit of the number, and
+so on.
 
 ## Bitslicing a simple S-box
 
-Imagine a 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box) represented
-as a simple lookup table with 8 entries to substitute a 3-bit number by a 2-bit
-number, i.e. `0b000` with `0b01`, `0b001` with `0b00`, etc.
+Imagine an arbitrary 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box)
+represented by a lookup table with eight entries to substitute a 3-bit number
+by a 2-bit number, e.g. `0b000` with `0b01` or `0b001` with `0b00`.
 
 {% codeblock lang:cpp %}
 uint8_t SBOX[] = { 1, 0, 2, 3, 2, 3, 1, 0 };
 {% endcodeblock %}
 
-To bitslice it we will use three input and two output variables. The width of
-these variables determines the number of S-box lookups we can perform at the
-same time. 8-bit variables for example would allow 8 computations in parallel.
-
-Now we have almost everything we need to implement our S-box function. With the
-signature below we'll be able to process 8 lookups in parallel.
+You can think of the above S-box's output as being a function of three boolean
+variables, where for instance `SBOX(0,0,0) = 0b01`. To bitslice it we need three
+input and two output variables. The width of these variables determines the
+number of substitutions we can perform in parallel.
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* x, uint8_t* y);
 {% endcodeblock %}
 
-Need to take a look at multiplexing first.
+To implement a bitsliced version of `SBOX()` with the signature shown above we
+need to take a look at [multiplexing](https://en.wikipedia.org/wiki/Multiplexer) first.
 
 ### Multiplexing
 
-Multiplexer is a fancy word for "data selector". A 2-to-1 multiplexer selects
-one of two input bits to forward. A "selector" bit decides which of the two
+Multiplexer is a fancy word for *data selector*. A 2-to-1 multiplexer selects
+one of two input bits to forward. A *selector* bit decides which of the two
 input bits will retained. In hardware, we can use *AND*, *AND NOT*, and *OR*
 gates to implement this. What would this look like in software?
 
