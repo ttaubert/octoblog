@@ -6,14 +6,13 @@ date: 2018-08-12T08:00:00+02:00
 ---
 
 I recently found myself looking for resources to brush up on bitsliced
-implementations of crypto algorithms. To my surprise, there's not a lot out
-there, aside from Thomas' excellent page on [constant-time crypto](https://www.bearssl.org/constanttime.html#bitslicing).
-For the benefit of future me (and you), here's a recap.
+implementations of cryptographic algorithms. To my surprise, there's not a lot
+out there, aside from Thomas Pornin's excellent page on [constant-time crypto](https://www.bearssl.org/constanttime.html#bitslicing).
 
 This post intends to give a brief overview over bitslicing as a technique, not
 requiring much of a cryptographic background. After working through a small
-example you should leave with a basic understanding, sufficient to dive into
-one of the many papers about fast, constant-time, bitsliced crypto algorithms.
+example you should have a basic understanding, sufficient to dive into one of
+the many papers about fast, constant-time, bitsliced cryptographic algorithms.
 
 ## What is bitslicing?
 
@@ -97,7 +96,7 @@ entries, e.g. `SBOX[0b000] = 0b01`, `SBOX[0b001] = 0b00`, etc.
 uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
 {% endcodeblock %}
 
-> This AES-inspired S-Box interprets three input bits as a polynomial in
+> *TMI:* This AES-inspired S-Box interprets three input bits as a polynomial in
 > *GF(2^3)* and computes its inverse *mod P(x) = x^3 + x^2 + 1*, with
 > *0^(-1) := 0*. The result plus *(x^2 + 1)* is converted back into bits
 > and the MSB is dropped.
@@ -209,12 +208,14 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 }
 {% endcodeblock %}
 
-This works just fine. It's a constant-time implementation, immune to cache
-timing attacks. Not counting negation of `0`, this takes 42 gates. Assuming,
-for the sake of simplicity, that a table lookup is a single-cycle operation,
-even fully parallelized this is still about five times slower. If we had a
-workflow that allowed for 64 S-Box lookups in parallel, switching to `uint64_t`
-would be simple.
+That wasn't too hard. `SBOX()` is constant-time and immune to cache timing
+attacks. Not counting the negation of constants (`~0`) we have 42 gates in total
+and perform eight lookups in parallel.
+
+Assuming, for simplicity, that a table lookup is just one operation, the
+bitsliced version is about five times as slow. If we had a workflow that
+allowed for 64 parallel S-Box lookups we could achieve eight times the
+current throughput by using `uint64_t` variables.
 
 ### Simplifying the circuit
 
@@ -244,13 +245,13 @@ uint8_t SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 }
 {% endcodeblock %}
 
-We reduced this circuit from 42 to 11 gates. Not bad. There's more we could optimize,
-just following the laws of Boolean algebra. But this gets tedious fast.
+The reduced circuit has 11 instead of 42 gates. Not too shabby. Following the
+laws of Boolean algebra we could spend more time and simplify it even further.
+Instead, let's focus on the multiplexer once more.
 
-### A different mux() function
+### A better mux() function
 
-The `mux()` function currently needs three operations. Let's rewrite it using
-an *XOR* gate:
+`mux()` currently needs three operations. Here's a better version using *XOR* gates:
 
 {% codeblock lang:cpp %}
 uint8_t mux(uint8_t a, uint8_t b, uint8_t s) {
@@ -259,37 +260,14 @@ uint8_t mux(uint8_t a, uint8_t b, uint8_t s) {
 }
 {% endcodeblock %}
 
-This lends itself to sometimes easier optimizations.
+Now there still are three gates, but the new version lends itself often to
+easier optimization as we can either precompute `a ^ b` or reuse the result.
+As before, we inline `mux()`, eliminate common subexpressions, and use these
+additional *XOR* rules:
 
-Now there still are three gates but it turns out we can reduce in a lot of
-cases where we can either precompute `a ^ b` or reuse the result. The last row
-of multiplexers always uses constants, so, inlining `mux()` in some places, we
-get the following:
-
-Same things as above, replace `mux()`, eliminate comm subexpr.
-
-* Anything *XOR*-ed with itself is always zero.
-* Anything *XOR*-ed with zero is just the original value.
-* Anything *XOR*-ed with ones is the original value with bits flipped.
-* Anything *AND* ones is just the original value.
-
-{% codeblock lang:cpp %}
-void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
-  uint8_t nc = ~c;
-
-  uint8_t t0 = c & b;
-  uint8_t t1 = nc & b;
-  uint8_t t3 = t0 ^ nc;
-  uint8_t t4 = t1 ^ ~t0;
-  uint8_t t5 = t3 ^ t1;
-
-  *l = (t4 & a) ^ t1;
-  *r = (t5 & a) ^ t3;
-{% endcodeblock %}
-
-11 ops too.
-
-https://en.wikipedia.org/wiki/Boolean_algebra#Laws
+* Any `X XOR X` reduces to `0`.
+* Any `X XOR 0`  reduces to `X`.
+* Any `X XOR ~0` reduces to `~X`.
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
@@ -299,16 +277,28 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 
   uint8_t t0 = nb & a;
   uint8_t t1 = nc & b;
-  uint8_t t2 = na & b;
-  uint8_t t3 = na & nc;
+  uint8_t t2 = b | nc;
+  uint8_t t3 = na & t2;
 
   *l = t0 | t1;
-  *r = t1 | t2 | t3;
+  *r = t1 | t3;
 }
 {% endcodeblock %}
 
-10 ops after manual optimization
+Using the [laws of Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra#Laws)
+I've reduced the circuit to 9 gates and I don't see a way to minimize it further.
 
-VERY tedious and hard, and error-prone. VERY long, probably 60 minutes in total.
+## The Minimal Form
 
-## Karnaugh Maps
+Manual optimization is a tedious process and it might take you a very long time
+to arrive at the smallest possible circuit that represents a given S-Box or LUT.
+
+Finding the minimal form of a Boolean function is an NP-complete problem. That's
+doable manually for a tiny S-box that this blog post used as an example. It
+will not be as easy with a 6-to-4-bit S-box (DES) or even an 8-to-8-bit one
+(AES).
+
+There are better and easier ways to arrive at even smaller circuits, and
+deterministic ways to check whether we reached the minimal form. This post is
+long enough already, I will hopefully find the time to cover this in an
+upcoming post, in the not too distant future.
