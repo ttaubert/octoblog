@@ -2,53 +2,50 @@
 layout: post
 title: "Bitslicing, An Introduction"
 subtitle: "Data Orthogonalization for Cryptography"
-date: 2018-08-12T08:00:00+02:00
+date: 2018-08-14T08:00:00+02:00
 ---
 
-I recently found myself looking for resources to brush up on bitsliced
-implementations of cryptographic algorithms. To my surprise, there's not a lot
-out there, aside from Thomas Pornin's excellent page on [constant-time crypto](https://www.bearssl.org/constanttime.html#bitslicing).
+*Bitslicing* is the strategy of implementing arbitrary functions as Boolean
+circuits, replacing logic gates by instructions working on registers of several
+bits. It enables fast, constant-time implementations of cryptographic algorithms
+immune to cache and timing-related side channel attacks.
 
-This post intends to give a brief overview over bitslicing as a technique, not
-requiring much of a cryptographic background. After working through a small
-example you should have a basic understanding, sufficient to dive into one of
-the many papers about fast, constant-time, bitsliced cryptographic algorithms.
+This post intends to give a brief overview the general technique, not requiring
+much of a cryptographic background, and leave you with a basic understanding --
+sufficient to dive into one of the many modern bitslicing papers.
 
 ## What is bitslicing?
 
-*Bitslicing* is a term coined by Matthew Kwan. It describes the now 20-year-old
-technique introduced by Eli Biham in his paper [A Fast New DES Implementation in Software](http://www.cs.technion.ac.il/users/wwwb/cgi-bin/tr-get.cgi/1997/CS/CS0891.pdf),
-later improved upon by Kwan's [Reducing the Gate Count of Bitslice DES](http://fgrieu.free.fr/Mattew%20Kwan%20-%20Reducing%20the%20Gate%20Count%20of%20Bitslice%20DES.pdf).
+Matthew Kwan coined the term about 20 years ago after seeing Eli Biham present
+his paper [A Fast New DES Implementation in Software](http://www.cs.technion.ac.il/users/wwwb/cgi-bin/tr-get.cgi/1997/CS/CS0891.pdf).
+He later published [Reducing the Gate Count of Bitslice DES](http://fgrieu.free.fr/Mattew%20Kwan%20-%20Reducing%20the%20Gate%20Count%20of%20Bitslice%20DES.pdf)
+showing an even faster DES building on Biham's ideas.
 
-The basic idea is to express a function in terms of single-bit logical
-operations - *AND*, *XOR*, *OR*, *NOT*, etc. - as if you were implementing it
-in hardware. These operations are then carried out for multiple instances of
-the function in parallel, using bitwise operations on a CPU.
+The basic concept is to express a function in terms of single-bit logical
+operations -- *AND*, *XOR*, *OR*, *NOT*, etc. -- as if you were implementing a
+logic circuit in hardware. These operations are then carried out for multiple
+instances of the function in parallel, using bitwise operations on a CPU.
 
 In a bitsliced implementation, instead of having a single variable storing a,
 say, 8-bit number, you have eight variables (slices). The first storing the
-highest bit of the number, the next storing the second highest bit of the number,
+left-most bit of the number, the next storing the second bit from the left,
 and so on. The parallelism is bounded only by the target architecture's register
 width.
 
 ## What's it good for?
 
-You might ask, justifiably, why would anyone do this? Why would you increase
-complexity and code size by bitslicing a perfectly fine function?
-
-Biham was the first to apply bitslicing to [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard),
-a cipher designed to be fast in hardware. It uses eight different 6-to-4-bit
-[S-boxes](https://en.wikipedia.org/wiki/S-box), that were usually implemented
-as lookup tables. Table lookups in DES however are very inefficient, since one
-has to collect six bits, each bit from a different word, combine them into one
-index to the table, and afterwards take the four resulting bits and put each of
-them in a different word.
+Biham applied bitslicing to [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard),
+a cipher designed to be fast in hardware. It uses eight different [S-boxes](https://en.wikipedia.org/wiki/S-box),
+that were usually implemented as lookup tables. Table lookups in DES however are
+rather inefficient, since one has to collect six bits from different words,
+combine them, and afterwards put each of the four resulting bits in a
+different word.
 
 ### Speed
 
-In classical implementation, these bit permutations would be implemented with a
+In classical implementations, these bit permutations would be implemented with a
 combination of shifts and masks. In a bitslice representation though, permuting
-the bits really just means using the "right" variables in the next step; this is
+bits really just means using the "right" variables in the next step; this is
 mere data routing, which is resolved at compile-time, with no cost at runtime.
 
 Additionally, the code is extremely linear so that it usually runs well on
@@ -79,18 +76,16 @@ Encryption (FHE), i.e. computation on ciphertexts. If you have a secure crypto
 scheme and an efficient [NAND gate](https://en.wikipedia.org/wiki/NAND_gate)
 you can use bitslicing to [compute arbitrary functions of encrypted data](https://crypto.stanford.edu/craig/easy-fhe.pdf).
 
--------------------------------------------------------------------------------
-
-So far, this introduction was rather abstract. Let's work through a simple
-example to see how one can go about converting arbitrary functions into
-a bunch of Boolean gates.
-
 ## Bitslicing a small S-box
+
+So far, this introduction was rather abstract. Let's work through a small
+example to see how one could go about converting arbitrary functions into
+a bunch of Boolean gates.
 
 Imagine a 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box), a component
 found in many symmetric encryption algorithms, also called block ciphers.
-Naively, this would usually be represented by a lookup table with eight
-entries, e.g. `SBOX[0b000] = 0b01`, `SBOX[0b001] = 0b00`, etc.
+Naively, this would be represented by a lookup table with eight entries, e.g.
+`SBOX[0b000] = 0b01`, `SBOX[0b001] = 0b00`, etc.
 
 {% codeblock lang:cpp %}
 uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
@@ -114,7 +109,7 @@ We're going to do the reverse and convert our S-box into trees of multiplexers.
 
 [Multiplexer](https://en.wikipedia.org/wiki/Multiplexer) is just a fancy word
 for *data selector*. A 2-to-1 multiplexer selects one of two input bits. A
-*selector* bit decides which of the two inputs will be selected.
+*selector* bit decides which of the two inputs will be passed through.
 
 {% codeblock lang:cpp %}
 bool mux(bool a, bool b, bool s) {
@@ -149,8 +144,8 @@ that in turn can be represented by 2-to-1 multiplexers.
 
 Let's take the `mux()` function from above and make it constant-time. As stated
 earlier, bitslicing is competitive only through parallelization, so, for
-demonstration, we'll use `uint8_t` arguments to compute eight S-box lookups
-in parallel.
+demonstration, we'll use `uint8_t` arguments to later compute eight
+S-box lookups in parallel.
 
 {% codeblock lang:cpp %}
 uint8_t mux(uint8_t a, uint8_t b, uint8_t s) {
@@ -160,14 +155,14 @@ uint8_t mux(uint8_t a, uint8_t b, uint8_t s) {
 
 If the *n*-th bit of `s` is zero it selects the *n*-th bit in `a`, if not it
 forwards the *n*-th bit in `b`. The wider the target architecture's registers,
-the bigger the theoretical throughput -- assuming the workload can take
+the bigger the theoretical throughput -- but only if the workload can take
 advantage of the level of parallelization.
 
 ### A first implementation
 
-For a start, the two output bits will be computed separately and then assembled
-into the final value returned by `SBOX()`. Each multiplexer in the above diagram
-is represented by a `mux()` call. The first four take the LUT-masks
+The two output bits will be computed separately and then assembled into the
+final value returned by `SBOX()`. Each multiplexer in the above diagram is
+represented by a `mux()` call. The first four take the LUT-masks
 *2E<sub>h</sub>* and *B2<sub>h</sub>* as inputs.
 
 The diagram shows Boolean functions that only work on single-bit parameters.
@@ -217,41 +212,9 @@ bitsliced version is about five times as slow. If we had a workflow that
 allowed for 64 parallel S-Box lookups we could achieve eight times the
 current throughput by using `uint64_t` variables.
 
-### Simplifying the circuit
-
-The current circuit is not minimal. [Circuit minimization](https://en.wikipedia.org/wiki/Logic_optimization#Circuit_minimization_in_Boolean_algebra)
-is a field of its own, that I'm not going to touch on here. Let's instead
-reduce complexity by following these rules:
-
-* `mux(a, a, s)` reduces to `a`.
-* Any `X AND ~0` will always be `X`.
-* Anything `AND 0` will always be `0`.
-* `mux()` with constant inputs can be reduced to a single `OR`.
-
-Inline the remaining `mux()` calls, eliminate common subexpressions, repeat.
-
-{% codeblock lang:cpp %}
-uint8_t SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
-  uint8_t na = ~a;
-  uint8_t nb = ~b;
-  uint8_t nc = ~c;
-
-  uint8_t t0 = nc & b;
-  uint8_t t2 = nb | t0;
-  uint8_t t3 = (nc & nb) | b;
-
-  *l = (t0 & na) | (t2 & a);
-  *r = (t3 & na) | (t0 & a);
-}
-{% endcodeblock %}
-
-The reduced circuit has 11 instead of 42 gates. Not too shabby. Following the
-laws of Boolean algebra we could spend more time and simplify it even further.
-Instead, let's focus on the multiplexer once more.
-
 ### A better mux() function
 
-`mux()` currently needs three operations. Here's a better version using *XOR* gates:
+`mux()` currently needs three operations. Here's another variant using *XOR*:
 
 {% codeblock lang:cpp %}
 uint8_t mux(uint8_t a, uint8_t b, uint8_t s) {
@@ -261,13 +224,25 @@ uint8_t mux(uint8_t a, uint8_t b, uint8_t s) {
 {% endcodeblock %}
 
 Now there still are three gates, but the new version lends itself often to
-easier optimization as we can either precompute `a ^ b` or reuse the result.
-As before, we inline `mux()`, eliminate common subexpressions, and use these
-additional *XOR* rules:
+easier optimization as we might be able to precompute `a ^ b` and reuse the
+result.
+
+### Simplifying the circuit
+
+Let's optimize our circuit manually by following these simple rules:
+
+* `mux(a, a, s)` reduces to `a`.
+* Any `X AND ~0` will always be `X`.
+* Anything `AND 0` will always be `0`.
+* `mux()` with constant inputs can be reduced.
+
+Due to our new `mux()` variant there are a few *XOR* to follow as well:
 
 * Any `X XOR X` reduces to `0`.
 * Any `X XOR 0`  reduces to `X`.
 * Any `X XOR ~0` reduces to `~X`.
+
+Inline the remaining `mux()` calls, eliminate common subexpressions, repeat.
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
@@ -286,19 +261,19 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 {% endcodeblock %}
 
 Using the [laws of Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra#Laws)
-I've reduced the circuit to 9 gates and I don't see a way to minimize it further.
+and the rules formulated above we've reduced the circuit to 9 gates (down from 42!).
 
 ## The Minimal Form
 
-Manual optimization is a tedious process and it might take you a very long time
-to arrive at the smallest possible circuit that represents a given S-Box or LUT.
+Whew, this has gotten long again, glad you're still reading! You will be
+delighted to hear that we actually managed to reduce `SBOX()` as far as possible.
 
-Finding the minimal form of a Boolean function is an NP-complete problem. That's
-doable manually for a tiny S-box that this blog post used as an example. It
-will not be as easy with a 6-to-4-bit S-box (DES) or even an 8-to-8-bit one
-(AES).
+Finding the *minimal form* of a Boolean function is an NP-complete problem. Manual
+optimization is tedious but doable for a tiny S-box such as the example used in
+this post. It will not be as easy for multiple 6-to-4-bit S-boxes (DES) or an
+8-to-8-bit one (AES).
 
-There are better and easier ways to arrive at even smaller circuits, and
-deterministic ways to check whether we reached the minimal form. This post is
-long enough already, I will hopefully find the time to cover this in an
-upcoming post, in the not too distant future.
+There are simpler and faster algorithms you can use to build those circuits, and
+deterministic ways to check whether we reached the minimal form. I will
+hopefully find the time to cover these in an upcoming post, in the not
+too distant future.
