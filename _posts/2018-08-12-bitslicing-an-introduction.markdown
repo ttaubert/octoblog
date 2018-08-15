@@ -2,7 +2,7 @@
 layout: post
 title: "Bitslicing, An Introduction"
 subtitle: "Data Orthogonalization for Cryptography"
-date: 2018-08-14T08:00:00+02:00
+date: 2018-08-15T14:00:00+02:00
 ---
 
 *Bitslicing* (in software) is an implementation strategy enabling fast,
@@ -80,16 +80,16 @@ you can use bitslicing to [compute arbitrary functions of encrypted data](https:
 Let's work through a small example to see how one could go about converting
 arbitrary functions into a bunch of Boolean gates.
 
-Imagine a 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box), a component
-found in many symmetric encryption algorithms, also called block ciphers.
-Naively, this would be represented by a lookup table with eight entries, e.g.
-`SBOX[0b000] = 0b01`, `SBOX[0b001] = 0b00`, etc.
+Imagine a 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box) function, a
+component found in many symmetric encryption algorithms. Naively, this would be
+represented by a lookup table with eight entries, e.g.  `SBOX[0b000] = 0b01`,
+`SBOX[0b001] = 0b00`, etc.
 
 {% codeblock lang:cpp %}
 uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
 {% endcodeblock %}
 
-> *TMI:* This AES-inspired S-Box interprets three input bits as a polynomial in
+> This AES-inspired S-box interprets three input bits as a polynomial in
 > *GF(2^3)* and computes its inverse *mod P(x) = x^3 + x^2 + 1*, with
 > *0^(-1) := 0*. The result plus *(x^2 + 1)* is converted back into bits
 > and the MSB is dropped.
@@ -101,9 +101,10 @@ represented by its own Boolean function, i.e. *f<sub>L</sub>(0,0,0) = 0* and
 
 ### LUTs and Multiplexers
 
-If you've dealt with FPGAs before you probably know that these do not actually
-implement Boolean gates, but allow Boolean algebra by programming Look-Up-Tables (LUTs).
-We're going to do the reverse and convert our S-box into trees of multiplexers.
+If you've dealt with [FPGAs](https://en.wikipedia.org/wiki/Field-programmable_gate_array)
+before you probably know that these do not actually implement Boolean gates,
+but allow Boolean algebra by programming Look-Up-Tables (LUTs). We're going
+to do the reverse and convert our S-box into trees of multiplexers.
 
 [Multiplexer](https://en.wikipedia.org/wiki/Multiplexer) is just a fancy word
 for *data selector*. A 2-to-1 multiplexer selects one of two input bits. A
@@ -207,7 +208,7 @@ and perform eight lookups in parallel.
 
 Assuming, for simplicity, that a table lookup is just one operation, the
 bitsliced version is about five times as slow. If we had a workflow that
-allowed for 64 parallel S-Box lookups we could achieve eight times the
+allowed for 64 parallel S-box lookups we could achieve eight times the
 current throughput by using `uint64_t` variables.
 
 ### A better mux() function
@@ -234,7 +235,7 @@ Let's optimize our circuit manually by following these simple rules:
 * Anything `AND 0` will always be `0`.
 * `mux()` with constant inputs can be reduced.
 
-Due to our new `mux()` variant there are a few *XOR* to follow as well:
+With the new `mux()` variant there are a few *XOR* rules to follow as well:
 
 * Any `X XOR X` reduces to `0`.
 * Any `X XOR 0`  reduces to `X`.
@@ -259,8 +260,8 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 {% endcodeblock %}
 
 Using the [laws of Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra#Laws)
-and the rules formulated above I've reduced the circuit to 9 gates (down from 42!).
-We actually can't simplify it any further.
+and the rules formulated above I've reduced the circuit to nine gates (down from 42!).
+We actually couldn't simplify it any further.
 
 ## Next: Circuit Minimization
 
@@ -269,7 +270,6 @@ optimization is tedious but doable for a tiny S-box such as the example used in
 this post. It will not be as easy for multiple 6-to-4-bit S-boxes (DES) or an
 8-to-8-bit one (AES).
 
-There are simpler and faster algorithms you can use to build those circuits,
-and deterministic ways to check whether we reached the minimal form. I will
-hopefully find the time to cover these in an upcoming post, in the not
-too distant future.
+There are simpler and faster ways to build those circuits, and deterministic
+algorithms to check whether we reached the minimal form. I will try to find the
+time to cover these in an upcoming post, in the not too distant future.
