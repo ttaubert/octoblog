@@ -5,14 +5,13 @@ subtitle: "Data Orthogonalization for Cryptography"
 date: 2018-08-14T08:00:00+02:00
 ---
 
-*Bitslicing* is the strategy of implementing arbitrary functions as Boolean
-circuits, replacing logic gates by instructions working on registers of several
-bits. It enables fast, constant-time implementations of cryptographic algorithms
-immune to cache and timing-related side channel attacks.
+*Bitslicing* (in software) is an implementation strategy enabling fast,
+constant-time implementations of cryptographic algorithms immune to cache and
+timing-related side channel attacks.
 
-This post intends to give a brief overview the general technique, not requiring
-much of a cryptographic background, and leave you with a basic understanding --
-sufficient to dive into one of the many modern bitslicing papers.
+This post intends to give a brief overview of the general technique, not requiring
+much of a cryptographic background. It will demonstrate bitslicing a small S-box,
+talk about multiplexers, LUTs, Boolean functions, and minimal forms.
 
 ## What is bitslicing?
 
@@ -35,7 +34,7 @@ width.
 ## What's it good for?
 
 Biham applied bitslicing to [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard),
-a cipher designed to be fast in hardware. It uses eight different [S-boxes](https://en.wikipedia.org/wiki/S-box),
+a cipher designed to be fast in hardware. It uses eight different S-boxes,
 that were usually implemented as lookup tables. Table lookups in DES however are
 rather inefficient, since one has to collect six bits from different words,
 combine them, and afterwards put each of the four resulting bits in a
@@ -78,9 +77,8 @@ you can use bitslicing to [compute arbitrary functions of encrypted data](https:
 
 ## Bitslicing a small S-box
 
-So far, this introduction was rather abstract. Let's work through a small
-example to see how one could go about converting arbitrary functions into
-a bunch of Boolean gates.
+Let's work through a small example to see how one could go about converting
+arbitrary functions into a bunch of Boolean gates.
 
 Imagine a 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box), a component
 found in many symmetric encryption algorithms, also called block ciphers.
@@ -122,7 +120,7 @@ Here are the LUTs, or rather truth tables, for the Boolean functions
 
 {% codeblock lang:cpp %}
  abc | SBOX            abc | f_L()         abc | f_R()
------|------           ----|-------       -----|-------
+-----|------          -----|-------       -----|-------
  000 | 01              000 | 0             000 | 1
  001 | 00              001 | 0             001 | 0
  010 | 11              010 | 1             010 | 1
@@ -165,7 +163,7 @@ final value returned by `SBOX()`. Each multiplexer in the above diagram is
 represented by a `mux()` call. The first four take the LUT-masks
 *2E<sub>h</sub>* and *B2<sub>h</sub>* as inputs.
 
-The diagram shows Boolean functions that only work on single-bit parameters.
+The diagram shows Boolean functions that only work with single-bit parameters.
 We use `uint8_t`, so instead of `1` we need to use `~0` to get `0b11111111`.
 
 {% codeblock lang:cpp %}
@@ -261,19 +259,17 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 {% endcodeblock %}
 
 Using the [laws of Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra#Laws)
-and the rules formulated above we've reduced the circuit to 9 gates (down from 42!).
+and the rules formulated above I've reduced the circuit to 9 gates (down from 42!).
+We actually can't simplify it any further.
 
-## The Minimal Form
-
-Whew, this has gotten long again, glad you're still reading! You will be
-delighted to hear that we actually managed to reduce `SBOX()` as far as possible.
+## Next: Circuit Minimization
 
 Finding the *minimal form* of a Boolean function is an NP-complete problem. Manual
 optimization is tedious but doable for a tiny S-box such as the example used in
 this post. It will not be as easy for multiple 6-to-4-bit S-boxes (DES) or an
 8-to-8-bit one (AES).
 
-There are simpler and faster algorithms you can use to build those circuits, and
-deterministic ways to check whether we reached the minimal form. I will
+There are simpler and faster algorithms you can use to build those circuits,
+and deterministic ways to check whether we reached the minimal form. I will
 hopefully find the time to cover these in an upcoming post, in the not
 too distant future.
