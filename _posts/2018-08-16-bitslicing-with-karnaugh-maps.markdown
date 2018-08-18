@@ -2,7 +2,7 @@
 layout: post
 title: "Bitslicing with Karnaugh maps"
 subtitle: "Data Orthogonalization for Cryptography"
-date: 2018-08-18T12:00:00+02:00
+date: 2018-08-18T15:00:00+02:00
 ---
 
 *Bitslicing*, in cryptography, is the technique of converting arbitrary
@@ -11,13 +11,12 @@ implementations of cryptographic algorithms immune to cache and
 timing-related side channel attacks.
 
 My last post [Bitslicing, An Introduction](/blog/2018/08/bitslicing-an-introduction/)
-showed how to convert an S-box function into thruth tables, then into a tree of
+showed how to convert an S-box function into truth tables, then into a tree of
 multiplexers, and finally how to find the lowest possible gate count through
 manual optimization.
 
-Today's post will focus on a simpler and faster way to achieve this. A
-[Karnaugh map](https://en.wikipedia.org/wiki/Karnaugh_map) is a method of
-simplifying Boolean algebra expressions by taking advantage of humans'
+Today's post will focus on a simpler and faster method. [Karnaugh maps](https://en.wikipedia.org/wiki/Karnaugh_map)
+help simplifying Boolean algebra expressions by taking advantage of humans'
 pattern-recognition capability. In short, we'll bitslice an S-box using K-maps.
 
 ## A tiny S-box
@@ -29,7 +28,7 @@ function from the previous post.
 uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
 {% endcodeblock %}
 
-> This AES-inspired S-box interprets three input bits as a polynomial in
+> An AES-inspired S-box that interprets three input bits as a polynomial in
 > *GF(2^3)* and computes its inverse *mod P(x) = x^3 + x^2 + 1*, with
 > *0^(-1) := 0*. The result plus *(x^2 + 1)* is converted back into bits
 > and the MSB is dropped.
@@ -76,7 +75,7 @@ than binary numerical order to ensure only a single variable changes between
 each pair of adjacent cells. Otherwise, products of predicates
 (`a & b`, `a & c`, ...) would scatter.
 
-These products are what you want to spot to get a minimum length representation
+These products are what you want to find to get a minimum length representation
 of the truth function. If the output bit is the same at two adjacent cells,
 then it's independent of one of the two input variables, because
 `(a & ~b) | (a & b) = a`.
@@ -121,10 +120,10 @@ far left, as do those at the very top and bottom.
 
 {% img /images/kmaps-rotate.gif Animation: Rotating a K-map to the left (and right) %}
 
-Another way to explain this property is by imagining that the columns don't
+Another way to understand this property is to imagine that the columns don't
 start at `00` but rather at `01`, and so we rotate the whole K-map by one to
-the left. That way the rectangles don't need to wrap around and they all fit on
-the grid nicely.
+the left. Then the rectangles wouldn't need to wrap around and they would all
+fit on the grid nicely.
 
 Now that all cells with a `1` have been assigned to as few groups as possible,
 let's get our hands dirty and write some code.
@@ -177,7 +176,7 @@ that to the result of the previous post.
 ### Putting it all together
 
 The first three variables ensure that we negate inputs only once. `t0` replaces
-the common subexpression `b & nc`. Things any optimizing compiler would do too.
+the common subexpression `b & nc`. Any optimizing compiler would do the same.
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
@@ -194,7 +193,7 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 
 **Ten gates.** That's one more than the manually optimized version from the last
 post. What's missing? Turns out that K-maps sometimes don't yield the minimal
-form and have to simplify further by taking out common factors.
+form and we have to simplify further by taking out common factors.
 
 The conjunctions in the term `(na & b) | (na & nc)` have the common factor `na`
 and, due to the Distributivity Law, can be rewritten as `na & (b | nc)`. That
@@ -230,8 +229,5 @@ groups visually.
 The [Quine–McCluskey algorithm](https://en.wikipedia.org/wiki/Quine%E2%80%93McCluskey_algorithm)
 is functionally identical to K-maps but can handle an arbitrary number of input
 variables in its original variant -- although the running time grows
-exponentially with the number of variables. That shouldn't affect us
-though, S-boxes usually don't have too many inputs anyway. Maybe
-I'll write about this one next...
-
-(Thanks for reading this far!)
+exponentially with the number of variables. Not too problematic for
+us, S-boxes usually don't have too many inputs anyway...

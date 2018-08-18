@@ -271,5 +271,5 @@ this post. It will not be as easy for multiple 6-to-4-bit S-boxes (DES) or an
 8-to-8-bit one (AES).
 
 There are simpler and faster ways to build those circuits, and deterministic
-algorithms to check whether we reached the minimal form. I will try to find the
-time to cover these in an upcoming post, in the not too distant future.
+algorithms to check whether we reached the minimal form. One of those is
+covered in my next post [Bitslicing with Karnaugh maps](/blog/2018/08/bitslicing-with-karnaugh-maps/).
