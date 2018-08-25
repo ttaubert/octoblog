@@ -5,7 +5,7 @@ subtitle: "Data Orthogonalization for Cryptography"
 date: 2018-08-25T15:00:00+02:00
 ---
 
-In part one I gave a short introduction of bitslicing as a concept, talked about
+Part one gave a short introduction of bitslicing as a concept, talked about
 its use cases, truth tables, software multiplexers, LUTs, and manual optimization.
 
 The second covered [Karnaugh mapping](https://en.wikipedia.org/wiki/Karnaugh_map),
@@ -23,8 +23,8 @@ can minimize circuits with an arbitrary number of input values. Both are relativ
 
 ## The Quine-McCluskey algorithm
 
-Here is the 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box) function
-from the previous posts again:
+Here is the 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box) from the
+previous posts again:
 
 {% codeblock lang:cpp %}
 uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
@@ -32,8 +32,8 @@ uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
 
 Without much ado, we'll jump right in and bitslice functions for both its
 output bits in parallel. You'll probably recognize a few similarities to K-maps,
-except that the steps are rather mechanical and don't require pattern-recognition
-abilities.
+except that the steps are rather mechanical and don't require visual
+pattern-recognition abilities.
 
 ### Step 1: Listing minterms
 
@@ -138,8 +138,8 @@ f<sub>R</sub>(a,b,c) = ∑ m(0,2,3,6)
           = <span style="text-decoration:overline">a</span><span style="text-decoration:overline">b</span><span style="text-decoration:overline">c</span> + <span style="text-decoration:overline">a</span>b<span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span><span style="text-decoration:overline">c</span> + ab<span style="text-decoration:overline">c</span>
 </pre>
 
-Well, that's a start. These functions are constant-time but not even close to
-minimal.
+Well, that's a start. Translated into C, these functions would be constant-time
+but not even close to minimal.
 
 ### Step 2: Little boxes
 
@@ -203,9 +203,9 @@ changes. They can't be in any of the other buckets.
 
 ### Step 3: Merging minterms
 
-Why would you even look for minterms with a one-variable difference? Because
-they can be merged to simplify our expression. These combinations are called
-*minterms of size 2*.
+Why would you even look for pairs of minterms with a one-variable difference?
+Because they can be merged to simplify our expression. These combinations are
+called *minterms of size 2*.
 
 All minterms have output `1`, so if the only difference is exactly one input
 variable, then the output is independent of it. For example, `(a & ~b & c) | (a & b & c)`
@@ -278,8 +278,8 @@ input variable, *a*. They merge into *m<sub>2,6</sub>=—10*, with a dash markin
 the position of the irrelevant input bit.
 
 Once all minterms were combined (as far as possible), we'll continue with the
-next size. Minterms of size bigger than 1 have dashes for irrelevant input bits,
-it's important to treat those as a "third bit value". In other words, their
+next size. Minterms of size bigger than 1 have dashes for irrelevant input bits
+and it's important to treat those as a "third bit value". In other words, their
 dashes must be at the same positions, otherwise they can't be merged.
 
 There's nothing left to merge for *f<sub>L</sub>(a,b,c)* as all
@@ -352,12 +352,12 @@ the input values combinations.
 
 Prime implicant *m<sub>2,6</sub>\** on the left for example is the only one that
 covers *m<sub>2</sub>*. *m<sub>4,5</sub>\** is the only one that covers
-*m<sub>5</sub>*. Turns out that not only is *m<sub>4,6</sub>* not essential,
-but we actually don't need it at all. *m<sub>4</sub>* and *m<sub>6</sub>* are
-already covered by the essential prime implicants. All prime implicants of
-f<sub>R</sub>(a,b,c) are essential, so we'll need all of them.
+*m<sub>5</sub>*. Not only is *m<sub>4,6</sub>* not essential, but we actually
+don't need it at all: *m<sub>4</sub>* and *m<sub>6</sub>* are already covered
+by the essential prime implicants. All prime implicants of f<sub>R</sub>(a,b,c)
+are essential, so we need all of them.
 
-When bitslicing functions with more input variables it can happen that you are
+When bitslicing functions with many input variables it may happen that you are
 left with a number of non-essential prime implicants that can be combined in
 various ways to cover the missing minterms. [Petrick's method](https://en.wikipedia.org/wiki/Petrick%27s_method)
 helps finding a minimum solution. It's tedious to do manually, but relatively
@@ -415,8 +415,8 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 ## Bitslicing a DES S-box
 
 When I started writing this blog post I thought it would be nice to ditch the
-small S-box from the previous posts, and bitslice a "real" S-box, like the ones
-used in [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard).
+small S-box from the previous posts, and naively bitslice a "real" S-box, like
+the ones used in [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard).
 
 But these are 6-to-4-bit S-boxes, how much more effort can it be? Turns out we
 humans are terrible at understanding exponential growth. Here are my intermediate
@@ -431,5 +431,5 @@ with that many input variables manually is way too much effort, it takes too lon
 and is error-prone.
 
 At the beginning I mentioned that Quine-McCluskey and Petrick's method can be
-implemented in software rather easily, so that's what I did. I'll explain how,
-and what to consider when doing that, in the next post.
+implemented in software rather easily, so that's what I did instead. I'll
+explain how, and what to consider when doing that, in the next post.
