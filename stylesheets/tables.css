@@ -1,0 +1,121 @@
+.table-wrapper {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1em;
+  margin-bottom: 30px;
+}
+
+table {
+  border: 1px solid #666;
+  border-collapse: collapse;
+}
+
+tr {
+  border-bottom: 1px solid #666;
+}
+
+th {
+  white-space: nowrap;
+}
+
+th, td {
+  text-align: center;
+  border-right: 1px solid #666;
+  vertical-align: middle;
+  padding: 0.3em;
+}
+
+th {
+  background: #eee;
+}
+
+caption {
+  text-align: center;
+}
+
+/* Bitslicing: truth */
+
+.truth table {
+  width: 25%;
+}
+
+.truth td {
+  font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+
+/* Quine-McCluskey: minterms */
+
+.minterms table {
+  width: 45%;
+}
+
+.minterms td:first-child {
+  font-weight: 700;
+}
+
+.minterms td:not(:first-child) {
+  font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+
+.minterms > table:last-of-type > tbody > tr:nth-child(1),
+.minterms > table > tbody > tr:nth-child(3),
+.minterms > table:last-of-type > tbody > tr:nth-child(4),
+.minterms > table:first-of-type > tbody > tr:nth-child(5),
+.minterms > table:first-of-type > tbody > tr:nth-child(6),
+.minterms > table > tbody > tr:nth-child(7) {
+  background: #ddd;
+}
+
+.minterms > table:last-of-type > tbody > tr:nth-child(1) > td:last-child,
+.minterms > table > tbody > tr:nth-child(3) > td:last-child,
+.minterms > table:last-of-type > tbody > tr:nth-child(4) > td:last-child,
+.minterms > table:first-of-type > tbody > tr:nth-child(5) > td:last-child,
+.minterms > table:first-of-type > tbody > tr:nth-child(6) > td:last-child,
+.minterms > table > tbody > tr:nth-child(7) > td:last-child {
+  font-weight: 700;
+}
+
+/* Quine-McCluskey: buckets */
+
+.buckets table {
+  width: 45%;
+}
+
+.buckets td:first-child {
+  font-weight: 700;
+}
+
+.buckets:not(.size2) > table:first-of-type > tbody > tr:nth-child(2n-1),
+.buckets:not(.size2) > table:last-of-type > tbody > tr:nth-child(3),
+.buckets.size2 > table:first-of-type > tbody > tr:nth-child(1),
+.buckets.size2 > table > tbody > tr:nth-child(2n+2) {
+  border-bottom-color: #ccc;
+}
+
+.buckets td:nth-child(4) {
+  border-right: 1px solid #ccc;
+}
+
+.buckets td:nth-child(3),
+.buckets td:nth-child(5) {
+  font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+
+/* Quine-McCluskey: prime */
+
+.prime table {
+  width: 45%;
+}
+
+.prime td:first-child,
+.prime td.essential {
+  font-weight: 700;
+}
+
+.prime td:not(:first-child) {
+  font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+
+.prime td.essential {
+  background: #ddd;
+}

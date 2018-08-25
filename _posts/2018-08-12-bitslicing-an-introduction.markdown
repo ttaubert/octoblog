@@ -13,6 +13,10 @@ This post intends to give a brief overview of the general technique, not requiri
 much of a cryptographic background. It will demonstrate bitslicing a small S-box,
 talk about multiplexers, LUTs, Boolean functions, and minimal forms.
 
+> Part 1: Bitslicing, An Introduction  
+> [Part 2: Bitslicing with Karnaugh maps](/blog/2018/08/bitslicing-with-karnaugh-maps/)  
+> [Part 3: Bitslicing with Quine-McCluskey](/blog/2018/08/bitslicing-with-quine-mccluskey/)
+
 ## What is bitslicing?
 
 Matthew Kwan coined the term about 20 years ago after seeing Eli Biham present
@@ -119,18 +123,115 @@ bool mux(bool a, bool b, bool s) {
 Here are the LUTs, or rather truth tables, for the Boolean functions
 *f<sub>L</sub>(a,b,c)* and *f<sub>R</sub>(a,b,c)*:
 
-{% codeblock lang:cpp %}
- abc | SBOX            abc | f_L()         abc | f_R()
------|------          -----|-------       -----|-------
- 000 | 01              000 | 0             000 | 1
- 001 | 00              001 | 0             001 | 0
- 010 | 11              010 | 1             010 | 1
- 011 | 01     --->     011 | 0      +      011 | 1
- 100 | 10              100 | 1             100 | 0
- 101 | 10              101 | 1             101 | 0
- 110 | 11              110 | 1             110 | 1
- 111 | 00              111 | 0             111 | 0
-{% endcodeblock %}
+<div class="table-wrapper truth">
+  <table>
+    <caption>SBOX(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>01</td>
+      </tr>
+      <tr>
+        <td>001</td><td>00</td>
+      </tr>
+      <tr>
+        <td>010</td><td>11</td>
+      </tr>
+      <tr>
+        <td>011</td><td>01</td>
+      </tr>
+      <tr>
+        <td>100</td><td>10</td>
+      </tr>
+      <tr>
+        <td>101</td><td>10</td>
+      </tr>
+      <tr>
+        <td>110</td><td>11</td>
+      </tr>
+      <tr>
+        <td>111</td><td>00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>0</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>0</td>
+      </tr>
+      <tr>
+        <td>100</td><td>1</td>
+      </tr>
+      <tr>
+        <td>101</td><td>1</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>1</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>1</td>
+      </tr>
+      <tr>
+        <td>100</td><td>0</td>
+      </tr>
+      <tr>
+        <td>101</td><td>0</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 The truth table for *f<sub>L</sub>(a,b,c)* is *(0, 0, 1, 0, 1, 1, 1, 0)* or
 *2E<sub>h</sub>*. We can also call this the LUT-mask in the context of an
@@ -272,4 +373,4 @@ this post. It will not be as easy for multiple 6-to-4-bit S-boxes (DES) or an
 
 There are simpler and faster ways to build those circuits, and deterministic
 algorithms to check whether we reached the minimal form. One of those is
-covered in my next post [Bitslicing with Karnaugh maps](/blog/2018/08/bitslicing-with-karnaugh-maps/).
+covered in the next post [Bitslicing with Karnaugh maps](/blog/2018/08/bitslicing-with-karnaugh-maps/).

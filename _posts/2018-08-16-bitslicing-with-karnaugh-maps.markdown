@@ -19,6 +19,10 @@ Today's post will focus on a simpler and faster method. [Karnaugh maps](https://
 help simplifying Boolean algebra expressions by taking advantage of humans'
 pattern-recognition capability. In short, we'll bitslice an S-box using K-maps.
 
+> [Part 1: Bitslicing, An Introduction](/blog/2018/08/bitslicing-an-introduction/)  
+> Part 2: Bitslicing with Karnaugh maps  
+> [Part 3: Bitslicing with Quine-McCluskey](/blog/2018/08/bitslicing-with-quine-mccluskey/)
+
 ## A tiny S-box
 
 Here again is the 3-to-2-bit [S-box](https://en.wikipedia.org/wiki/S-box)
@@ -45,18 +49,115 @@ Each output bit has its own Boolean function, and therefore also its own thruth
 table. Here are the truth tables for the Boolean functions *f<sub>L</sub>(a,b,c)*
 and *f<sub>R</sub>(a,b,c)*:
 
-{% codeblock lang:cpp %}
- abc | SBOX            abc | f_L()         abc | f_R()
------|------          -----|-------       -----|-------
- 000 | 01              000 | 0             000 | 1
- 001 | 00              001 | 0             001 | 0
- 010 | 11              010 | 1             010 | 1
- 011 | 01     --->     011 | 0      +      011 | 1
- 100 | 10              100 | 1             100 | 0
- 101 | 10              101 | 1             101 | 0
- 110 | 11              110 | 1             110 | 1
- 111 | 00              111 | 0             111 | 0
-{% endcodeblock %}
+<div class="table-wrapper truth">
+  <table>
+    <caption>SBOX(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>01</td>
+      </tr>
+      <tr>
+        <td>001</td><td>00</td>
+      </tr>
+      <tr>
+        <td>010</td><td>11</td>
+      </tr>
+      <tr>
+        <td>011</td><td>01</td>
+      </tr>
+      <tr>
+        <td>100</td><td>10</td>
+      </tr>
+      <tr>
+        <td>101</td><td>10</td>
+      </tr>
+      <tr>
+        <td>110</td><td>11</td>
+      </tr>
+      <tr>
+        <td>111</td><td>00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>0</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>0</td>
+      </tr>
+      <tr>
+        <td>100</td><td>1</td>
+      </tr>
+      <tr>
+        <td>101</td><td>1</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>1</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>1</td>
+      </tr>
+      <tr>
+        <td>100</td><td>0</td>
+      </tr>
+      <tr>
+        <td>101</td><td>0</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 Whereas previously at this point we built a tree of multiplexers out of each
 truth table, we'll now build a Karnaugh map (K-map) per output bit.
@@ -226,7 +327,7 @@ can't be used with more than four input variables. There are variants that do
 work with more than four variables but they actually make it harder to spot
 groups visually.
 
-The [Quine–McCluskey algorithm](https://en.wikipedia.org/wiki/Quine%E2%80%93McCluskey_algorithm)
+The [Quine–McCluskey algorithm](/blog/2018/08/bitslicing-with-quine-mccluskey/)
 is functionally identical to K-maps but can handle an arbitrary number of input
 variables in its original variant -- although the running time grows
 exponentially with the number of variables. Not too problematic for
