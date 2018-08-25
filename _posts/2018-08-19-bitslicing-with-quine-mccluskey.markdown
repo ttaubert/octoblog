@@ -2,7 +2,7 @@
 layout: post
 title: "Bitslicing with Quine-McCluskey"
 subtitle: "Data Orthogonalization for Cryptography"
-date: 2018-08-25T14:00:00+02:00
+date: 2018-08-25T15:00:00+02:00
 ---
 
 In part one I gave a short introduction of bitslicing as a concept, talked about
@@ -30,9 +30,10 @@ from the previous posts again:
 uint8_t SBOX[] = { 1, 0, 3, 1, 2, 2, 3, 0 };
 {% endcodeblock %}
 
-Without much ado, we'll jump right in and bitslice both its output bits in
-parallel. You'll probably recognize a few similarities to K-maps, except that
-the steps are rather mechanical and don't require pattern-recognition abilities.
+Without much ado, we'll jump right in and bitslice functions for both its
+output bits in parallel. You'll probably recognize a few similarities to K-maps,
+except that the steps are rather mechanical and don't require pattern-recognition
+abilities.
 
 ### Step 1: Listing minterms
 
@@ -122,9 +123,9 @@ with each combination of inputs assigned a symbol *m<sub>i</sub>*. Rows
 </div>
 
 We're interested only in the minterms where the function evaluates to `1` and
-will ignore all others. Boolean functions can already be constructed by just
-looking at the tables. In [Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra),
-*OR* can be expressed as addition, *AND* by multiplication. The negation of *x*
+will ignore all others. Boolean functions can already be constructed with just
+those tables. In [Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebra),
+*OR* can be expressed as addition, *AND* as multiplication. The negation of *x*
 is represented by *<span style="text-decoration:overline">x</span>*.
 
 <pre>
@@ -186,7 +187,7 @@ number of `1`s in their inputs *a*, *b*, and *c*.
         <td>1</td><td>m<sub>2</sub></td><td>010</td>
       </tr>
       <tr>
-        <td>2</td><td>m<sub>3</sub></td><td>001</td>
+        <td>2</td><td>m<sub>3</sub></td><td>011</td>
       </tr>
       <tr>
         <td></td><td>m<sub>6</sub></td><td>110</td>
@@ -202,13 +203,13 @@ changes. They can't be in any of the other buckets.
 
 ### Step 3: Merging minterms
 
-Why would we even look for minterms with a one-variable difference? Because we
-can merge them to simplify our expression. We call these new ones *minterms of
-size 2*.
+Why would you even look for minterms with a one-variable difference? Because
+they can be merged to simplify our expression. These combinations are called
+*minterms of size 2*.
 
-All minterms have output `1`, so the only difference is exactly one input variable, and the
-output is independent of it. For example, `(a & ~b & c) | (a & b & c)` can
-be reduced to just `a & c`, the expression value is independent of *b*.
+All minterms have output `1`, so if the only difference is exactly one input
+variable, then the output is independent of it. For example, `(a & ~b & c) | (a & b & c)`
+can be reduced to just `a & c`, the expression value is independent of *b*.
 
 <div class="table-wrapper buckets size2">
   <table>
@@ -258,7 +259,7 @@ be reduced to just `a & c`, the expression value is independent of *b*.
         <td></td><td></td><td></td><td>m<sub>2,6</sub></td><td>—10</td>
       </tr>
       <tr>
-        <td>2</td><td>m<sub>3</sub></td><td>001</td><td></td><td></td>
+        <td>2</td><td>m<sub>3</sub></td><td>011</td><td></td><td></td>
       </tr>
       <tr>
         <td></td><td>m<sub>6</sub></td><td>110</td><td></td><td></td>
@@ -268,14 +269,13 @@ be reduced to just `a & c`, the expression value is independent of *b*.
 </div>
 
 Always start with the minterms in the very first bucket at the top of the table.
-For every minterm in bucket *n*, we try to find a minterm in bucket *n+1* with
+For every minterm in bucket *n*, we try to find a minterm in bucket *n+1* with a
 one-bit difference in the *binary* column. Any matches will be recorded as pairs
-and entered into the *size-2* column of bucket *n*. If there's no bucket *n+1*
-we can stop.
+and entered into the *size-2* column of bucket *n*.
 
-*m<sub>2</sub>=010*  and *m<sub>6</sub>=110* for example differ in only the
-first input variable, *a*. They're merged into *m<sub>2,6</sub>=—10*, with
-a dash marking the position of the irrelevant input bit.
+*m<sub>2</sub>=010* and *m<sub>6</sub>=110* for example differ in only the first
+input variable, *a*. They merge into *m<sub>2,6</sub>=—10*, with a dash marking
+the position of the irrelevant input bit.
 
 Once all minterms were combined (as far as possible), we'll continue with the
 next size. Minterms of size bigger than 1 have dashes for irrelevant input bits,
@@ -288,6 +288,15 @@ of the minterms in the first bucket match any of those in the second bucket,
 their dashes are all in different positions.
 
 ### Step 4: Prime Implicants
+
+All minterms from the previous step that can't be combined any further are
+called *prime implicants*. Entering them into a table let's us check how well
+they cover the original minterms determined by step 1.
+
+If any prime implicant is the only one to cover a minterm, it's called an
+*essential prime implicant* (marked with an asterisk). It's essential because
+it must be included in the resulting minimal form, otherwise we'd miss one of
+the input values combinations.
 
 <div class="table-wrapper prime">
   <table>
@@ -341,11 +350,30 @@ their dashes are all in different positions.
   </table>
 </div>
 
+Prime implicant *m<sub>2,6</sub>\** on the left for example is the only one that
+covers *m<sub>2</sub>*. *m<sub>4,5</sub>\** is the only one that covers
+*m<sub>5</sub>*. Turns out that not only is *m<sub>4,6</sub>* not essential,
+but we actually don't need it at all. *m<sub>4</sub>* and *m<sub>6</sub>* are
+already covered by the essential prime implicants. All prime implicants of
+f<sub>R</sub>(a,b,c) are essential, so we'll need all of them.
+
+When bitslicing functions with more input variables it can happen that you are
+left with a number of non-essential prime implicants that can be combined in
+various ways to cover the missing minterms. [Petrick's method](https://en.wikipedia.org/wiki/Petrick%27s_method)
+helps finding a minimum solution. It's tedious to do manually, but relatively
+simple to implement in software.
+
 ### Step 5: Minimal Forms
+
+We can derive minimal forms of our Boolean functions by looking at the *abc*
+column of the essential prime implicants. The input variable marked with a dash
+is ignored.
 
 <pre>
 f<sub>L</sub>(a,b,c) = m<sub>2,6</sub> + m<sub>4,5</sub> = b<span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span>
 </pre>
+
+The code for `SBOXL()` with 8-bit inputs:
 
 {% codeblock lang:cpp %}
 uint8_t SBOXL(uint8_t a, uint8_t b, uint8_t c) {
@@ -353,9 +381,13 @@ uint8_t SBOXL(uint8_t a, uint8_t b, uint8_t c) {
 }
 {% endcodeblock %}
 
+*f<sub>R</sub>(a,b,c)*, reduced to the combination of its three essential prime implicants:
+
 <pre>
 f<sub>R</sub>(a,b,c) = m<sub>0,2</sub> + m<sub>2,3</sub> + m<sub>2,6</sub> = <span style="text-decoration:overline">a</span><span style="text-decoration:overline">c</span> + <span style="text-decoration:overline">a</span>b + b<span style="text-decoration:overline">c</span>
 </pre>
+
+And `SBOXR()` as expected:
 
 {% codeblock lang:cpp %}
 uint8_t SBOXR(uint8_t a, uint8_t b, uint8_t c) {
@@ -363,7 +395,8 @@ uint8_t SBOXR(uint8_t a, uint8_t b, uint8_t c) {
 }
 {% endcodeblock %}
 
-## The bitsliced Code
+Combining `SBOXL()` and `SBOXR()` yields the familiar version of `SBOX()`, if
+we eliminate common subexpressions and take out common factors.
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
@@ -379,8 +412,24 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 }
 {% endcodeblock %}
 
-## Next: in code
+## Bitslicing a DES S-box
 
-{% img /images/des-bitslice.jpg Me, manually bitslicing one output bit of a DES S-box %}
+When I started writing this blog post I thought it would be nice to ditch the
+small S-box from the previous posts, and bitslice a "real" S-box, like the ones
+used in [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard).
 
-DES S-Box
+But these are 6-to-4-bit S-boxes, how much more effort can it be? Turns out we
+humans are terrible at understanding exponential growth. Here are my intermediate
+results after writing frantically for 1-2 hours, trying to bitslice just one of
+the output bits:
+
+{% img /images/des-bitslice.jpg Bitslicing one output bit of a DES S-box manually %}
+
+I made a mistake somewhere in the middle and would have had to go back a few
+steps or I wouldn't get a minimal solution. I realized that bitslicing a function
+with that many input variables manually is way too much effort, it takes too long
+and is error-prone.
+
+At the beginning I mentioned that Quine-McCluskey and Petrick's method can be
+implemented in software rather easily, so that's what I did. I'll explain how,
+and what to consider when doing that, in the next post.
