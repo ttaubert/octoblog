@@ -425,10 +425,10 @@ bits:
 
 {% img /images/des-bitslice.jpg Bitslicing one output bit of a DES S-box manually %}
 
-I made a mistake somewhere in the middle and would have had to go back a few
-steps or not end up with a minimal solution. Bitslicing a function with that
-many input variables manually is laborious and probably not worth it, except
-that it definitely helped me understand the steps of the algorithm better.
+I gave up when I spotted a few mistakes that would likely lead to a non-minimal
+solution. Bitslicing a function with that many input variables manually is
+laborious and probably not worth it, except that it definitely helped me
+understand the steps of the algorithm better.
 
 As mentioned in the beginning, Quine-McCluskey and Petrick's method can be
 implemented in software rather easily, so that's what I did instead. I'll
