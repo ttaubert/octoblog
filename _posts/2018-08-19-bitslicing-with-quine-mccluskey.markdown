@@ -2,7 +2,7 @@
 layout: post
 title: "Bitslicing with Quine-McCluskey"
 subtitle: "Data Orthogonalization for Cryptography"
-date: 2018-08-25T15:00:00+02:00
+date: 2018-08-27T15:00:00+02:00
 ---
 
 Part one gave a short introduction of bitslicing as a concept, talked about
@@ -141,10 +141,10 @@ f<sub>R</sub>(a,b,c) = ∑ m(0,2,3,6)
 Well, that's a start. Translated into C, these functions would be constant-time
 but not even close to minimal.
 
-### Step 2: Little boxes
+### Step 2: Bit Buckets
 
-Now that we have all these minterms, we'll put them in buckets based on the
-number of `1`s in their inputs *a*, *b*, and *c*.
+Now that we have all these minterms, we'll put them in separate buckets based
+on the number of `1`s in their inputs *a*, *b*, and *c*.
 
 <div class="table-wrapper buckets">
   <table>
@@ -284,7 +284,7 @@ dashes must be at the same positions, otherwise they can't be merged.
 
 There's nothing left to merge for *f<sub>L</sub>(a,b,c)* as all
 its size-2 minterms are in the first bucket. For *f<sub>R</sub>(a,b,c)*, none
-of the minterms in the first bucket match any of those in the second bucket,
+of the size-2 minterms in the first bucket match any of those in the second,
 their dashes are all in different positions.
 
 ### Step 4: Prime Implicants
@@ -360,14 +360,14 @@ are essential, so we need all of them.
 When bitslicing functions with many input variables it may happen that you are
 left with a number of non-essential prime implicants that can be combined in
 various ways to cover the missing minterms. [Petrick's method](https://en.wikipedia.org/wiki/Petrick%27s_method)
-helps finding a minimum solution. It's tedious to do manually, but relatively
-simple to implement in software.
+helps finding a minimum solution. It's tedious to do manually, but not hard to
+automate.
 
 ### Step 5: Minimal Forms
 
-We can derive minimal forms of our Boolean functions by looking at the *abc*
-column of the essential prime implicants. The input variable marked with a dash
-is ignored.
+Finally, we derive minimal forms of our Boolean functions by looking at the *abc*
+column of the essential prime implicants. Input variables marked with dashes
+are ignored.
 
 <pre>
 f<sub>L</sub>(a,b,c) = m<sub>2,6</sub> + m<sub>4,5</sub> = b<span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span>
@@ -395,8 +395,8 @@ uint8_t SBOXR(uint8_t a, uint8_t b, uint8_t c) {
 }
 {% endcodeblock %}
 
-Combining `SBOXL()` and `SBOXR()` yields the familiar version of `SBOX()`, if
-we eliminate common subexpressions and take out common factors.
+Combining `SBOXL()` and `SBOXR()` yields the familiar version of `SBOX()`, after
+eliminating common subexpressions and taking out common factors.
 
 {% codeblock lang:cpp %}
 void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
@@ -418,18 +418,18 @@ When I started writing this blog post I thought it would be nice to ditch the
 small S-box from the previous posts, and naively bitslice a "real" S-box, like
 the ones used in [DES](https://en.wikipedia.org/wiki/Data_Encryption_Standard).
 
-But these are 6-to-4-bit S-boxes, how much more effort can it be? Turns out we
+But these are 6-to-4-bit S-boxes, how much more effort can it be? As it turns out,
 humans are terrible at understanding exponential growth. Here are my intermediate
-results after writing frantically for 1-2 hours, trying to bitslice just one of
-the output bits:
+results after an hour of writing, trying to bitslice just one of the four output
+bits:
 
 {% img /images/des-bitslice.jpg Bitslicing one output bit of a DES S-box manually %}
 
 I made a mistake somewhere in the middle and would have had to go back a few
-steps or I wouldn't get a minimal solution. I realized that bitslicing a function
-with that many input variables manually is way too much effort, it takes too long
-and is error-prone.
+steps or not end up with a minimal solution. Bitslicing a function with that
+many input variables manually is laborious and probably not worth it, except
+that it definitely helped me understand the steps of the algorithm better.
 
-At the beginning I mentioned that Quine-McCluskey and Petrick's method can be
+As mentioned in the beginning, Quine-McCluskey and Petrick's method can be
 implemented in software rather easily, so that's what I did instead. I'll
-explain how, and what to consider when doing that, in the next post.
+explain how, and what to consider, in the next post.

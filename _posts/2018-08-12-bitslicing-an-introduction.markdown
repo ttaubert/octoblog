@@ -364,7 +364,7 @@ Using the [laws of Boolean algebra](https://en.wikipedia.org/wiki/Boolean_algebr
 and the rules formulated above I've reduced the circuit to nine gates (down from 42!).
 We actually couldn't simplify it any further.
 
-## Next: Circuit Minimization
+## Circuit Minimization
 
 Finding the *minimal form* of a Boolean function is an NP-complete problem. Manual
 optimization is tedious but doable for a tiny S-box such as the example used in

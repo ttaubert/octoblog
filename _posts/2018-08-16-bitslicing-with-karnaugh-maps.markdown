@@ -316,7 +316,7 @@ void SBOX(uint8_t a, uint8_t b, uint8_t c, uint8_t* l, uint8_t* r) {
 
 **Nine gates.** That's exactly what we achieved by tedious artisanal optimization.
 
-## Summing up
+## More than four inputs
 
 K-maps are neat and trivial to use once you've worked through an example
 yourself. They yield minimal circuits *fast*, compared to manual optimization
