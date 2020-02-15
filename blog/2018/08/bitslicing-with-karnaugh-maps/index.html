@@ -1,0 +1,410 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bitslicing with Karnaugh maps - Data Orthogonalization for Cryptography</title>
+    
+    <meta name="description" content="Bitslicing with Karnaugh maps Data Orthogonalization for Cryptography August 18, 2018 Bitslicing, in cryptography, is the technique of converting &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Bitslicing with Karnaugh maps</h1>
+      <h2>Data Orthogonalization for Cryptography</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">August 18, 2018</time>
+    <p><em>Bitslicing</em>, in cryptography, is the technique of converting arbitrary
+functions into logic circuits, thereby enabling fast, constant-time
+implementations of cryptographic algorithms immune to cache and
+timing-related side channel attacks.</p>
+
+<p>My last post <a href="/blog/2018/08/bitslicing-an-introduction/">Bitslicing, An Introduction</a>
+showed how to convert an S-box function into truth tables, then into a tree of
+multiplexers, and finally how to find the lowest possible gate count through
+manual optimization.</p>
+
+<p>Today&rsquo;s post will focus on a simpler and faster method. <a href="https://en.wikipedia.org/wiki/Karnaugh_map">Karnaugh maps</a>
+help simplifying Boolean algebra expressions by taking advantage of humans&#8217;
+pattern-recognition capability. In short, we&rsquo;ll bitslice an S-box using K-maps.</p>
+
+<blockquote><p><a href="/blog/2018/08/bitslicing-an-introduction/">Part 1: Bitslicing, An Introduction</a><br/>
+Part 2: Bitslicing with Karnaugh maps<br/>
+<a href="/blog/2018/08/bitslicing-with-quine-mccluskey/">Part 3: Bitslicing with Quine-McCluskey</a></p></blockquote>
+
+<h2>A tiny S-box</h2>
+
+<p>Here again is the 3-to-2-bit <a href="https://en.wikipedia.org/wiki/S-box">S-box</a>
+function from the previous post.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="n">SBOX</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span> <span class="p">};</span>
+</pre></div></figure>
+
+
+<blockquote><p>An AES-inspired S-box that interprets three input bits as a polynomial in
+<em>GF(2<sup>3</sup>)</em> and computes its inverse <em>mod P(x) = x<sup>3</sup> + x<sup>2</sup> + 1</em>, with
+<em>0<sup>-1</sup> := 0</em>. The result plus <em>(x<sup>2</sup> + 1)</em> is converted back into bits
+and the MSB is dropped.</p></blockquote>
+
+<p>This S-box can be represented as a function of three Boolean variables, where
+<em>f(0,0,0) = 0b01</em>, <em>f(0,0,1) = 0b00</em>, <em>f(0,1,0) = 0b11</em>, etc. Each output bit
+can be represented by its own Boolean function where <em>f<sub>L</sub>(0,0,0) = 0</em>
+and <em>f<sub>R</sub>(0,0,0) = 1</em>, <em>f<sub>L</sub>(0,0,1) = 0</em> and
+<em>f<sub>R</sub>(0,0,1) = 0</em>, &hellip;</p>
+
+<h3>A truth table per output bit</h3>
+
+<p>Each output bit has its own Boolean function, and therefore also its own thruth
+table. Here are the truth tables for the Boolean functions <em>f<sub>L</sub>(a,b,c)</em>
+and <em>f<sub>R</sub>(a,b,c)</em>:</p>
+
+<div class="table-wrapper truth">
+  <table>
+    <caption>SBOX(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>01</td>
+      </tr>
+      <tr>
+        <td>001</td><td>00</td>
+      </tr>
+      <tr>
+        <td>010</td><td>11</td>
+      </tr>
+      <tr>
+        <td>011</td><td>01</td>
+      </tr>
+      <tr>
+        <td>100</td><td>10</td>
+      </tr>
+      <tr>
+        <td>101</td><td>10</td>
+      </tr>
+      <tr>
+        <td>110</td><td>11</td>
+      </tr>
+      <tr>
+        <td>111</td><td>00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>0</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>0</td>
+      </tr>
+      <tr>
+        <td>100</td><td>1</td>
+      </tr>
+      <tr>
+        <td>101</td><td>1</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>1</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>1</td>
+      </tr>
+      <tr>
+        <td>100</td><td>0</td>
+      </tr>
+      <tr>
+        <td>101</td><td>0</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<p>Whereas previously at this point we built a tree of multiplexers out of each
+truth table, we&rsquo;ll now build a Karnaugh map (K-map) per output bit.</p>
+
+<h2>Karnaugh Maps</h2>
+
+<p>The values of <em>f<sub>L</sub>(a,b,c)</em> and <em>f<sub>R</sub>(a,b,c)</em> are transferred
+onto a two-dimensional grid with the cells ordered in <a href="https://en.wikipedia.org/wiki/Gray_code">Gray code</a>.
+Each cell position represents one possible combination of input bits, while each
+cell value represents the value of the output bit.</p>
+
+<p><a href="/images/kmaps.png" title="Two K-maps, one for each of the two Boolean functions" class="img"><img src="/images/kmaps.png" title="Two K-maps, one for each of the two Boolean functions" ></a></p>
+
+<p>The row and column indices <em>(a)</em> and <em>(b || c)</em> are ordered in Gray code rather
+than binary numerical order to ensure only a single variable changes between
+each pair of adjacent cells. Otherwise, products of predicates
+(<code>a &amp; b</code>, <code>a &amp; c</code>, &hellip;) would scatter.</p>
+
+<p>These products are what you want to find to get a minimum length representation
+of the truth function. If the output bit is the same at two adjacent cells,
+then it&rsquo;s independent of one of the two input variables, because
+<code>(a &amp; ~b) | (a &amp; b) = a</code>.</p>
+
+<h3>Spotting patterns</h3>
+
+<p>The heart of simplifying Boolean expressions via K-maps is finding groups of
+adjacent cells with value <code>1</code>. <a href="http://www.ee.surrey.ac.uk/Projects/Labview/minimisation/karrules.html">The rules</a> are as follows:</p>
+
+<ul>
+<li>Groups are rectangles of <em>2<sup>n</sup></em> cells with value <code>1</code>.</li>
+<li>Groups may not include cells with value <code>0</code>.</li>
+<li>Each cell with value <code>1</code> must be in at least one group.</li>
+<li>Groups may be horizontal or vertical, not diagonal.</li>
+<li>Each group should be as large as possible.</li>
+<li>There should be as few groups as possible.</li>
+<li>Groups may overlap.</li>
+</ul>
+
+
+<p><a href="/images/kmaps.gif" title="Animation: Building groups on the two K-maps" class="img"><img src="/images/kmaps.gif" title="Animation: Building groups on the two K-maps" ></a></p>
+
+<p>First, we mark all cells with value <code>1</code>. We then form a <em><span style="color:#c62817">red</span></em>
+group for the two horizontal groups of size <em>2<sup>1</sup></em>. The two vertical groups are
+marked with <em><span style="color:#118730">green</span></em>, also of size <em>2<sup>1</sup></em>.</p>
+
+<p>On <em>f<sub>R</sub></em>&rsquo;s K-map on the right, the <em><span style="color:#c62817">red</span></em>
+and <em><span style="color:#118730">green</span></em> group overlap. As per the rules
+above, that&rsquo;s perfectly fine. The cell at <code>abc=110</code> can&rsquo;t be without a group
+and we&rsquo;re instructed to form the largest groups possible, so they overlap.</p>
+
+<p>But wait, you say, what&rsquo;s going on with the <em><span style="color:#1167bd">blue</span></em>
+rectangle on the right?</p>
+
+<h3>Wrapping around</h3>
+
+<p>A somewhat unexpected property of K-maps is that they&rsquo;re not really grids, but
+actually toruses. In plain English: they wrap around the top, bottom, and the
+sides.</p>
+
+<p>Look at this neat <a href="https://en.wikipedia.org/wiki/Karnaugh_map#/media/File:Torus_from_rectangle.gif">animation on Wikipedia</a>
+that demonstrates how a rectangle can turn into a <del>donut</del>torus. <em>Adjacent</em>
+thus has a special definition here: cells on the very right touch those on the
+far left, as do those at the very top and bottom.</p>
+
+<p><a href="/images/kmaps-rotate.gif" title="Animation: Rotating a K-map to the left (and right)" class="img"><img src="/images/kmaps-rotate.gif" title="Animation: Rotating a K-map to the left (and right)" ></a></p>
+
+<p>Another way to understand this property is to imagine that the columns don&rsquo;t
+start at <code>00</code> but rather at <code>01</code>, and so we rotate the whole K-map by one to
+the left. Then the rectangles wouldn&rsquo;t need to wrap around and they would all
+fit on the grid nicely.</p>
+
+<p>Now that all cells with a <code>1</code> have been assigned to as few groups as possible,
+let&rsquo;s get our hands dirty and write some code.</p>
+
+<h2>A bitsliced SBOX() function</h2>
+
+<p>K-maps are read groupwise: we look at each cell&rsquo;s position and focus on the
+input values that do not change throughout the group. Values that do change
+are ignored.</p>
+
+<h3>One function for <em>f<sub>L(a,b,c)</sub></em> .<span></span>..</h3>
+
+<p>The <em><span style="color:#c62817">red</span></em> group covers the cells at position
+<code>100</code> and <code>101</code>. The values <code>a=1</code> and <code>b=0</code> are constant, they will be included
+into the group&rsquo;s term. The value of <code>c</code> changes and is therefore irrelevant.
+The term is <code>(a &amp; ~b)</code>.</p>
+
+<p>The <em><span style="color:#118730">green</span></em> group covers the cells at <code>010</code>
+and <code>110</code>. We ignore <code>a</code>, and include <code>b=1</code> and <code>c=0</code>. The term is <code>(b &amp; ~c)</code>.</p>
+
+<p><code>SBOXL()</code> is the disjunction of the group terms we collected from the K-map. It
+lists all possible combinations of input values that lead to output value <code>1</code>.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">SBOXL</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">c</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h3>..<span></span>. and another one for <em>f<sub>R(a,b,c)</sub></em></h3>
+
+<p>The <em><span style="color:#c62817">red</span></em> group covers the cells at <code>011</code>
+and <code>010</code>. The term is <code>(~a &amp; b)</code>.</p>
+
+<p>The <em><span style="color:#118730">green</span></em> group covers the cells at <code>010</code>
+and <code>110</code>. The term is <code>(b &amp; ~c)</code>.</p>
+
+<p>The <em><span style="color:#1167bd">blue</span></em> group covers the cells at <code>000</code>
+and <code>010</code>. The term is <code>(~a &amp; ~c)</code>.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">SBOXR</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="o">~</span><span class="n">a</span> <span class="o">&amp;</span> <span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">c</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="o">~</span><span class="n">a</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">c</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Great, that&rsquo;s all we need! Now we can merge those two functions and compare
+that to the result of the previous post.</p>
+
+<h3>Putting it all together</h3>
+
+<p>The first three variables ensure that we negate inputs only once. <code>t0</code> replaces
+the common subexpression <code>b &amp; nc</code>. Any optimizing compiler would do the same.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">void</span> <span class="nf">SBOX</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">l</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">na</span> <span class="o">=</span> <span class="o">~</span><span class="n">a</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nb</span> <span class="o">=</span> <span class="o">~</span><span class="n">b</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nc</span> <span class="o">=</span> <span class="o">~</span><span class="n">c</span><span class="p">;</span>
+
+  <span class="k">uint8_t</span> <span class="n">t0</span> <span class="o">=</span> <span class="n">b</span> <span class="o">&amp;</span> <span class="n">nc</span><span class="p">;</span>
+
+  <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="n">nb</span><span class="p">)</span> <span class="o">|</span> <span class="n">t0</span><span class="p">;</span>
+  <span class="o">*</span><span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">na</span> <span class="o">&amp;</span> <span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">na</span> <span class="o">&amp;</span> <span class="n">nc</span><span class="p">)</span> <span class="o">|</span> <span class="n">t0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p><strong>Ten gates.</strong> That&rsquo;s one more than the manually optimized version from the last
+post. What&rsquo;s missing? Turns out that K-maps sometimes don&rsquo;t yield the minimal
+form and we have to simplify further by taking out common factors.</p>
+
+<p>The conjunctions in the term <code>(na &amp; b) | (na &amp; nc)</code> have the common factor <code>na</code>
+and, due to the Distributivity Law, can be rewritten as <code>na &amp; (b | nc)</code>. That
+removes one of the <em>AND</em> gates and leaves two.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">void</span> <span class="nf">SBOX</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">l</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">na</span> <span class="o">=</span> <span class="o">~</span><span class="n">a</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nb</span> <span class="o">=</span> <span class="o">~</span><span class="n">b</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nc</span> <span class="o">=</span> <span class="o">~</span><span class="n">c</span><span class="p">;</span>
+
+  <span class="k">uint8_t</span> <span class="n">t0</span> <span class="o">=</span> <span class="n">b</span> <span class="o">&amp;</span> <span class="n">nc</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">t1</span> <span class="o">=</span> <span class="n">b</span> <span class="o">|</span> <span class="n">nc</span><span class="p">;</span>
+
+  <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="n">nb</span><span class="p">)</span> <span class="o">|</span> <span class="n">t0</span><span class="p">;</span>
+  <span class="o">*</span><span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">na</span> <span class="o">&amp;</span> <span class="n">t1</span><span class="p">)</span> <span class="o">|</span> <span class="n">t0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p><strong>Nine gates.</strong> That&rsquo;s exactly what we achieved by tedious artisanal optimization.</p>
+
+<h2>More than four inputs</h2>
+
+<p>K-maps are neat and trivial to use once you&rsquo;ve worked through an example
+yourself. They yield minimal circuits <em>fast</em>, compared to manual optimization
+where the effort grows exponentially with the number of terms.</p>
+
+<p>There is one downside though, and it&rsquo;s that the original variant of a K-map
+can&rsquo;t be used with more than four input variables. There are variants that do
+work with more than four variables but they actually make it harder to spot
+groups visually.</p>
+
+<p>The <a href="/blog/2018/08/bitslicing-with-quine-mccluskey/">Quine–McCluskey algorithm</a>
+is functionally identical to K-maps but can handle an arbitrary number of input
+variables in its original variant &ndash; although the running time grows
+exponentially with the number of variables. Not too problematic for
+us, S-boxes usually don&rsquo;t have too many inputs anyway&hellip;</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

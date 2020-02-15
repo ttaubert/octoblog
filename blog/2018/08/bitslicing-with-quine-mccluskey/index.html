@@ -1,0 +1,514 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bitslicing with Quine-McCluskey - Data Orthogonalization for Cryptography</title>
+    
+    <meta name="description" content="Bitslicing with Quine-McCluskey Data Orthogonalization for Cryptography August 27, 2018 Part one gave a short introduction of bitslicing as a &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Bitslicing with Quine-McCluskey</h1>
+      <h2>Data Orthogonalization for Cryptography</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">August 27, 2018</time>
+    <p>Part one gave a short introduction of bitslicing as a concept, talked about
+its use cases, truth tables, software multiplexers, LUTs, and manual optimization.</p>
+
+<p>The second covered <a href="https://en.wikipedia.org/wiki/Karnaugh_map">Karnaugh mapping</a>,
+a visual method to simplify Boolean algebra expressions that takes advantage of
+humans’ pattern-recognition capability, but is unfortunately limited to at most
+four inputs in its original variant.</p>
+
+<p>Part three will introduce the <a href="https://en.wikipedia.org/wiki/Quine%E2%80%93McCluskey_algorithm">Quine-McCluskey algorithm</a>,
+a tabulation method that, in combination with <a href="https://en.wikipedia.org/wiki/Petrick%27s_method">Petrick&rsquo;s method</a>,
+can minimize circuits with an arbitrary number of input values. Both are relatively simple to implement in software.</p>
+
+<blockquote><p><a href="/blog/2018/08/bitslicing-an-introduction/">Part 1: Bitslicing, An Introduction</a><br/>
+<a href="/blog/2018/08/bitslicing-with-karnaugh-maps/">Part 2: Bitslicing with Karnaugh maps</a><br/>
+Part 3: Bitslicing with Quine-McCluskey</p></blockquote>
+
+<h2>The Quine-McCluskey algorithm</h2>
+
+<p>Here is the 3-to-2-bit <a href="https://en.wikipedia.org/wiki/S-box">S-box</a> from the
+previous posts again:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="n">SBOX</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span> <span class="p">};</span>
+</pre></div></figure>
+
+
+<p>Without much ado, we&rsquo;ll jump right in and bitslice functions for both its
+output bits in parallel. You&rsquo;ll probably recognize a few similarities to K-maps,
+except that the steps are rather mechanical and don&rsquo;t require visual
+pattern-recognition abilities.</p>
+
+<h3>Step 1: Listing minterms</h3>
+
+<p>The lookup table <code>SBOX[]</code> can be expressed as the Boolean functions
+<em>f<sub>L</sub>(a,b,c) and </em>f<sub>R</sub>(a,b,c). Here are their truth tables,
+with each combination of inputs assigned a symbol <em>m<sub>i</sub></em>. Rows
+<em>m<sub>0</sub>-m<sub>7</sub></em> will be called <em>minterms</em>.</p>
+
+<div class="table-wrapper minterms">
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th></th>
+        <th>a</th>
+        <th>b</th>
+        <th>c</th>
+        <th>f<sub>L</sub></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>m<sub>0</sub></td><td>0</td><td>0</td><td>0</td><td>0</td>
+      </tr>
+      <tr>
+        <td>m<sub>1</sub></td><td>0</td><td>0</td><td>1</td><td>0</td>
+      </tr>
+      <tr>
+        <td>m<sub>2</sub></td><td>0</td><td>1</td><td>0</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>3</sub></td><td>0</td><td>1</td><td>1</td><td>0</td>
+      </tr>
+      <tr>
+        <td>m<sub>4</sub></td><td>1</td><td>0</td><td>0</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>5</sub></td><td>1</td><td>0</td><td>1</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>6</sub></td><td>1</td><td>1</td><td>0</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>7</sub></td><td>1</td><td>1</td><td>1</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th></th>
+        <th>a</th>
+        <th>b</th>
+        <th>c</th>
+        <th>f<sub>R</sub></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>m<sub>0</sub></td><td>0</td><td>0</td><td>0</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>1</sub></td><td>0</td><td>0</td><td>1</td><td>0</td>
+      </tr>
+      <tr>
+        <td>m<sub>2</sub></td><td>0</td><td>1</td><td>0</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>3</sub></td><td>0</td><td>1</td><td>1</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>4</sub></td><td>1</td><td>0</td><td>0</td><td>0</td>
+      </tr>
+      <tr>
+        <td>m<sub>5</sub></td><td>1</td><td>0</td><td>1</td><td>0</td>
+      </tr>
+      <tr>
+        <td>m<sub>6</sub></td><td>1</td><td>1</td><td>0</td><td>1</td>
+      </tr>
+      <tr>
+        <td>m<sub>7</sub></td><td>1</td><td>1</td><td>1</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<p>We&rsquo;re interested only in the minterms where the function evaluates to <code>1</code> and
+will ignore all others. Boolean functions can already be constructed with just
+those tables. In <a href="https://en.wikipedia.org/wiki/Boolean_algebra">Boolean algebra</a>,
+<em>OR</em> can be expressed as addition, <em>AND</em> as multiplication. The negation of <em>x</em>
+is represented by <em><span style="text-decoration:overline">x</span></em>.</p>
+
+<pre>
+f<sub>L</sub>(a,b,c) = ∑ m(2,4,5,6)
+          = m<sub>2</sub> + m<sub>4</sub> + m<sub>5</sub> + m<sub>6</sub>
+          = <span style="text-decoration:overline">a</span>b<span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span><span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span>c + ab<span style="text-decoration:overline">c</span>
+
+f<sub>R</sub>(a,b,c) = ∑ m(0,2,3,6)
+          = m<sub>0</sub> + m<sub>2</sub> + m<sub>3</sub> + m<sub>6</sub>
+          = <span style="text-decoration:overline">a</span><span style="text-decoration:overline">b</span><span style="text-decoration:overline">c</span> + <span style="text-decoration:overline">a</span>b<span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span><span style="text-decoration:overline">c</span> + ab<span style="text-decoration:overline">c</span>
+</pre>
+
+
+<p>Well, that&rsquo;s a start. Translated into C, these functions would be constant-time
+but not even close to minimal.</p>
+
+<h3>Step 2: Bit Buckets</h3>
+
+<p>Now that we have all these minterms, we&rsquo;ll put them in separate buckets based
+on the number of <code>1</code>s in their inputs <em>a</em>, <em>b</em>, and <em>c</em>.</p>
+
+<div class="table-wrapper buckets">
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th># of 1s</th>
+        <th>minterm</th>
+        <th>binary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td><td>m<sub>2</sub></td><td >010</td>
+      </tr>
+      <tr>
+        <td></td><td>m<sub>4</sub></td><td>100</td>
+      </tr>
+      <tr>
+        <td>2</td><td>m<sub>5</sub></td><td>101</td>
+      </tr>
+      <tr>
+        <td></td><td>m<sub>6</sub></td><td>110</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th># of 1s</th><th>minterm</th><th>binary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>0</td><td>m<sub>0</sub></td><td>000</td>
+      </tr>
+      <tr>
+        <td>1</td><td>m<sub>2</sub></td><td>010</td>
+      </tr>
+      <tr>
+        <td>2</td><td>m<sub>3</sub></td><td>011</td>
+      </tr>
+      <tr>
+        <td></td><td>m<sub>6</sub></td><td>110</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<p>The reasoning here is the same as the <a href="https://en.wikipedia.org/wiki/Gray_code">Gray code</a>
+ordering for Karnaugh maps. If we start with the minterms in the first bucket <em>n</em>,
+only bucket <em>n+1</em> might contain matching minterms where only a single variable
+changes. They can&rsquo;t be in any of the other buckets.</p>
+
+<h3>Step 3: Merging minterms</h3>
+
+<p>Why would you even look for pairs of minterms with a one-variable difference?
+Because they can be merged to simplify our expression. These combinations are
+called <em>minterms of size 2</em>.</p>
+
+<p>All minterms have output <code>1</code>, so if the only difference is exactly one input
+variable, then the output is independent of it. For example, <code>(a &amp; ~b &amp; c) | (a &amp; b &amp; c)</code>
+can be reduced to just <code>a &amp; c</code>, the expression value is independent of <em>b</em>.</p>
+
+<div class="table-wrapper buckets size2">
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th># of 1s</th>
+        <th>minterm</th>
+        <th>binary</th>
+        <th colspan="2">size-2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td><td>m<sub>2</sub></td><td >010</td><td>m<sub>2,6</sub></td><td>—10</td>
+      </tr>
+      <tr>
+        <td></td><td>m<sub>4</sub></td><td>100</td><td>m<sub>4,5</sub></td><td>10—</td>
+      </tr>
+      <tr>
+        <td></td><td></td><td></td><td>m<sub>4,6</sub></td><td>1—0</td>
+      </tr>
+      <tr>
+        <td>2</td><td>m<sub>5</sub></td><td>101</td><td></td><td></td>
+      </tr>
+      <tr>
+        <td></td><td>m<sub>6</sub></td><td>110</td><td></td><td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th># of 1s</th><th>minterm</th><th>binary</th><th colspan="2">size-2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>0</td><td>m<sub>0</sub></td><td>000</td><td>m<sub>0,2</sub></td><td>0—0</td>
+      </tr>
+      <tr>
+        <td>1</td><td>m<sub>2</sub></td><td>010</td><td>m<sub>2,3</sub></td><td>01—</td>
+      </tr>
+      <tr>
+        <td></td><td></td><td></td><td>m<sub>2,6</sub></td><td>—10</td>
+      </tr>
+      <tr>
+        <td>2</td><td>m<sub>3</sub></td><td>011</td><td></td><td></td>
+      </tr>
+      <tr>
+        <td></td><td>m<sub>6</sub></td><td>110</td><td></td><td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<p>Always start with the minterms in the very first bucket at the top of the table.
+For every minterm in bucket <em>n</em>, we try to find a minterm in bucket <em>n+1</em> with a
+one-bit difference in the <em>binary</em> column. Any matches will be recorded as pairs
+and entered into the <em>size-2</em> column of bucket <em>n</em>.</p>
+
+<p><em>m<sub>2</sub>=010</em> and <em>m<sub>6</sub>=110</em> for example differ in only the first
+input variable, <em>a</em>. They merge into <em>m<sub>2,6</sub>=—10</em>, with a dash marking
+the position of the irrelevant input bit.</p>
+
+<p>Once all minterms were combined (as far as possible), we&rsquo;ll continue with the
+next size. Minterms of size bigger than 1 have dashes for irrelevant input bits
+and it&rsquo;s important to treat those as a &ldquo;third bit value&rdquo;. In other words, their
+dashes must be at the same positions, otherwise they can&rsquo;t be merged.</p>
+
+<p>There&rsquo;s nothing left to merge for <em>f<sub>L</sub>(a,b,c)</em> as all
+its size-2 minterms are in the first bucket. For <em>f<sub>R</sub>(a,b,c)</em>, none
+of the size-2 minterms in the first bucket match any of those in the second,
+their dashes are all in different positions.</p>
+
+<h3>Step 4: Prime Implicants</h3>
+
+<p>All minterms from the previous step that can&rsquo;t be combined any further are
+called <em>prime implicants</em>. Entering them into a table let&rsquo;s us check how well
+they cover the original minterms determined by step 1.</p>
+
+<p>If any prime implicant is the only one to cover a minterm, it&rsquo;s called an
+<em>essential prime implicant</em> (marked with an asterisk). It&rsquo;s essential because
+it must be included in the resulting minimal form, otherwise we&rsquo;d miss one of
+the input values combinations.</p>
+
+<div class="table-wrapper prime">
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th></th>
+        <th>m<sub>2</sub></th>
+        <th>m<sub>4</sub></th>
+        <th>m<sub>5</sub></th>
+        <th>m<sub>6</sub></th>
+        <th>abc</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>m<sub>2,6</sub>*</td><td class="essential">x</td><td></td><td></td><td>x</td><td>-10</td>
+      </tr>
+      <tr>
+        <td>m<sub>4,5</sub>*</td><td></td><td>x</td><td class="essential">x</td><td></td><td>10-</td>
+      </tr>
+      <tr>
+        <td>m<sub>4,6</sub>&nbsp;</td><td></td><td>x</td><td></td><td>x</td><td>1-0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th></th>
+        <th>m<sub>0</sub></th>
+        <th>m<sub>2</sub></th>
+        <th>m<sub>3</sub></th>
+        <th>m<sub>6</sub></th>
+        <th>abc</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>m<sub>0,2</sub>*</td><td class="essential">x</td><td>x</td><td></td><td></td><td>0-0</td>
+      </tr>
+      <tr>
+        <td>m<sub>2,3</sub>*</td><td></td><td>x</td><td class="essential">x</td><td></td><td>01-</td>
+      </tr>
+      <tr>
+        <td>m<sub>2,6</sub>*</td><td></td><td>x</td><td></td><td class="essential">x</td><td>-10</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<p>Prime implicant <em>m<sub>2,6</sub>*</em> on the left for example is the only one that
+covers <em>m<sub>2</sub></em>. <em>m<sub>4,5</sub>*</em> is the only one that covers
+<em>m<sub>5</sub></em>. Not only is <em>m<sub>4,6</sub></em> not essential, but we actually
+don&rsquo;t need it at all: <em>m<sub>4</sub></em> and <em>m<sub>6</sub></em> are already covered
+by the essential prime implicants. All prime implicants of f<sub>R</sub>(a,b,c)
+are essential, so we need all of them.</p>
+
+<p>When bitslicing functions with many input variables it may happen that you are
+left with a number of non-essential prime implicants that can be combined in
+various ways to cover the missing minterms. <a href="https://en.wikipedia.org/wiki/Petrick%27s_method">Petrick&rsquo;s method</a>
+helps finding a minimum solution. It&rsquo;s tedious to do manually, but not hard to
+automate.</p>
+
+<h3>Step 5: Minimal Forms</h3>
+
+<p>Finally, we derive minimal forms of our Boolean functions by looking at the <em>abc</em>
+column of the essential prime implicants. Input variables marked with dashes
+are ignored.</p>
+
+<pre>
+f<sub>L</sub>(a,b,c) = m<sub>2,6</sub> + m<sub>4,5</sub> = b<span style="text-decoration:overline">c</span> + a<span style="text-decoration:overline">b</span>
+</pre>
+
+
+<p>The code for <code>SBOXL()</code> with 8-bit inputs:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">SBOXL</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">c</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">b</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p><em>f<sub>R</sub>(a,b,c)</em>, reduced to the combination of its three essential prime implicants:</p>
+
+<pre>
+f<sub>R</sub>(a,b,c) = m<sub>0,2</sub> + m<sub>2,3</sub> + m<sub>2,6</sub> = <span style="text-decoration:overline">a</span><span style="text-decoration:overline">c</span> + <span style="text-decoration:overline">a</span>b + b<span style="text-decoration:overline">c</span>
+</pre>
+
+
+<p>And <code>SBOXR()</code> as expected:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">SBOXR</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="o">~</span><span class="n">a</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">c</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="o">~</span><span class="n">a</span> <span class="o">&amp;</span> <span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">c</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Combining <code>SBOXL()</code> and <code>SBOXR()</code> yields the familiar version of <code>SBOX()</code>, after
+eliminating common subexpressions and taking out common factors.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">void</span> <span class="nf">SBOX</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">l</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">na</span> <span class="o">=</span> <span class="o">~</span><span class="n">a</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nb</span> <span class="o">=</span> <span class="o">~</span><span class="n">b</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nc</span> <span class="o">=</span> <span class="o">~</span><span class="n">c</span><span class="p">;</span>
+
+  <span class="k">uint8_t</span> <span class="n">t0</span> <span class="o">=</span> <span class="n">b</span> <span class="o">&amp;</span> <span class="n">nc</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">t1</span> <span class="o">=</span> <span class="n">b</span> <span class="o">|</span> <span class="n">nc</span><span class="p">;</span>
+
+  <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="n">nb</span><span class="p">)</span> <span class="o">|</span> <span class="n">t0</span><span class="p">;</span>
+  <span class="o">*</span><span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="n">na</span> <span class="o">&amp;</span> <span class="n">t1</span><span class="p">)</span> <span class="o">|</span> <span class="n">t0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h2>Bitslicing a DES S-box</h2>
+
+<p>When I started writing this blog post I thought it would be nice to ditch the
+small S-box from the previous posts, and naively bitslice a &ldquo;real&rdquo; S-box, like
+the ones used in <a href="https://en.wikipedia.org/wiki/Data_Encryption_Standard">DES</a>.</p>
+
+<p>But these are 6-to-4-bit S-boxes, how much more effort can it be? As it turns out,
+humans are terrible at understanding exponential growth. Here are my intermediate
+results after an hour of writing, trying to bitslice just one of the four output
+bits:</p>
+
+<p><a href="/images/des-bitslice.jpg" title="Bitslicing one output bit of a DES S-box manually" class="img"><img src="/images/des-bitslice.jpg" title="Bitslicing one output bit of a DES S-box manually" ></a></p>
+
+<p>I gave up when I spotted a few mistakes that would likely lead to a non-minimal
+solution. Bitslicing a function with that many input variables manually is
+laborious and probably not worth it, except that it definitely helped me
+understand the steps of the algorithm better.</p>
+
+<p>As mentioned in the beginning, Quine-McCluskey and Petrick&rsquo;s method can be
+implemented in software rather easily, so that&rsquo;s what I did instead. I&rsquo;ll
+explain how, and what to consider, in the next post.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

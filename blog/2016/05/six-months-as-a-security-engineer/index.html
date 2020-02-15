@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Six months as a Security Engineer - My work on Mozilla&#8217;s Security Engineering team</title>
+    
+    <meta name="description" content="Six months as a Security Engineer My work on Mozilla's Security Engineering team May 13, 2016 It&rsquo;s been a little more than six months since I &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Six months as a Security Engineer</h1>
+      <h2>My work on Mozilla&#8217;s Security Engineering team</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">May 13, 2016</time>
+    <p>It&rsquo;s been a little more than six months since I officially switched to the
+Security Engineering team here at Mozilla to work on
+<a href="https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS">NSS</a> and
+related code. I thought this might be a good time to share what I&rsquo;ve been up
+to in a short status update:</p>
+
+<h3>Removed SSLv2 code from NSS</h3>
+
+<p>NSS contained quite a lot of SSLv2-specific code that was waiting to be removed.
+It was not compiled by default so there was no way to enable it in Firefox even
+if you wanted to. The removal was rather straightforward as the protocol changed
+significantly with v3 and most of the code was well separated. Good riddance.</p>
+
+<h3>Added ChaCha20/Poly1305 cipher suites to Firefox</h3>
+
+<p>Adam Langley submitted a patch to bring ChaCha20/Poly1305 cipher suites to NSS
+already two years ago but at that time we likely didn&rsquo;t have enough resources
+to polish and land it. I picked up where he left and updated it to conform to
+the slightly updated specification. <a href="/blog/2016/04/a-fast-constant-time-aead-for-tls/">Firefox 47 will ship with two new
+ECDHE/ChaCha20 cipher suites enabled</a>.</p>
+
+<h3>RSA-PSS for TLS v1.3 and the WebCrypto API</h3>
+
+<p>Ryan Sleevi, also a while ago, implemented RSA-PSS in <code>freebl</code>, the lower
+cryptographic layer of NSS. I hooked it up to some more APIs so Firefox can
+support RSA-PSS signatures in its WebCrypto API implementation. In NSS itself
+we need it to support new handshake signatures in our experimental TLS v1.3
+code.</p>
+
+<h3>Improve continuous integration for NSS</h3>
+
+<p>Kai Engert from RedHat is currently doing a hell of a job maintaining quite a
+few buildbots that run all of our NSS tests whenever someone pushes a new
+changeset. Unfortunately the current setup doesn&rsquo;t scale too well and the
+machines are old and slow.</p>
+
+<p>Similar to e.g. Travis CI, Mozilla maintains its own continuous integration and
+release infrastructure, called <a href="https://docs.taskcluster.net/">TaskCluster</a>.
+Using TaskCluster we now have an experimental Docker image that builds NSS/NSPR
+and runs all of our 17 (so far) test suites. The turnaround time is already very
+promising. This is an ongoing effort, there are lots of things left to do.</p>
+
+<h3>Joined the WebCrypto working group</h3>
+
+<p>I&rsquo;ve been working on the Firefox WebCrypto API implementation for a while, long
+before I switched to the Security Engineering team, and so it made sense to join
+the working group to help finalize the specification. I&rsquo;m unfortunately still
+struggling to carve out more time for involvement with the WG than just
+attending meetings and representing Mozilla.</p>
+
+<h3>Added HKDF to the WebCrypto API</h3>
+
+<p>The main reason the WebCrypto API in Firefox did not support HKDF until recently
+is that no one found the time to implement it. I finally did find some time and
+brought it to Firefox 46. It is fully compatible to Chrome&rsquo;s implementation
+(<a href="https://tools.ietf.org/html/rfc5869">RFC 5869</a>), the WebCrypto specification
+still needs to be updated to reflect those changes.</p>
+
+<h3>Added SHA-2 for PBKDF2 in the WebCrypto API</h3>
+
+<p>Since we shipped the first early version of the WebCrypto API, SHA-1 was the
+only available PRF to be used with PBKDF2. We now support PBKDF2 with SHA-2
+PRFs as well.</p>
+
+<h3>Improved the Firefox WebCrypto API threading model</h3>
+
+<p>Our initial implementation of the WebCrypto API would naively spawn a new thread
+every time a <code>crypto.subtle.*</code> method was called. We now use a thread pool per
+process that is able to handle all incoming API calls much faster.</p>
+
+<h3>Added WebCrypto API to Workers and ServiceWorkers</h3>
+
+<p>After working on this on and off for more than six months, so even before I
+officially joined the security engineering team, I managed to finally get it
+landed, with a lot of help from Boris Zbarsky who had to adapt our WebIDL code
+generation quite a bit. The WebCrypto API can now finally be used from
+(Service)Workers.</p>
+
+<h2>What&rsquo;s next?</h2>
+
+<p>In the near future I&rsquo;ll be working further on improving our continuous
+integration infrastructure for NSS, and clean up the library and its tests.
+I will hopefully find the time to write more about it as we progress.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

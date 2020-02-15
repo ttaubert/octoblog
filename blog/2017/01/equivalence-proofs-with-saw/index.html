@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Equivalence proofs with SAW - Exploring formal verification (part 1)</title>
+    
+    <meta name="description" content="Equivalence proofs with SAW Exploring formal verification (part 1) January 26, 2017 This is the first of a small series of posts that will scratch &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Equivalence proofs with SAW</h1>
+      <h2>Exploring formal verification (part 1)</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">January 26, 2017</time>
+    <p>This is the first of a small series of posts that will scratch the surface of the world of formal verification. I will mainly use <a href="http://saw.galois.com/">SAW</a>, the Software Analysis Workbench, and <a href="http://cryptol.net/">Cryptol</a>, a DSL for specifying crypto algorithms. Both are powerful tools for verifying C, C++, and even Rust code, i.e. almost anything that compiles to LLVM bitcode.</p>
+
+<p>Verifying the implementation of a specific algorithm not only helps you weed out bugs early, it lets you <em>prove</em> that your code is correct and contains no further bugs - assuming you made no mistakes writing your algorithm specification in the first place.</p>
+
+<p>Even if you don&rsquo;t know a lot about formal verification, or anything, it&rsquo;s easy to get started experimenting with Cryptol and SAW, and get a glimpse of what&rsquo;s possible.</p>
+
+<p>In this first post I&rsquo;ll show how you can use SAW to prove equality of multiple implementations of the same algorithm, potentially written in different languages.</p>
+
+<h2>Setting up your workspace</h2>
+
+<p>To get started, download the latest SAW and Z3, as well as clang 3.8:</p>
+
+<ul>
+<li>SAW: <a href="http://saw.galois.com/builds/nightly/">http://saw.galois.com/builds/nightly/</a></li>
+<li>Z3: <a href="https://github.com/Z3Prover/z3/releases">https://github.com/Z3Prover/z3/releases</a></li>
+<li>LLVM 3.8: <a href="http://releases.llvm.org/download.html">http://releases.llvm.org/download.html</a></li>
+</ul>
+
+
+<p>You need clang 3.8, later versions seem currently not supported. Xcode&rsquo;s latest clang would (probably) work for this small example but give you headaches with more advanced verification later on.</p>
+
+<p>Unzip and copy the tools someplace you like, just don&rsquo;t forget to update your <code>$PATH</code> environment variable. Especially if you already have clang on your system.</p>
+
+<p>Let&rsquo;s start with a simple example.</p>
+
+<h2>Unsigned addition without overflow</h2>
+
+<p>We define an addition function <code>add(a, b)</code> that takes two <code>uint8_t</code> arguments and returns a <code>uint8_t</code>. It deals with overflows so that <code>123 + 200 = 255</code>, that is it caps the number at <code>UINT8_MAX</code> instead of wrapping around.</p>
+
+<figure class='code'><figcaption><span>add.c</span><a href='https://gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-c'>[gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-c] </a></figcaption><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">add</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">sum</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">sum</span> <span class="o">&lt;</span> <span class="n">a</span> <span class="o">?</span> <span class="k">UINT8_MAX</span> <span class="o">:</span> <span class="n">sum</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>That&rsquo;s such a trivial function that we probably wouldn&rsquo;t write a test for it. If it compiles we&rsquo;re somewhat confident it&rsquo;ll work just fine:</p>
+
+<figure class='code'><div class="highlight"><pre>$ clang -c -emit-llvm -o add.bc add.c
+</pre></div></figure>
+
+
+<p>Note that the above command will not produce a binary or shared library, but instead instruct clang to emit LLVM bitcode and store it in <code>add.bc</code>. We&rsquo;ll feed this into SAW in a minute.</p>
+
+<h2>Constant-time addition</h2>
+
+<p>Now imagine that we actually want to use <code>add</code> as part of a bignum library to implement cryptographic algorithms, and thus want it to have a <a href="https://cryptocoding.net/index.php/Coding_rules#Avoid_branchings_controlled_by_secret_data">constant runtime</a>, independent of the arguments given. Here&rsquo;s how you could do this:</p>
+
+<figure class='code'><figcaption><span>cadd.c</span><a href='https://gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-cadd-c'>[gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-cadd-c] </a></figcaption><div class="highlight"><pre><span class="c1">// 0xff if MSB(x) = 1 else 0x00</span>
+<span class="k">uint8_t</span> <span class="nf">msb</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span> <span class="o">-</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">// 0xff if a &lt; b else 0x00</span>
+<span class="k">uint8_t</span> <span class="nf">lt</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">msb</span><span class="p">(</span><span class="n">a</span> <span class="o">^</span> <span class="p">((</span><span class="n">a</span> <span class="o">^</span> <span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="p">((</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">^</span> <span class="n">b</span><span class="p">)));</span>
+<span class="p">}</span>
+
+<span class="k">uint8_t</span> <span class="nf">add</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="n">lt</span><span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>If <code>a + b &lt; a</code>, i.e. the addition overflows, <code>lt(a + b, a)</code> will return <code>0xff</code> and change the return value into <code>UINT8_MAX = 0xff</code>. Otherwise it returns <code>0</code> and the return value will simply be <code>a + b</code>. That&rsquo;s easy enough, but did we get <code>msb</code> and <code>lt</code> right?</p>
+
+<figure class='code'><div class="highlight"><pre>$ clang -c -emit-llvm -o cadd.bc cadd.c
+</pre></div></figure>
+
+
+<p>Let&rsquo;s compile the constant-time <code>add</code> function to LLVM bitcode too and use SAW to prove that both our addition functions are equivalent to each other.</p>
+
+<h2>Writing the SAW script</h2>
+
+<p>SAW executes scripts to automate theorem proving, and we need to write one in order to check that our two implementations are equivalent. The first thing our script does is load the LLVM bitcode from the files we created earlier, <code>add.bc</code> and <code>cadd.bc</code>, as modules into the variables <code>m1</code> and <code>m2</code>, respectively.</p>
+
+<figure class='code'><figcaption><span>add.saw</span><a href='https://gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-saw'>[gist.github.com/ttaubert/ecf5b710e849ddfefa81c14a70631eec#file-add-saw] </a></figcaption><div class="highlight"><pre><span class="err">m1</span> <span class="err">&lt;-</span> <span class="k">llvm_load_module</span> <span class="s2">&quot;add.bc&quot;</span><span class="err">;</span>
+<span class="err">m2</span> <span class="err">&lt;-</span> <span class="k">llvm_load_module</span> <span class="s2">&quot;cadd.bc&quot;</span><span class="err">;</span>
+
+<span class="err">add</span> <span class="err">&lt;-</span> <span class="k">llvm_extract</span> <span class="err">m1</span> <span class="s2">&quot;add&quot;</span> <span class="k">llvm_pure</span><span class="err">;</span>
+<span class="err">cadd</span> <span class="err">&lt;-</span> <span class="k">llvm_extract</span> <span class="err">m2</span> <span class="s2">&quot;add&quot;</span> <span class="k">llvm_pure</span><span class="err">;</span>
+
+<span class="k">let</span> <span class="err">thm</span> <span class="err">=</span> <span class="err">{{</span> <span class="err">\x</span> <span class="err">y</span> <span class="err">-&gt;</span> <span class="err">add</span> <span class="err">x</span> <span class="err">y</span> <span class="err">==</span> <span class="err">cadd</span> <span class="err">x</span> <span class="err">y</span> <span class="err">}};</span>
+<span class="k">prove_print</span> <span class="err">abc</span> <span class="err">thm;</span>
+</pre></div></figure>
+
+
+<p>Next, we&rsquo;ll extract the <code>add</code> functions defined in each of these modules and store them in <code>add</code> and <code>cadd</code>, the latter being our constant-time implementation. <code>llvm_pure</code> indicates that a function always returns the same result given the same arguments, and thus has no side-effects.</p>
+
+<p>Last, we define a theorem <code>thm</code> stating that for all arguments <code>x</code> and <code>y</code> both functions have the same return value, that they are equivalent to each other. We choose to prove this theorem with the ABC tool from UC Berkeley.</p>
+
+<p>We&rsquo;re all set now, time to actually prove something.</p>
+
+<h2>Proving equivalence</h2>
+
+<p>Make sure you have <code>saw</code> and <code>z3</code> in your <code>$PATH</code>. Run SAW and pass it the file we created in the previous section &mdash; it will execute the script and automatically prove our theorem.</p>
+
+<figure class='code'><div class="highlight"><pre>$ saw add.saw
+Loading module Cryptol
+Loading file &quot;add.saw&quot;
+Valid
+</pre></div></figure>
+
+
+<p><em>Valid</em>, that was easy. Maybe too easy. Would SAW even detect if we sneak a minor mistake into the program? Let&rsquo;s find out&hellip;</p>
+
+<figure class='code'><div class="highlight"><pre> uint8_t lt(uint8_t a, uint8_t b) {
+<span class="gd">-  return msb(a ^ ((a ^ b) | ((a - b) ^ b)));</span>
+<span class="gi">+  return msb(a ^ ((a ^ b) | ((a + b) ^ b)));</span>
+ }
+</pre></div></figure>
+
+
+<p>The diff above changes the behavior of <code>lt</code> just slightly, a bug that we could have introduced by accident. Let&rsquo;s run SAW again and see whether it spots it:</p>
+
+<figure class='code'><div class="highlight"><pre>$ saw add.saw
+Loading module Cryptol
+Loading file &quot;add.saw&quot;
+saw: user error (&quot;prove_print&quot; (add.saw:8:1):
+prove: 1 unsolved subgoal(s)
+Invalid: [x = 240, y = 0])
+</pre></div></figure>
+
+
+<p><em>Invalid</em>! The two functions disagree on the return value at <code>[x = 240, y = 0]</code>. SAW of course doesn&rsquo;t know which function is at fault, but we are confident enough in our reference implementation to know where to look.</p>
+
+<p>I can&rsquo;t possibly explain how this all works in detail, but I can hopefully give you a rough idea. What SAW does is parse the LLVM bitcode and <a href="https://en.wikipedia.org/wiki/Symbolic_execution">symbolically execute</a> it on symbolic inputs to translate it into a circuit representation.</p>
+
+<p>This circuit is then, together with our theorems, fed into a theorem prover. Z3 is an <a href="https://en.wikipedia.org/wiki/Automated_theorem_proving">automated theorem prover</a>, and ABC a tool for logic synthesis and verification; both are able to prove equality using automated reasoning.</p>
+
+<h2>Next: Some Cryptol and more SAW</h2>
+
+<p>In <a href="/blog/2017/02/simple-cryptol-specifications/">the second post</a> I talk about verifying the implementation of a slightly more complex function, also written in C/C++, and show how you can use Cryptol to write a simple specification, as well as introduce more advanced SAW commands for verification.</p>
+
+<p>If you found this interesting, play around with the examples above and come up with your own. Write a straightforward implementation of an algorithm that you can be certain to get right and then optimize it, make it constant-time, or change it in any other way and see how SAW behaves.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

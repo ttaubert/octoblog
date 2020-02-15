@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fixing new tab page performance regressions - Tim Taubert</title>
+    
+    <meta name="description" content="Fixing new tab page performance regressions August 14, 2012 As you probably already know, Firefox 13 introduced a neat new feature - the
+new tab &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Fixing new tab page performance regressions</h1>
+      <h2></h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">August 14, 2012</time>
+    <p>As you probably already know, Firefox 13 introduced a neat new feature - the
+<a href="/blog/2012/02/help-us-test-the-new-tab-page/">new tab page</a>.
+We replaced the old blank page with a list of thumbnails of recently visited
+sites. While the feature itself works great for many people it has definitely
+made opening new tabs a little more noisy.</p>
+
+<h2>Do not show loading indicators</h2>
+
+<p>As we are now loading a real (although local) page, there are loading indicators
+when opening a new tab. The throbber starts to spin and the tab title changes
+to &ldquo;Connecting…&rdquo; until the page has loaded. That is a lot of unnecessary noise.</p>
+
+<p>In <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=716108" title="Bug 716108 - [New Tab Page] Connecting… should not briefly flicker in the tab title when a new tab is opened">bug 716108</a>
+(Firefox 17) we removed loading indicators for newly opened tabs. No spinning
+throbber, no flickering tab label. It only is a very subtle change but the whole
+action of opening a new tab feels a lot smoother again.</p>
+
+<h2>Preload new tab pages in the background</h2>
+
+<p>If you happen to have a slower machine you will notice that loading the new tab
+page takes a little while. It is a normal HTML (and partly XUL) page that we
+need to parse and render. As all tabs start out with a blank docShell you will
+first see a white canvas that then is replaced by &ldquo;about:newtab&rdquo;. As a last step
+all thumbnails will be loaded and drawn progressively.</p>
+
+<p>Opening a new tab is a very frequent action so it should feel snappy and not get
+in your way at all. As optimizing the parsing and rendering stages any further
+is more than a non-trivial task I came up with a little trick in
+<a href="https://bugzilla.mozilla.org/show_bug.cgi?id=753448" title="Bug 753448 - [New Tab Page] preload newtab pages in the background and swap them in when opening a new tab">bug 753448</a>.
+The idea is to preload the new tab page in the background so it has already
+loaded when users open a new tab. All we now have to do is switch docShells
+and the new tab page gets shown instantly.</p>
+
+<p>You can give it a try as it landed in yesterday&rsquo;s Nightly (2012-08-14). Just go
+to &ldquo;about:config&rdquo; and set &ldquo;browser.newtab.preload&rdquo; to &ldquo;true&rdquo;. This option is
+not yet enabled by default as we first have to figure out some minor talos
+regressions until it is ready for prime time.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

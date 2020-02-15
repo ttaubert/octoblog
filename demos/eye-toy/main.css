@@ -1,0 +1,9 @@
+video, canvas {
+  float: left;
+  margin: 10px;
+  background: #eee;
+}
+
+canvas {
+  background: url(bg.png) no-repeat;
+}

@@ -1,0 +1,314 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TLS version intolerance - Working around bugs in legacy TLS stacks</title>
+    
+    <meta name="description" content="TLS version intolerance Working around bugs in legacy TLS stacks September 30, 2016 A few weeks ago I listened to Hanno Böck talk about
+TLS version &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>TLS version intolerance</h1>
+      <h2>Working around bugs in legacy TLS stacks</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">September 30, 2016</time>
+    <p>A few weeks ago I listened to Hanno Böck talk about
+<a href="https://www.int21.de/slides/berlinsec-versionintolerance/">TLS version intolerance</a>
+at the <a href="https://berlinsec.github.io/">Berlin AppSec &amp; Crypto Meetup</a>. He
+explained how with TLS 1.3 just around the corner there again are growing
+concerns about faulty TLS stacks found in HTTP servers, load balancers,
+routers, firewalls, and similar software and devices.</p>
+
+<p>I decided to dig a little deeper and will use this post to explain version
+intolerance, how version fallbacks work and why they&rsquo;re insecure, as well as
+describe the downgrade protection mechanisms available in TLS 1.2 and 1.3. It
+will end with a look at version negotiation in TLS 1.3 and a proposal that
+aims to prevent similar problems in the future.</p>
+
+<h2>What is version intolerance?</h2>
+
+<p>Every time a new TLS version is specified, browsers usually are the fastest to
+implement and update their deployments. Most major browser vendors have a few
+people involved in the standardization process to guide the standard and give
+early feedback about implementation issues.</p>
+
+<p>As soon as the spec is finished, and often far before that feat is done, clients
+will have been equipped with support for the new TLS protocol version and happily
+announce this to any server they connect to:</p>
+
+<blockquote><p><strong>Client:</strong> Hi! The highest TLS version I support is 1.2.<br/>
+<strong>Server:</strong> Hi! I too support TLS 1.2 so let&rsquo;s use that to communicate.<br/>
+<em>[TLS 1.2 connection will be established.]</em></p></blockquote>
+
+<p>In this case the highest TLS version supported by the client is 1.2, and so
+the server picks it because it supports that as well. Let&rsquo;s see what happens
+if the client supports 1.2 but the server does not:</p>
+
+<blockquote><p><strong>Client:</strong> Hi! The highest TLS version I support is 1.2.<br/>
+<strong>Server:</strong> Hi! I only support TLS 1.1 so let&rsquo;s use that to communicate.<br/>
+<em>[TLS 1.1 connection will be established.]</em></p></blockquote>
+
+<p>This too is how it should work if a client tries to connect with a protocol
+version unknown to the server. Should the client insist on any specific version
+and not agree with the one picked by the server it will have to terminate the
+connection.</p>
+
+<p>Unfortunately, there are a few servers and more devices out there that
+implement TLS version negotiation incorrectly. The conversation might go
+like this:</p>
+
+<blockquote><p><strong>Client:</strong> Hi! The highest TLS version I support is 1.2.<br/>
+<strong>Server:</strong> ALERT! I don&rsquo;t know that version. Handshake failure.<br/>
+<em>[Connection will be terminated.]</em></p></blockquote>
+
+<p>Or:</p>
+
+<blockquote><p><strong>Client:</strong> Hi! The highest TLS version I support is 1.2.<br/>
+<strong>Server:</strong> TCP FIN! I don&rsquo;t know that version.<br/>
+<em>[Connection will be terminated.]</em></p></blockquote>
+
+<p>Or even worse:</p>
+
+<blockquote><p><strong>Client:</strong> Hi! The highest TLS version I support is 1.2.<br/>
+<strong>Server:</strong> (I don&rsquo;t know this version so let&rsquo;s just not respond.)<br/>
+<em>[Connection will hang.]</em></p></blockquote>
+
+<p>The same can happen with the infamous F5 load balancer that can&rsquo;t handle
+<code>ClientHello</code> messages with a length between 256 and 512 bytes. Other devices
+abort the connection when receiving a large <code>ClientHello</code> split into multiple
+TLS records. TLS 1.3 might actually cause more problems of this kind due to
+more extensions and client key shares.</p>
+
+<h2>What are version fallbacks?</h2>
+
+<p>As browsers usually want to ship new TLS versions as soon as possible, more
+than a decade ago vendors saw a need to prevent connection failures due to
+version intolerance. The easy solution was to decrease the advertised version
+number by one with every failed attempt:</p>
+
+<blockquote><p><strong>Client:</strong> Hi! The highest TLS version I support is 1.2.<br/>
+<strong>Server:</strong> ALERT! Handshake failure. (Or FIN. Or hang.)<br/>
+<em>[TLS version fallback to 1.1.]</em><br/>
+<strong>Client:</strong> Hi! The highest TLS version I support is 1.1.<br/>
+<strong>Server:</strong> Hi! I support TLS 1.1 so let&rsquo;s use that to communicate.<br/>
+<em>[TLS 1.1 connection will be established.]</em></p></blockquote>
+
+<p>A client supporting everything from TLS 1.0 to TLS 1.2 would start trying to
+establish a 1.2 connection, then a 1.1 connection, and if even that failed a
+1.0 connection.</p>
+
+<h2>Why are these insecure?</h2>
+
+<p>What makes these fallbacks insecure is that the connection can be downgraded by
+a MITM, by sending alerts or TCP packets to the client, or blocking packets
+from the server. To the client this is indistinguishable from a network error.</p>
+
+<p>The <a href="https://www.openssl.org/~bodo/ssl-poodle.pdf">POODLE</a> attack is one
+example where an attacker abuses the version fallback to force an SSL 3.0
+connection. In response to this browser vendors disabled version fallbacks to
+SSL 3.0, and then SSL 3.0 entirely, to prevent even up-to-date clients from
+being exploited. Insecure version fallback in browsers pretty much break the
+actual version negotiation mechanisms.</p>
+
+<p>Version fallbacks have been disabled since
+<a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1084025">Firefox 37</a> and
+<a href="https://www.chromestatus.com/feature/5685183936200704">Chrome 50</a>. Browser
+telemetry data showed it was no longer necessary as after years, TLS 1.2 and
+correct version negotiation was deployed widely enough.</p>
+
+<h2>The TLS_FALLBACK_SCSV cipher suite</h2>
+
+<p>You might wonder if there&rsquo;s a <em>secure</em> way to do version fallbacks, and other
+people did so too. Adam Langley and Bodo Möller proposed a special cipher suite
+in <a href="https://tools.ietf.org/html/rfc7507">RFC 7507</a> that would help a client
+detect whether the downgrade was initiated by a MITM.</p>
+
+<p>Whenever the client includes <code>TLS_FALLBACK_SCSV {0x56, 0x00}</code> in the list of
+cipher suites it signals to the server that this is a repeated connection
+attempt, but this time with a version lower than the highest it supports,
+because previous attempts failed. If the server supports a higher version
+than advertised by the client, it MUST abort the connection.</p>
+
+<p>The drawback here however is that a client even if it implements fallback with
+a Signaling Cipher Suite Value doesn&rsquo;t know the highest protocol version
+supported by the server, and whether it implements a <code>TLS_FALLBACK_SCSV</code> check.
+Common web servers will likely be updated faster than others, but router or
+load balancer manufacturers might not deem it important enough to implement
+and ship updates for.</p>
+
+<h2>Signatures in TLS 1.2</h2>
+
+<p>It&rsquo;s been long known to be problematic that signatures in TLS 1.2 don&rsquo;t cover
+the list of cipher suites and other messages sent before server authentication.
+They sign the ephemeral DH parameters sent by the server and include the
+<code>*Hello.random</code> values as nonces to prevent replay attacks:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre>h = Hash(ClientHello.random + ServerHello.random + ServerParams)
+</pre></div></figure>
+
+
+<p>Signing at least the list of cipher suites would have helped prevent downgrade
+attacks like <a href="https://freakattack.com/">FREAK</a> and <a href="https://weakdh.org/">Logjam</a>.
+TLS 1.3 will sign all messages before server authentication, even though it makes
+<a href="http://www.mitls.org/downloads/transcript-collisions.pdf">Transcript Collision Attacks</a>
+somewhat easier to mount. With SHA-1 not allowed for signatures that will
+hopefully not become a problem anytime soon.</p>
+
+<h2>Downgrade Sentinels in TLS 1.3</h2>
+
+<p>With neither the client version nor its cipher suites (for the SCSV) included
+in the hash signed by the server&rsquo;s certificate in TLS 1.2, how do you secure
+TLS 1.3 against downgrades like FREAK and Logjam? Stuff a special value into
+<code>ServerHello.random</code>.</p>
+
+<p>The TLS WG decided to put static values (sometimes called downgrade sentinels)
+into the server&rsquo;s nonce sent with the <code>ServerHello</code> message. TLS 1.3 servers
+responding to a <code>ClientHello</code> indicating a maximum supported version of TLS 1.2
+MUST set the last eight bytes of the nonce to:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre>0x44 0x4F 0x57 0x4E 0x47 0x52 0x44 0x01
+</pre></div></figure>
+
+
+<p>If the client advertises a maximum supported version of TLS 1.1 or below the
+server SHOULD set the last eight bytes of the nonce to:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre>0x44 0x4F 0x57 0x4E 0x47 0x52 0x44 0x00
+</pre></div></figure>
+
+
+<p>If not connecting with a downgraded version, a client MUST check whether the
+server nonce ends with any of the two sentinels and in such a case abort the
+connection. The TLS 1.3 spec here introduces an update to TLS 1.2 that requires
+servers and clients to update their implementation.</p>
+
+<p>Unfortunately, this downgrade protection relies on a <code>ServerKeyExchange</code>
+message being sent and is thus of limited value. Static RSA key exchanges
+are still valid in TLS 1.2, and unless the server admin disables all
+non-forward-secure cipher suites the protection can be bypassed.</p>
+
+<h2>The comeback of insecure fallbacks?</h2>
+
+<p>Current measurements show that enabling TLS 1.3 by default would break a
+significant fraction of TLS handshakes due to version intolerance. According to
+Ivan Ristić, as of July 2016,
+<a href="https://blog.qualys.com/ssllabs/2016/08/02/tls-version-intolerance-in-ssl-pulse">3.2% of servers from the SSL Pulse data set reject TLS 1.3 handshakes</a>.</p>
+
+<p>This a very high number and would affect way too many people. Alas, with TLS
+1.3 we have only limited downgrade protection for forward-secure cipher
+suites. And that is assuming that most servers either support TLS 1.3 or
+update their 1.2 implementations. <code>TLS_FALLBACK_SCSV</code>, if supported by the
+server, will help as long as there are no attacks tampering with the list
+of cipher suites.</p>
+
+<p>The TLS working group has been thinking about how to handle intolerance without
+bringing back version fallbacks, and there might be light at the end of the
+tunnel.</p>
+
+<h2>Version negotiation with extensions</h2>
+
+<p>The next version of the proposed TLS 1.3 spec, draft 16, will introduce a new
+version negotiation mechanism based on extensions. The current <code>ClientHello.version</code>
+field will be frozen to TLS 1.2, i.e. <code>{3, 3}</code>, and renamed to <code>legacy_version</code>.
+Any number greater than that MUST be ignored by servers.</p>
+
+<p>To negotiate a TLS 1.3 connection the protocol now requires the client to send
+a <code>supported_versions</code> extension. This is a list of versions the client supports,
+in preference order, with the most preferred version first. Clients MUST send
+this extension as servers are required to negotiate TLS 1.2 if it&rsquo;s not present.
+Any version number unknown to the server MUST be ignored.</p>
+
+<p>This still leaves potential problems with big <code>ClientHello</code> messages or
+choking on unknown extensions unaddressed, but according to David Benjamin
+<a href="https://www.ietf.org/mail-archive/web/tls/current/msg20679.html">the main problem is <code>ClientHello.version</code></a>.
+We will hopefully be able to ship browsers that have TLS 1.3 enabled by default,
+without bringing back insecure version fallbacks.</p>
+
+<p>However, it&rsquo;s not unlikely that implementers will screw up even the new version
+negotiation mechanism and we&rsquo;ll have similar problems in a few years down the
+road.</p>
+
+<h2>GREASE-ing the future</h2>
+
+<p>David Benjamin, following Adam Langley&rsquo;s advice to
+<a href="https://www.imperialviolet.org/2016/05/16/agility.html"><em>have one joint and keep it well oiled</em></a>,
+proposed <a href="https://tools.ietf.org/html/draft-davidben-tls-grease-01">GREASE</a>
+(Generate Random Extensions And Sustain Extensibility), a mechanism to prevent
+extensibility failures in the TLS ecosystem.</p>
+
+<p>The heart of the mechanism is to have clients inject &ldquo;unknown values&rdquo; into
+places where capabilities are advertised by the client, and the best match
+selected by the server. Servers MUST ignore unknown values to allow introducing
+new capabilities to the ecosystem without breaking interoperability.</p>
+
+<p>These values will be advertised pseudo-randomly to break misbehaving servers
+early in the implementation process. Proposed injection points are cipher
+suites, supported groups, extensions, and ALPN identifiers. Should the server
+respond with a GREASE value selected in the <code>ServerHello</code> message the client
+MUST abort the connection.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

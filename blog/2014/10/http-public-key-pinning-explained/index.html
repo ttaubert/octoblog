@@ -1,0 +1,224 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HTTP Public-Key-Pinning explained - The what, why, and how of RFC 7469</title>
+    
+    <meta name="description" content="HTTP Public-Key-Pinning explained The what, why, and how of RFC 7469 October 30, 2014 In my last post
+&ldquo;Deploying TLS the hard way&rdquo;
+I &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>HTTP Public-Key-Pinning explained</h1>
+      <h2>The what, why, and how of RFC 7469</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">October 30, 2014</time>
+    <p>In my last post
+<a href="/blog/2014/10/deploying-tls-the-hard-way/">&ldquo;Deploying TLS the hard way&rdquo;</a>
+I explained how TLS and its extensions (as well as a few HTTP extensions) work
+and what to watch out for when enabling TLS for your server. One of the HTTP
+extensions mentioned is
+<a href="https://tools.ietf.org/html/rfc7469">HTTP Public-Key-Pinning (HPKP)</a>.
+As a short reminder, the header looks like this:</p>
+
+<figure class='code'><div class="highlight"><pre>Public-Key-Pins:
+  pin-sha256=&quot;GRAH5Ex+kB4cCQi5gMU82urf+6kEgbVtzfCSkw55AGk=&quot;;
+  pin-sha256=&quot;lERGk61FITjzyKHcJ89xpc6aDwtRkOPAU0jdnUqzW2s=&quot;;
+  max-age=15768000; includeSubDomains
+</pre></div></figure>
+
+
+<p>You can see that it specifies two <em>pin-sha256</em> values, that is the pins of two
+public keys. One is the pin of any public key in your current certificate chain
+and the other is the pin of any public key <em>not</em> in your current certificate
+chain. The latter is a backup in case your certificate expires or has to be
+revoked.</p>
+
+<p>It is definitely not obvious which public keys you should pin and what a good
+backup pin would be. Let us answer those questions by starting with a more
+detailed overview of how public key pinning and TLS certificates work.</p>
+
+<h2>How are RSA keys represented?</h2>
+
+<p>Let us go back to the beginning and start by taking a closer look at
+<a href="https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29">RSA</a> keys:</p>
+
+<figure class='code'><div class="highlight"><pre>$ openssl genrsa 2048
+</pre></div></figure>
+
+
+<p>The above command generates a 2048 bit RSA key and prints it to the console.
+Although it says <code>-----BEGIN RSA PRIVATE KEY-----</code> it does not only return the
+private key but an
+<a href="https://en.wikipedia.org/wiki/Abstract_Syntax_Notation_One">ASN.1</a> structure
+that also contains the public key - we thus actually generated an RSA key pair.</p>
+
+<p>A common misconception when learning about keys and certificates is that the
+RSA key itself for a given certificate expires. RSA keys however never expire -
+after all they are just numbers. Only the certificate containing the public key
+can expire and only the certificate can be revoked. Keys &ldquo;expire&rdquo; or are
+&ldquo;revoked&rdquo; as soon as there are no more valid certificates using the public key,
+and you threw away the keys and stopped using them altogether.</p>
+
+<h2>What does the certificate contain?</h2>
+
+<p>By submitting the
+<a href="https://en.wikipedia.org/wiki/Certificate_signing_request">Certificate Signing Request (CSR)</a>
+containing your public key to a Certificate Authority it will issue a valid
+certificate. That will again contain the public key of the RSA key pair we
+generated above and an expiration date. Both the public key and the expiration
+date will be signed by the CA so that modifications of any of the two would
+render the certificate invalid immediately.</p>
+
+<p>For simplicity I left out a few other fields that
+<a href="https://en.wikipedia.org/wiki/X.509#Structure_of_a_certificate">X.509 certificates</a>
+contain to properly authenticate TLS connections, for example your server&rsquo;s
+hostname and other details.</p>
+
+<h2>How does public key pinning work?</h2>
+
+<p>The whole purpose of public key pinning is to detect when the public key of a
+certificate for a specific host has changed. That may happen when an attacker
+compromises a CA such that they are able to issue valid certificates for <em>any</em>
+domain. A foreign CA might also just be the attacker, think of state-owned CAs
+that you do not want to be able to MITM your site. Any attacker intercepting
+a connection from a visitor to your server with a forged certificate can only
+be prevented by detecting that the public key has changed.</p>
+
+<p>After establishing a TLS session with the server, the browser will look up any
+stored pins for the given hostname and check whether any of those stored pins
+match any of the <a href="https://tools.ietf.org/html/rfc7469#section-2.4">SPKI fingerprints</a>
+(the output of applying SHA-256 to the public key information) in the
+certificate chain. The connection must be terminated immediately if
+<a href="https://tools.ietf.org/html/rfc7469#section-2.6">pin validation</a> fails.</p>
+
+<p>A valid certificate that passed all basics checks will be accepted if the
+browser could not find any pins stored for the current hostname. This might
+happen if the site does not support public key pinning and does not send any
+HPKP headers at all, or if this is the first time visiting and the server has
+not seen the HPKP header yet in a previous visit.</p>
+
+<h2>What if you need to replace your certificate?</h2>
+
+<p>If your certificate expires or an attacker stole the private key you will have
+to replace (and possibly revoke) the leaf certificate. This might invalidate
+your pin, the constraints for obtaining a new valid certificate are the same as
+for an attacker that tries to impersonate you and intercept TLS sessions.</p>
+
+<p>Pin validation requires checking the SPKI fingerprints of all certificates in
+the chain and will succeed if any of the public keys matches any of the pins.
+When for example StartSSL signed your certificate you have another intermediate
+Class 1 or 2 certificate and their root certificate in the chain. The browser
+trusts only the root certificate but the intermediate ones are signed by the
+root certificate. The intermediate certificate in turn signs the certificate
+deployed on your server and that is called a chain of trust.</p>
+
+<p>If you pinned your leaf certificate then the only way to recover is your backup
+pin - whatever this points to must be included in your new certificate chain
+if you want to allow users that stored your pin from previous connections back
+on your server.</p>
+
+<p>An easier solution would be available if you provided the SPKI fingerprint of
+StartSSL&rsquo;s Class 1 intermediate certificate. To construct a new valid
+certificate chain you simply have to ask StartSSL to re-issue a new certificate
+for a new or your current key. This comes at the price of a slightly bigger
+attack surface as someone that stole the private key of the CA&rsquo;s intermediate
+certificate would be able to impersonate your site and pass key pinning checks.</p>
+
+<p>Another possibility is pinning StartSSL&rsquo;s root certificate. Any certificate
+issued by StartSSL would let you construct a new valid certificate chain. Again,
+this slightly increases the attack vector as any compromised intermediate or
+root certificate would allow to impersonate your site and pass pinning checks.</p>
+
+<h2>What key should I pin?</h2>
+
+<p>Given all of the above scenarios you might ask which key would be the best to
+pin, and the answer is: it depends. You can pin one or all of the public keys
+in your certificate chain and that will work. The specification requires you to
+have at least two pins, so you must include the SPKI hash of another CA&rsquo;s root
+certificate, another CA&rsquo;s intermediate certificate (a different tier of your
+current CA would also work), or another leaf certificate. The only requirement
+is that this pin is not equal to the hash of any of the certificates in the
+current chain. The poor browser cannot tell whether you gave it a valid and
+useful backup pin so it will happily accept random values too.</p>
+
+<p>Pinning to a small set of CAs that you are comfortable with helps you reduce the
+risk to yourself. Pinning just your leaf certificates is only advised if you are
+really certain that this is for you. It is a little like driving without a
+seatbelt and might work most of the time. If something goes wrong it usually
+goes really wrong and you want to avoid that.</p>
+
+<p>Pinning only your own leaf certs also bears the risk of creating a backup key
+that adheres to ancient standards and could not be used anymore when you have
+to replace your current certificate. Assume it was three years ago, and your
+backup was a 1024-bit RSA key pair. You pin for a year, and your certificate
+expires. You go to a CA and say &ldquo;Hey, re-issue my cert for Key A&rdquo;, and they say
+&ldquo;No, your key is too small/weak&rdquo;. You then say &ldquo;Ah, but what about my backup
+key?&rdquo; - and that also gets rejected because it is too short. In effect, because
+you only pinned to keys under your control you are now bricked.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

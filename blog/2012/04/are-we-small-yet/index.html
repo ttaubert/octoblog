@@ -1,0 +1,98 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Are we small, yet? - A histogram of Firefox download sizes</title>
+    
+    <meta name="description" content="Are we small, yet? A histogram of Firefox download sizes April 11, 2012 Lately, Asa Dotzler posted to dev.apps.firefox regarding the download size &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Are we small, yet?</h1>
+      <h2>A histogram of Firefox download sizes</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">April 11, 2012</time>
+    <p>Lately, <a href="http://weblogs.mozillazine.org/asa/">Asa Dotzler</a> <a href="https://groups.google.com/forum/#!topic/mozilla.dev.apps.firefox/k7fzkhdt9io">posted to dev.apps.firefox</a> regarding the download size of Firefox:</p>
+
+<blockquote><p>This evening I noticed that my full win32 mar update for Firefox was 21MB. That caused me to look at what our full win32 installer size was. I was a bit surprised to see it’s up to 17MB. When we shipped Firefox 1, our Windows installer build was 4.7MB. [&hellip;]</p>
+
+<p>Firefox 12 is a 16.1 MB download.
+Firefox 4 was a 12.0 MB download.
+Firefox 3.6 was a 7.7 MB download.</p>
+
+<p>In less than three years we’ve more than doubled in size. (fuller chart here <a href="http://grab.by/cSHA">http://grab.by/cSHA</a>)</p></blockquote>
+
+<p>While there’s no doubt that adding new features and supporting new platforms are good reasons for increasing the build size it’s definitely a metric that impacts users. It hits them the hardest when downloading Firefox the first time, especially with slow internet connections. It still hits them every time we provide application updates.</p>
+
+<p>To better illustrate the steady growth over the last few years I created <a href="http://www.arewesmallyet.com/">http://www.arewesmallyet.com/</a>. It’s updated daily, shows differences between nightly builds and links to the corresponding changelog if one would like to investigate the cause of increasing build sizes.</p>
+
+<p><a href="/images/arewesmallyet.png" title="arewesmallyet.com" class="img"><img src="/images/arewesmallyet.png" title="arewesmallyet.com" ></a></p>
+
+<p>While this surely isn’t the most important battle we have right now I hope this will turn out useful to anyone willing to pick this up and tackle some build size optimizations.</p>
+
+<p>GitHub: <a href="https://github.com/ttaubert/arewesmallyet">https://github.com/ttaubert/arewesmallyet</a></p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

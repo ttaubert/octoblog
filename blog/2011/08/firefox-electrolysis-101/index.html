@@ -1,0 +1,272 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Firefox Electrolysis 101 - Writing code for multi-process Firefox</title>
+    
+    <meta name="description" content="Firefox Electrolysis 101 Writing code for multi-process Firefox August 10, 2011 You probably have all heard of this weird new thing called &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Firefox Electrolysis 101</h1>
+      <h2>Writing code for multi-process Firefox</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">August 10, 2011</time>
+    <p>You probably have all heard of this weird new thing called <a href="https://wiki.mozilla.org/Electrolysis">Electrolysis (a.k.a. e10s)</a>. Basically it’s all about running the browser UI and its tabs in separated processes. I recently rewrote a part of Panorama to be e10s-future-proof and thought I should share what I’ve learned so far…</p>
+
+<p><em>(If you don’t know why we’re all doing this, please read: <a href="http://blog.mozilla.com/products/2011/07/15/goals-for-multi-process-firefox/">http://blog.mozilla.com/products/2011/07/15/goals-for-multi-process-firefox/</a>)</em></p>
+
+<p><em><strong>Update</strong>: There is a global message manager. You <strong>can</strong> send messages through the global or the per-window message manager. Corrected the different loadFrameScript() behaviors. Thanks to Mark Finkle for these corrections!</em></p>
+
+<h2>The message manager</h2>
+
+<p>(<a href="https://developer.mozilla.org/en/The_message_manager">https://developer.mozilla.org/en/The_message_manager</a>)</p>
+
+<p>We’re using messages to establish communication between the chrome process and the content processes. The message manager sends messages and registers message listeners. It’s also capable of injecting so-called frame scripts (or content scripts) into a content process – these send or receive messages and interact with the DOM loaded into the &lt;browser>. There are four types of message managers:</p>
+
+<h3>global messageManager</h3>
+
+<p>This message manager sends messages to and receives them from  every &lt;browser> loaded in every window. You can access it by doing:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="cm">/* chrome script */</span>
+<span class="kd">let</span> <span class="nx">globalMM</span> <span class="o">=</span> <span class="nx">Cc</span><span class="p">[</span><span class="s2">&quot;@mozilla.org/globalmessagemanager;1&quot;</span><span class="p">]</span>
+                 <span class="p">.</span><span class="nx">getService</span><span class="p">(</span><span class="nx">Ci</span><span class="p">.</span><span class="nx">nsIChromeFrameMessageManager</span><span class="p">);</span>
+</pre></div></figure>
+
+
+<h3>window.messageManager</h3>
+
+<p>This message manager sends messages to and receives them from every &lt;browser> loaded in the given window.</p>
+
+<h3>browser.messageManager</h3>
+
+<p>This message manager is specific to a single &lt;browser>.</p>
+
+<h3>Available methods</h3>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">messageManager</span><span class="p">.</span><span class="nx">addMessageListener</span><span class="p">(</span><span class="nx">messageName</span><span class="p">,</span> <span class="nx">listener</span><span class="p">)</span>
+<span class="nx">messageManager</span><span class="p">.</span><span class="nx">removeMessageListener</span><span class="p">(</span><span class="nx">messageName</span><span class="p">,</span> <span class="nx">listener</span><span class="p">)</span>
+<span class="nx">messageManager</span><span class="p">.</span><span class="nx">sendAsyncMessage</span><span class="p">(</span><span class="nx">messageName</span><span class="p">[,</span> <span class="nx">json</span><span class="p">])</span>
+<span class="nx">messageManager</span><span class="p">.</span><span class="nx">loadFrameScript</span><span class="p">(</span><span class="nx">url</span><span class="p">[,</span> <span class="nx">allowDelayedLoad</span><span class="p">])</span>
+</pre></div></figure>
+
+
+<h3>content/frame scripts</h3>
+
+<p>The methods of a content script’s message manager are available as global functions. Note that a content script can send synchronous messages, unlike the message managers accessible from chrome scripts. The chrome process is not allowed to block on content processes.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">addMessageListener</span><span class="p">(</span><span class="nx">messageName</span><span class="p">,</span> <span class="nx">listener</span><span class="p">)</span>
+<span class="nx">removeMessageListener</span><span class="p">(</span><span class="nx">messageName</span><span class="p">,</span> <span class="nx">listener</span><span class="p">)</span>
+<span class="nx">sendAsyncMessage</span><span class="p">(</span><span class="nx">messageName</span><span class="p">[,</span> <span class="nx">json</span><span class="p">])</span>
+<span class="nx">sendSyncMessage</span><span class="p">(</span><span class="nx">messageName</span><span class="p">[,</span> <span class="nx">json</span><span class="p">])</span>
+</pre></div></figure>
+
+
+<h3>e10s components</h3>
+
+<p>Here is an overview of all Electrolysis components. That’s not exactly how e10s is implemented in Gecko but rather a logical view to clarify interactions between these parts.</p>
+
+<p><a href="/images/electrolysis.png" title="Overview of Electrolysis components" class="img"><img src="/images/electrolysis.png" title="Overview of Electrolysis components" ></a></p>
+
+<h2>A simple example</h2>
+
+<h3>The chrome script</h3>
+
+<p>This is the part of the code that runs in the browser process and listens for messages sent by frame scripts. We’re processing a “click” message and respond with an “alert” message.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="cm">/* chrome script */</span>
+<span class="kd">let</span> <span class="nx">mm</span> <span class="o">=</span> <span class="nb">window</span><span class="p">.</span><span class="nx">messageManager</span><span class="p">;</span>
+
+<span class="nx">mm</span><span class="p">.</span><span class="nx">addMessageListener</span><span class="p">(</span><span class="s2">&quot;click&quot;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">msg</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">let</span> <span class="nx">browser</span> <span class="o">=</span> <span class="nx">msg</span><span class="p">.</span><span class="nx">target</span><span class="p">;</span>
+  <span class="kd">let</span> <span class="nx">data</span> <span class="o">=</span> <span class="p">{</span><span class="nx">text</span><span class="o">:</span> <span class="s2">&quot;You clicked a &lt;&quot;</span> <span class="o">+</span> <span class="nx">msg</span><span class="p">.</span><span class="nx">json</span><span class="p">.</span><span class="nx">tagName</span> <span class="o">+</span> <span class="s2">&quot;&gt;!&quot;</span><span class="p">};</span>
+  <span class="nx">browser</span><span class="p">.</span><span class="nx">messageManager</span><span class="p">.</span><span class="nx">sendAsyncMessage</span><span class="p">(</span><span class="s2">&quot;alert&quot;</span><span class="p">,</span> <span class="nx">data</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="nx">mm</span><span class="p">.</span><span class="nx">loadFrameScript</span><span class="p">(</span><span class="s2">&quot;chrome://project/content/content.js&quot;</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+</pre></div></figure>
+
+
+<h3>The frame script</h3>
+
+<p>The frame script (or content script) runs in the same process as the web page and has access to the contentWindow, document and their events. We listen for any click event and send a “click” message providing the tagName of the clicked element. Additionally we listen for “alert” messages and show an alert dialog when we receive them.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="cm">/* content script */</span>
+<span class="nx">addEventListener</span><span class="p">(</span><span class="s2">&quot;click&quot;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">let</span> <span class="nx">data</span> <span class="o">=</span> <span class="p">{</span><span class="nx">tagName</span><span class="o">:</span> <span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">tagName</span><span class="p">};</span>
+  <span class="nx">sendAsyncMessage</span><span class="p">(</span><span class="s2">&quot;click&quot;</span><span class="p">,</span> <span class="nx">data</span><span class="p">);</span>
+<span class="p">},</span> <span class="kc">false</span><span class="p">);</span>
+
+<span class="nx">addMessageListener</span><span class="p">(</span><span class="s2">&quot;alert&quot;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">msg</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">alert</span><span class="p">(</span><span class="nx">msg</span><span class="p">.</span><span class="nx">json</span><span class="p">.</span><span class="nx">text</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div></figure>
+
+
+<h3>Process communication</h3>
+
+<p>This diagram illustrates what the communication between all processes involved looks like (regarding our simple example).</p>
+
+<p><a href="/images/e10s-processes.png" title="Electrolysis process communication" class="img"><img src="/images/e10s-processes.png" title="Electrolysis process communication" ></a></p>
+
+<h2>Which parts of your project will be affected by e10s?</h2>
+
+<h3>DOM Objects</h3>
+
+<p>It’s no longer possible to work with or directly access DOM objects (window, document and normal DOM nodes) from the chrome process. As an example, you are not allowed to access a page’s content window through browser.contentWindow. You’ll have to send a message to a content script that does all the work for you. In content scripts, the “global variable” content is the DOM window of the page loaded in the browser.</p>
+
+<h3>DOM Events</h3>
+
+<p>DOMEvents are no longer propagated to the parent &lt;browser> and you’re not able to call DOMElement.addEventListener(). Use addEventListener() in a content script and then send a message to a listener in the chrome process.</p>
+
+<h3>DocShell</h3>
+
+<p>The docShell is no longer accessible. It’s available as a “global variable” named docShell in content scripts.</p>
+
+<h3>nsIWebProgress(Listener)</h3>
+
+<p>If you still need to monitor a page’s web progress all you need is (surprise) a content script. This could look like the following:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="cm">/* content script */</span>
+<span class="kd">let</span> <span class="nx">ifaceReq</span> <span class="o">=</span> <span class="nx">docShell</span><span class="p">.</span><span class="nx">QueryInterface</span><span class="p">(</span><span class="nx">Ci</span><span class="p">.</span><span class="nx">nsIInterfaceRequestor</span><span class="p">);</span>
+<span class="kd">let</span> <span class="nx">webProgress</span> <span class="o">=</span> <span class="nx">ifaceReq</span><span class="p">.</span><span class="nx">getInterface</span><span class="p">(</span><span class="nx">Ci</span><span class="p">.</span><span class="nx">nsIWebProgress</span><span class="p">);</span>
+
+<span class="kd">let</span> <span class="nx">WebProgressListener</span> <span class="o">=</span> <span class="p">{</span> <span class="p">...</span> <span class="p">};</span>
+<span class="kd">let</span> <span class="nx">mask</span> <span class="o">=</span> <span class="nx">Ci</span><span class="p">.</span><span class="nx">nsIWebProgress</span><span class="p">.</span><span class="nx">NOTIFY_STATE_ALL</span><span class="p">;</span>
+<span class="nx">webProgress</span><span class="p">.</span><span class="nx">addProgressListener</span><span class="p">(</span><span class="nx">WebProgressListener</span><span class="p">,</span> <span class="nx">mask</span><span class="p">);</span>
+</pre></div></figure>
+
+
+<h3>nsIDOMWindowUtils</h3>
+
+<p>The DOM utility interface is also no longer accessible. You still can retrieve it in a content script like this:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="cm">/* content script */</span>
+<span class="kd">let</span> <span class="nx">ifaceReq</span> <span class="o">=</span> <span class="nx">content</span><span class="p">.</span><span class="nx">QueryInterface</span><span class="p">(</span><span class="nx">Ci</span><span class="p">.</span><span class="nx">nsIInterfaceRequestor</span><span class="p">);</span>
+<span class="kd">let</span> <span class="nx">utils</span> <span class="o">=</span> <span class="nx">ifaceReq</span><span class="p">.</span><span class="nx">getInterface</span><span class="p">(</span><span class="nx">Ci</span><span class="p">.</span><span class="nx">nsIDOMWindowUtils</span><span class="p">);</span>
+</pre></div></figure>
+
+
+<h2>Tips and hints</h2>
+
+<h3>sendSyncMessage or sendAsyncMessage?</h3>
+
+<p>Sending synchronous message is not allowed for chrome processes. Only content processes can block on the parent. In general you should always try to use sendAsyncMessage() to not block while waiting for the message to be processed. You should try to rewrite your code if it isn’t ready for asynchronous communication, yet. There are a few valid cases where a message needs to be sent synchronously – if you have one of those you should at least try to handle this message as quickly as possible to not block the content process longer than necessary.</p>
+
+<h3>sendSyncMessage()</h3>
+
+<p>If you use sendSyncMessage() then you should know that the response is an array of all values returned from each listener.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="cm">/* chrome script */</span>
+<span class="kd">let</span> <span class="nx">mm</span> <span class="o">=</span> <span class="nx">browser</span><span class="p">.</span><span class="nx">messageManager</span><span class="p">;</span>
+<span class="nx">mm</span><span class="p">.</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s2">&quot;mymessage&quot;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">()</span> <span class="s2">&quot;hello world&quot;</span><span class="p">);</span>
+<span class="nx">mm</span><span class="p">.</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s2">&quot;mymessage&quot;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">()</span> <span class="s2">&quot;hello the 2nd&quot;</span><span class="p">);</span>
+
+<span class="cm">/* content script */</span>
+<span class="kd">let</span> <span class="nx">results</span> <span class="o">=</span> <span class="nx">sendSyncMessage</span><span class="p">(</span><span class="s2">&quot;mymessage&quot;</span><span class="p">,</span> <span class="p">{</span><span class="nx">foo</span><span class="o">:</span> <span class="s2">&quot;bar&quot;</span><span class="p">});</span>
+<span class="nx">print</span><span class="p">(</span><span class="nx">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span> <span class="c1">// prints &quot;hello world&quot;</span>
+<span class="nx">print</span><span class="p">(</span><span class="nx">results</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span> <span class="c1">// prints &quot;hello the 2nd&quot;</span>
+</pre></div></figure>
+
+
+<h3>globalMessageManager.addFrameScript()</h3>
+
+<p>Use this if you want a frame script to be attached to every existing tab/browser of every existing window out there. Set the second parameter, allowDelayedLoad, to true, to automatically load the desired frame script in newly created browsers/tabs (of possibly newly created windows) as well.</p>
+
+<h3>window.loadFrameScript()</h3>
+
+<p>The window-specific message manager has the same frame script loading behavior as the global one, but it will add your frame script to every browser in the given window, only.</p>
+
+<h3>browser.loadFrameScript()</h3>
+
+<p>If the second parameter, allowDelayedLoad, is false this method will add the frame script only if the browser is ready. If you set it to true and the browser isn’t ready, yet, the script will be added when it becomes ready.</p>
+
+<h3>messageManager.addMessageListener()</h3>
+
+<p>When a message from a content script is received the listeners attached via browser.addMessageListener() are called first, and then the ones added via window.addMessageListener(), then the ones via globalMessageManager.addEventListener().</p>
+
+<h3>Message properties</h3>
+
+<p>The first argument passed to message listeners is the message they just received. This is an object with the following properties:</p>
+
+<figure class='code'><div class="highlight"><pre>name   - the name of the message
+json   - the custom message data
+sync   - false if the message was sent asynchronously
+         (always false for messages from chrome scripts)
+target - the browser associated with the content that this
+         message came from
+</pre></div></figure>
+
+
+<h3>Message name prefixes</h3>
+
+<p>At the beginning there won’t be many message users in the Mozilla code base and we should not start consolidating messages before the requirements of all those are fully fleshed out. So it’s better to be over-specific for now and name your messages like &ldquo;Project:click&rdquo; instead of just &ldquo;click&rdquo; to avoid conflicts.</p>
+
+<h3>Conventions for frame scripts</h3>
+
+<p>Frame scripts (or content scripts) should be stored in the same folder as the code that calls loadFrameScript() to load them. A good convention is to name them something like &ldquo;content-project.js&rdquo; or just &ldquo;content.js&rdquo;.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

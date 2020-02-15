@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A fast, constant-time AEAD for TLS - ChaCha20/Poly1305 cipher suites in Firefox 47</title>
+    
+    <meta name="description" content="A fast, constant-time AEAD for TLS ChaCha20/Poly1305 cipher suites in Firefox 47 April 29, 2016 The only TLS v1.2+ cipher suites with a dedicated &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>A fast, constant-time AEAD for TLS</h1>
+      <h2>ChaCha20/Poly1305 cipher suites in Firefox 47</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">April 29, 2016</time>
+    <p>The only TLS v1.2+ cipher suites with a dedicated AEAD scheme are the ones using
+<a href="https://en.wikipedia.org/wiki/Galois/Counter_Mode">AES-GCM</a>, a block cipher
+mode that turns AES into an <a href="https://en.wikipedia.org/wiki/Authenticated_encryption">authenticated cipher</a>.
+From a cryptographic point of view these are preferable to non-AEAD-based cipher
+suites (e.g. the ones with AES-CBC) because getting authenticated encryption
+right is hard without using dedicated ciphers.</p>
+
+<p>For CPUs without the <a href="https://en.wikipedia.org/wiki/AES_instruction_set">AES-NI instruction set</a>,
+constant-time AES-GCM however is slow and also hard to write and maintain. The
+majority of mobile phones, and mostly cheaper devices like tablets and notebooks
+on the market thus cannot support efficient and safe AES-GCM cipher suite
+implementations.</p>
+
+<p>Even if we ignored all those aforementioned pitfalls we still wouldn&rsquo;t want to
+rely on AES-GCM cipher suites as the only good ones available. We need more
+diversity. Having widespread support for cipher suites using a second AEAD is
+necessary to defend against weaknesses in AES or AES-GCM that may be discovered
+in the future.</p>
+
+<p><a href="https://en.wikipedia.org/wiki/Salsa20#ChaCha_variant">ChaCha20</a> and
+<a href="https://en.wikipedia.org/wiki/Poly1305">Poly1305</a>, a stream cipher and a
+message authentication code, were designed with fast and constant-time
+implementations in mind. A combination of those two algorithms yields a safe
+and efficient AEAD construction, called ChaCha20/Poly1305, which allows TLS
+with a negligible performance impact even on low-end devices.</p>
+
+<p><a href="https://www.mozilla.org/en-US/firefox/47.0beta/releasenotes/">Firefox 47</a>
+will ship with two new ECDHE/ChaCha20 cipher suites as specified in the
+<a href="https://tools.ietf.org/html/draft-ietf-tls-chacha20-poly1305-04">latest draft</a>.
+We are looking forward to see the adoption of these increase and will, as a
+next step, work on prioritizing them over AES-GCM suites on devices not
+supporting AES-NI.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

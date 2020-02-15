@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Leak hunting in browser-chrome mochitests - Tim Taubert</title>
+    
+    <meta name="description" content="Leak hunting in browser-chrome mochitests September 9, 2011 Some weeks (even months) ago Dão Gottwald started the hunt for leaked DOMWindows and &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Leak hunting in browser-chrome mochitests</h1>
+      <h2></h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">September 9, 2011</time>
+    <p>Some weeks (even months) ago <a href="http://design-noir.de/">Dão Gottwald</a> started the hunt for leaked DOMWindows and DocShells while running our browser-chrome mochitest suite (see <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=658738" title="Bug 658738 - (bc-leaks) [meta] We seem to be leaking hundreds of windows until shutdown during browser-chrome tests">bug 658738</a>). That means that there are some expensive objects whose lifetimes are longer than they should be – they are kept alive until the test runner shuts down. Sometimes these are caused by only a little typo in the test and sometimes they unveil bigger problems in the core.</p>
+
+<p>Dão has done some great work so far, fixed lots of those leaks and also pointed out patches that introduced new leaks. Inspired by his <a href="https://bugzilla.mozilla.org/attachment.cgi?id=553428">script</a> that parses the mochitest build log and lists all <a href="https://bugzilla.mozilla.org/attachment.cgi?id=559090">leaked URIs</a> I wrote a Python script that additionally assigns those URIs to the tests that created these DOMWindows and DocShells. I filed <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=683953" title="Bug 683953 - Browser-chrome mochitests should show statistics about leaked DOMWindows and DocShells">bug 683953</a> to automatically have those statistics at the end of each mochitest run. Here is an example:</p>
+
+<figure class='code'><div class="highlight"><pre>TEST-INFO | leaked 15 DOMWindows and/or DocShells
+
+[browser/components/sessionstore/test/browser/browser_589246.js]
+  5x [about:blank]
+  4x [chrome://browser/content/browser.xul]
+  1x docShells
+
+[browser/devtools/styleinspector/test/browser/styleinspector.js]
+  2x [chrome://browser/content/csshtmltree.xhtml]
+  1x [data:text/html,basic%20style%20inspector%20tests]
+  1x [about:blank]
+  1x docShells
+</pre></div></figure>
+
+
+<p>This would definitely be very helpful as you don’t have to parse a build log manually after the test run finished. It would also allow us to fail (in a far future where all leaks are fixed) when we detect that the current patch would introduce a new leak.</p>
+
+<p>Another approach would be to have an API that allows to check whether a given object should be regarded as “alive” or “dead”. This is what <a href="https://bugzilla.mozilla.org/show_bug.cgi?id=633670" title="Bug 633670 - (LifetimeTesting) Need testing support for leaks that do not persist through shutdown">bug 633670</a> is about. Every test would need to check if the DOMWindows, DocShells and other objects created by it are still considered alive after it has finished. One problem with this is that we would have to run GC after each test to determine an object’s lifetime – which would negatively affect the overall mochitest suite runtime.</p>
+
+<p>No matter which solution (or maybe a combination of both or something completely different) will make it – we definitely need some kind of better leak detection than we currently have. Many of us are not aware that they are accidentally introducing new leaks with new patches they write. Manually checking for new leaks after each push is a real waste of time and shouldn’t be necessary.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

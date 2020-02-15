@@ -1,0 +1,539 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tim Taubert</title>
+    
+    
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body class="page">
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    
+<div class="container">
+  
+  <article>
+    <time pubdate="pubdate">August 27, 2018</time>
+    <h1><a href="/blog/2018/08/bitslicing-with-quine-mccluskey/">Bitslicing with Quine-McCluskey</a></h1>
+    <h2>Data Orthogonalization for Cryptography</h2>
+    <p>
+      Part one gave a short introduction of bitslicing as a concept, talked about
+its use cases, truth tables, software multiplexers, LUTs, and manual optimization. The second covered Karnaugh mapping,
+a visual method to simplify Boolean algebra expressions that takes advantage of
+humans’ pattern- &hellip;
+      <a class="more" href="/blog/2018/08/bitslicing-with-quine-mccluskey/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">August 18, 2018</time>
+    <h1><a href="/blog/2018/08/bitslicing-with-karnaugh-maps/">Bitslicing with Karnaugh maps</a></h1>
+    <h2>Data Orthogonalization for Cryptography</h2>
+    <p>
+      Bitslicing, in cryptography, is the technique of converting arbitrary
+functions into logic circuits, thereby enabling fast, constant-time
+implementations of cryptographic algorithms immune to cache and
+timing-related side channel attacks. My last post Bitslicing, An Introduction
+showed how to &hellip;
+      <a class="more" href="/blog/2018/08/bitslicing-with-karnaugh-maps/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">August 15, 2018</time>
+    <h1><a href="/blog/2018/08/bitslicing-an-introduction/">Bitslicing, An Introduction</a></h1>
+    <h2>Data Orthogonalization for Cryptography</h2>
+    <p>
+      Bitslicing (in software) is an implementation strategy enabling fast,
+constant-time implementations of cryptographic algorithms immune to cache and
+timing-related side channel attacks. This post intends to give a brief overview of the general technique, not requiring
+much of a cryptographic &hellip;
+      <a class="more" href="/blog/2018/08/bitslicing-an-introduction/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">June 29, 2017</time>
+    <h1><a href="/blog/2017/06/verified-binary-multiplication-for-ghash/">Verified binary multiplication for GHASH</a></h1>
+    <h2>Exploring formal verification (part 3)</h2>
+    <p>
+      Previously I introduced some very basic Cryptol and SAWScript, and explained how to reason about the correctness of constant-time integer multiplication written in C/C++. In this post I will touch on using formal verification as part of the code review process, in particular show how, by using the &hellip;
+      <a class="more" href="/blog/2017/06/verified-binary-multiplication-for-ghash/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">February 15, 2017</time>
+    <h1><a href="/blog/2017/02/the-future-of-session-resumption/">The future of session resumption</a></h1>
+    <h2>Forward secure PSK key agreement in TLS 1.3</h2>
+    <p>
+      A while ago I wrote about the state of server-side session resumption implementations in popular web servers using OpenSSL. Neither Apache, nor Nginx or HAproxy purged stale entries from the session cache or rotated session tickets automatically, potentially harming forward secrecy of resumed TLS &hellip;
+      <a class="more" href="/blog/2017/02/the-future-of-session-resumption/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">February 7, 2017</time>
+    <h1><a href="/blog/2017/02/simple-cryptol-specifications/">Simple Cryptol specifications</a></h1>
+    <h2>Exploring formal verification (part 2)</h2>
+    <p>
+      In the previous post I showed how to prove equivalence of two different implementations of the same algorithm. This post will cover writing an algorithm specification in Cryptol to prove the correctness of a constant-time C/C++ implementation. Apart from rather simple Cryptol I&rsquo;m also going &hellip;
+      <a class="more" href="/blog/2017/02/simple-cryptol-specifications/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">January 26, 2017</time>
+    <h1><a href="/blog/2017/01/equivalence-proofs-with-saw/">Equivalence proofs with SAW</a></h1>
+    <h2>Exploring formal verification (part 1)</h2>
+    <p>
+      This is the first of a small series of posts that will scratch the surface of the world of formal verification. I will mainly use SAW, the Software Analysis Workbench, and Cryptol, a DSL for specifying crypto algorithms. Both are powerful tools for verifying C, C++, and even Rust code, i.e. almost &hellip;
+      <a class="more" href="/blog/2017/01/equivalence-proofs-with-saw/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">January 17, 2017</time>
+    <h1><a href="/blog/2017/01/notes-on-hacs-2017/">Notes on HACS 2017</a></h1>
+    <h2>The High Assurance Crypto Software workshop</h2>
+    <p>
+      Real World Crypto is probably one of my favorite conferences. It&rsquo;s a fine mix of practical and theoretical talks, plus a bunch of great hallway, lunch, and dinner conversations. It was broadcasted live for the first time this year, and the talks are available online. But I&rsquo;m not going &hellip;
+      <a class="more" href="/blog/2017/01/notes-on-hacs-2017/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">September 30, 2016</time>
+    <h1><a href="/blog/2016/09/tls-version-intolerance/">TLS version intolerance</a></h1>
+    <h2>Working around bugs in legacy TLS stacks</h2>
+    <p>
+      A few weeks ago I listened to Hanno Böck talk about
+TLS version intolerance
+at the Berlin AppSec &amp; Crypto Meetup. He
+explained how with TLS 1.3 just around the corner there again are growing
+concerns about faulty TLS stacks found in HTTP servers, load balancers,
+routers, firewalls, and similar &hellip;
+      <a class="more" href="/blog/2016/09/tls-version-intolerance/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">August 9, 2016</time>
+    <h1><a href="/blog/2016/08/continuous-integration-for-nss/">Continuous Integration for NSS</a></h1>
+    <h2>Automating builds and tests with Mozilla&#8217;s Taskcluster framework</h2>
+    <p>
+      The following image shows our TreeHerder dashboard
+after pushing a changeset to the NSS repository.
+It is the result of only a few weeks of work (on our side): Based on my experience from building a Taskcluster
+CI for NSS over the last weeks, I want to share a rough outline of the process
+of &hellip;
+      <a class="more" href="/blog/2016/08/continuous-integration-for-nss/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">July 26, 2016</time>
+    <h1><a href="/blog/2016/07/the-evolution-of-signatures-in-tls/">The Evolution of Signatures in TLS</a></h1>
+    <h2>Signature algorithms and schemes in TLS 1.0 - 1.3</h2>
+    <p>
+      This post will take a look at the evolution of signature algorithms and schemes
+in the TLS protocol since version 1.0. I at first started taking notes for
+myself but then decided to polish and publish them, hoping that others will
+benefit as well. (Let&rsquo;s ignore client authentication for &hellip;
+      <a class="more" href="/blog/2016/07/the-evolution-of-signatures-in-tls/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">May 13, 2016</time>
+    <h1><a href="/blog/2016/05/six-months-as-a-security-engineer/">Six months as a Security Engineer</a></h1>
+    <h2>My work on Mozilla&#8217;s Security Engineering team</h2>
+    <p>
+      It&rsquo;s been a little more than six months since I officially switched to the
+Security Engineering team here at Mozilla to work on
+NSS and
+related code. I thought this might be a good time to share what I&rsquo;ve been up
+to in a short status update: Removed SSLv2 code from NSS NSS contained &hellip;
+      <a class="more" href="/blog/2016/05/six-months-as-a-security-engineer/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">April 29, 2016</time>
+    <h1><a href="/blog/2016/04/a-fast-constant-time-aead-for-tls/">A fast, constant-time AEAD for TLS</a></h1>
+    <h2>ChaCha20/Poly1305 cipher suites in Firefox 47</h2>
+    <p>
+      The only TLS v1.2+ cipher suites with a dedicated AEAD scheme are the ones using
+AES-GCM, a block cipher
+mode that turns AES into an authenticated cipher.
+From a cryptographic point of view these are preferable to non-AEAD-based cipher
+suites (e.g. the ones with AES-CBC) because getting &hellip;
+      <a class="more" href="/blog/2016/04/a-fast-constant-time-aead-for-tls/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">January 15, 2016</time>
+    <h1><a href="/blog/2016/01/build-your-own-signal-desktop/">Build your own Signal Desktop</a></h1>
+    <h2>Packaging the Signal Private Messenger and NW.js into a standalone app</h2>
+    <p>
+      The Signal Private Messenger is great. Use it. It&rsquo;s probably the best secure
+messenger on the market. When recently a desktop app was announced people were
+eager to join the beta and even happier when an invite finally showed up in
+their inbox. So was I, it&rsquo;s a great app and works &hellip;
+      <a class="more" href="/blog/2016/01/build-your-own-signal-desktop/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">November 16, 2015</time>
+    <h1><a href="/blog/2015/11/more-privacy-less-latency-improved-handshakes-in-tls-13/">More Privacy, Less Latency</a></h1>
+    <h2>Improved Handshakes in TLS version 1.3</h2>
+    <p>
+      Please note that this post is about draft-11 of the TLS v1.3 standard. TLS must be fast. Adoption will greatly benefit
+from speeding up the initial handshake that authenticates and secures the
+connection. You want to get the protocol out of the way and start delivering
+data to visitors as soon as &hellip;
+      <a class="more" href="/blog/2015/11/more-privacy-less-latency-improved-handshakes-in-tls-13/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">May 18, 2015</time>
+    <h1><a href="/blog/2015/05/implementing-a-pbkdf2-based-password-storage-scheme-for-firefox-os/">A Firefox OS password storage</a></h1>
+    <h2>PBKDF2 and the WebCrypto API in the wild</h2>
+    <p>
+      My esteemed colleague Frederik Braun recently
+took on to rewrite the module responsible for storing and checking passcodes
+that unlock Firefox OS phones. While we are still working on actually landing
+it in Gaia I
+wanted to seize the chance to talk about this great use case of the
+WebCrypto API
+in &hellip;
+      <a class="more" href="/blog/2015/05/implementing-a-pbkdf2-based-password-storage-scheme-for-firefox-os/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">November 17, 2014</time>
+    <h1><a href="/blog/2014/11/the-sad-state-of-server-side-tls-session-resumption-implementations/">Botching Forward Secrecy</a></h1>
+    <h2>The sad state of server-side TLS Session Resumption implementations</h2>
+    <p>
+      After you finished reading this one, please also read the
+follow-up post
+that covers session resumption changes in TLS 1.3. The probably oldest complaint about TLS is that its handshake is slow and
+together with the transport encryption has a lot of CPU overhead. This
+certainly is not true anymore &hellip;
+      <a class="more" href="/blog/2014/11/the-sad-state-of-server-side-tls-session-resumption-implementations/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">November 2, 2014</time>
+    <h1><a href="/blog/2014/11/using-the-webcrypto-api-to-generate-onion-names-for-tor-hidden-services/">Generating .onion names for Tor hidden services</a></h1>
+    <h2>Tinkering with the WebCrypto API</h2>
+    <p>
+      You have probably read that
+Facebook unveiled its hidden service
+that lets users access their website more safely via Tor. While there are lots
+of opinions about whether this is good or bad I think that
+the Tor project described best why that is not as crazy as it seems. The most interesting part &hellip;
+      <a class="more" href="/blog/2014/11/using-the-webcrypto-api-to-generate-onion-names-for-tor-hidden-services/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">October 30, 2014</time>
+    <h1><a href="/blog/2014/10/http-public-key-pinning-explained/">HTTP Public-Key-Pinning explained</a></h1>
+    <h2>The what, why, and how of RFC 7469</h2>
+    <p>
+      In my last post
+&ldquo;Deploying TLS the hard way&rdquo;
+I explained how TLS and its extensions (as well as a few HTTP extensions) work
+and what to watch out for when enabling TLS for your server. One of the HTTP
+extensions mentioned is
+HTTP Public-Key-Pinning (HPKP).
+As a short reminder, the &hellip;
+      <a class="more" href="/blog/2014/10/http-public-key-pinning-explained/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">October 27, 2014</time>
+    <h1><a href="/blog/2014/10/deploying-tls-the-hard-way/">Deploying TLS the hard way</a></h1>
+    <h2>Configuring HTTPS for your domain(s)</h2>
+    <p>
+      How does TLS work?
+The certificate
+(Perfect) Forward Secrecy
+Choosing the right cipher suites
+HTTP Strict Transport Security
+HSTS Preload List
+OCSP Stapling
+HTTP Public Key Pinning
+Known attacks Last weekend I finally deployed TLS for timtaubert.de and decided to write up
+what I learned on the way &hellip;
+      <a class="more" href="/blog/2014/10/deploying-tls-the-hard-way/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">April 7, 2014</time>
+    <h1><a href="/blog/2014/04/a-ready-to-use-virtual-build-environment-for-firefox/">The Mozilla build VM</a></h1>
+    <h2>A virtual build environment for Firefox</h2>
+    <p>
+      Note: This post might be outdated as it has been turned into an MDN page.
+Please refer to the MDN page for the latest information about the Firefox
+Developer VM. It will also tell you the correct checksum to compare to after
+downloading. https://developer.mozilla.org/docs/Mozilla/Developer_guide/ &hellip;
+      <a class="more" href="/blog/2014/04/a-ready-to-use-virtual-build-environment-for-firefox/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">May 14, 2013</time>
+    <h1><a href="/blog/2013/05/scotland-js-2013-in-edinburgh/">Scotland.JS 2013 in Edinburgh</a></h1>
+    
+    <p>
+      I got to spend Wednesday through Friday in Edinburgh last week to attend
+Scotland.JS. Edinburgh is a lovely city and I will
+definitely return to get to know it better. It has great people, beers, food and
+even a castle - what could one want more? I arrived on Wednesday, just in time for the &hellip;
+      <a class="more" href="/blog/2013/05/scotland-js-2013-in-edinburgh/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">May 6, 2013</time>
+    <h1><a href="/blog/2013/05/working-with-infinite-sequences-in-javascript/">Infinite Sequences in JavaScript</a></h1>
+    <h2>Experiments with ES6 generators</h2>
+    <p>
+      JavaScript comes with most of the little functional tools you need to work on
+finite sequences that are usually implemented using Arrays. Array.prototype
+includes a number of methods like map() and filter() that apply a given
+function to all items of the Array and return the resulting new Array. [1 &hellip;
+      <a class="more" href="/blog/2013/05/working-with-infinite-sequences-in-javascript/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">May 3, 2013</time>
+    <h1><a href="/blog/2013/05/stop-iteration-time/">Stop. Iteration time!</a></h1>
+    <h2>Implementing ES6 generators and iterators</h2>
+    <p>
+      You have probably already heard of
+generators and iterators
+coming to a browser near you. They have been available in Firefox for a long
+time and are used extensively all over the Mozilla code base. The V8 team
+will implement iterators and generators
+once ES6 has been finalized. This post describes &hellip;
+      <a class="more" href="/blog/2013/05/stop-iteration-time/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">February 27, 2013</time>
+    <h1><a href="/blog/2013/02/getusermedia-part-3-simple-motion-detection-in-a-live-video/">getUserMedia() part #3</a></h1>
+    <h2>Simple motion detection in a live video</h2>
+    <p>
+      Now that you should already know how to build a
+live green screen
+and an
+EyeToy-like mini-game
+using nothing but plain JavaScript and a modern browser supporting WebRTC, let
+us move on to another interesting example: simple motion detection in a live
+video. The initialization code To detect motion &hellip;
+      <a class="more" href="/blog/2013/02/getusermedia-part-3-simple-motion-detection-in-a-live-video/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">October 18, 2012</time>
+    <h1><a href="/blog/2012/10/getusermedia-part-2-building-an-eyetoy-like-mini-game/">getUserMedia() part #2</a></h1>
+    <h2>Building an EyeToy-like mini-game</h2>
+    <p>
+      This post is a follow-up to my previous one about
+building a live green screen with getUserMedia() and MediaStreams.
+If you have not read it yet, this might be a good time. We will extend the small
+example to build an EyeToy-like mini-game. Some additions var video, width, height, context;
+var &hellip;
+      <a class="more" href="/blog/2012/10/getusermedia-part-2-building-an-eyetoy-like-mini-game/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">October 17, 2012</time>
+    <h1><a href="/blog/2012/10/building-a-live-green-screen-with-getusermedia-and-mediastreams/">getUserMedia() part #1</a></h1>
+    <h2>Building a live green screen</h2>
+    <p>
+      While recently watching a talk about the new WebRTC features I was reminded of
+Paul Rouget&rsquo;s great
+green screen demo
+and thought that this would be a cool thing to have for live video as well.
+Let us build a live green screen! The markup &lt;body&gt; &lt;video id=&quot;v&quot; width=&quot;320 &hellip;
+      <a class="more" href="/blog/2012/10/building-a-live-green-screen-with-getusermedia-and-mediastreams/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">August 14, 2012</time>
+    <h1><a href="/blog/2012/08/snappy-fixing-new-tab-page-performance-regressions/">Fixing new tab page performance regressions</a></h1>
+    
+    <p>
+      As you probably already know, Firefox 13 introduced a neat new feature - the
+new tab page.
+We replaced the old blank page with a list of thumbnails of recently visited
+sites. While the feature itself works great for many people it has definitely
+made opening new tabs a little more noisy. Do not &hellip;
+      <a class="more" href="/blog/2012/08/snappy-fixing-new-tab-page-performance-regressions/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">April 11, 2012</time>
+    <h1><a href="/blog/2012/04/are-we-small-yet/">Are we small, yet?</a></h1>
+    <h2>A histogram of Firefox download sizes</h2>
+    <p>
+      Lately, Asa Dotzler posted to dev.apps.firefox regarding the download size of Firefox: This evening I noticed that my full win32 mar update for Firefox was 21MB. That caused me to look at what our full win32 installer size was. I was a bit surprised to see it’s up to 17MB. When we shipped Firefox 1 &hellip;
+      <a class="more" href="/blog/2012/04/are-we-small-yet/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">April 9, 2012</time>
+    <h1><a href="/blog/2012/04/one-year-at-mozilla/">One year at Mozilla</a></h1>
+    
+    <p>
+      You may already know the story of how I became a Firefox contributor. Back in early April of 2011, having volunteered full-time for three months (a rather short time compared to other core contributors), I was given the opportunity to start as a paid contributor working for Mozilla. Over the year I &hellip;
+      <a class="more" href="/blog/2012/04/one-year-at-mozilla/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">February 27, 2012</time>
+    <h1><a href="/blog/2012/02/fighting-docshell-and-domwindow-leaks/">Fighting DocShell and DOMWindow leaks</a></h1>
+    
+    <p>
+      In my post Leak hunting in browser-chrome mochitests I wrote about the measures we were considering to prevent regressing efforts to get rid of leaks in Firefox. Now that bug 683953 has landed we finally have a way to detect the leakage of whole DocShells and DOMWindows for the lifetime of the &hellip;
+      <a class="more" href="/blog/2012/02/fighting-docshell-and-domwindow-leaks/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">February 10, 2012</time>
+    <h1><a href="/blog/2012/02/help-us-test-the-new-tab-page/">Help us test the New Tab Page!</a></h1>
+    
+    <p>
+      Over the last weeks we worked hard on getting the New Tab Page into Firefox. It’s not quite ready yet but we need your help testing it. We enabled it by default on Nightly and decided to give it a week on Aurora to get feedback from those users as well. Nightly: http://nightly.mozilla.org/
+Aurora: &hellip;
+      <a class="more" href="/blog/2012/02/help-us-test-the-new-tab-page/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">January 19, 2012</time>
+    <h1><a href="/blog/2012/01/how-i-became-a-firefox-contributor/">How I became a Firefox contributor</a></h1>
+    
+    <p>
+      December 2009. I’ve been a freelancer for quite some time now and decided to dedicate some weeks to something that always fascinated me: contributing to a big open source project. I started some smaller open source projects in the past (like Video4Linux.Net and ViGedit+) and contributed every so &hellip;
+      <a class="more" href="/blog/2012/01/how-i-became-a-firefox-contributor/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">September 9, 2011</time>
+    <h1><a href="/blog/2011/09/leak-hunting-in-browser-chrome-mochitests/">Leak hunting in browser-chrome mochitests</a></h1>
+    
+    <p>
+      Some weeks (even months) ago Dão Gottwald started the hunt for leaked DOMWindows and DocShells while running our browser-chrome mochitest suite (see bug 658738). That means that there are some expensive objects whose lifetimes are longer than they should be – they are kept alive until the test &hellip;
+      <a class="more" href="/blog/2011/09/leak-hunting-in-browser-chrome-mochitests/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">August 10, 2011</time>
+    <h1><a href="/blog/2011/08/firefox-electrolysis-101/">Firefox Electrolysis 101</a></h1>
+    <h2>Writing code for multi-process Firefox</h2>
+    <p>
+      You probably have all heard of this weird new thing called Electrolysis (a.k.a. e10s). Basically it’s all about running the browser UI and its tabs in separated processes. I recently rewrote a part of Panorama to be e10s-future-proof and thought I should share what I’ve learned so far… (If you don’ &hellip;
+      <a class="more" href="/blog/2011/08/firefox-electrolysis-101/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">May 20, 2011</time>
+    <h1><a href="/blog/2011/05/firefox-panorama-deferred-loading-of-inactive-groups/">Deferred loading of inactive tab groups</a></h1>
+    
+    <p>
+      Starting with tomorrow’s Nightly hidden tabs are not anymore restored by default when starting Firefox. That means tabs from inactive Panorama groups will not load until these groups/tabs are shown. Finally we have a part of the behavior everyone actually expects when using Panorama. If you have &hellip;
+      <a class="more" href="/blog/2011/05/firefox-panorama-deferred-loading-of-inactive-groups/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+  <article>
+    <time pubdate="pubdate">April 21, 2011</time>
+    <h1><a href="/blog/2011/04/firefox-add-on-customizable-shortcuts/">Customizable Shortcuts</a></h1>
+    <h2>A Firefox Add-on</h2>
+    <p>
+      As you probably know, in Firefox there is unfortunately no way to configure existing shortcuts. All I found is the keyconfig add-on, that seems really old and very hard to configure (there is no UI, only about:config). That’s why I finally decided to write an add-on with a neat UI (not only) for &hellip;
+      <a class="more" href="/blog/2011/04/firefox-add-on-customizable-shortcuts/">&raquo; READ MORE &laquo;</a>
+    </p>
+  </article>
+  
+</div>
+
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

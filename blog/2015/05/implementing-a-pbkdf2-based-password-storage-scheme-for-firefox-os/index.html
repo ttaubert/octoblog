@@ -1,0 +1,425 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A Firefox OS password storage - PBKDF2 and the WebCrypto API in the wild</title>
+    
+    <meta name="description" content="A Firefox OS password storage PBKDF2 and the WebCrypto API in the wild May 18, 2015 My esteemed colleague Frederik Braun recently
+took on to rewrite &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>A Firefox OS password storage</h1>
+      <h2>PBKDF2 and the WebCrypto API in the wild</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">May 18, 2015</time>
+    <p>My esteemed colleague <a href="https://frederik-braun.com/">Frederik Braun</a> recently
+took on to rewrite the module responsible for storing and checking passcodes
+that unlock Firefox OS phones. While we are still working on actually landing
+it in <a href="https://developer.mozilla.org/en-US/Firefox_OS/Platform/Gaia">Gaia</a> I
+wanted to seize the chance to talk about this great use case of the
+<a href="https://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html">WebCrypto API</a>
+in the wild and highlight a few important points when using
+<a href="https://en.wikipedia.org/wiki/PBKDF2">password-based key derivation (PBKDF2)</a>
+to store passwords.</p>
+
+<h2>The Passcode Module</h2>
+
+<p>Let us take a closer look at not the verbatim implementation but at a slightly
+simplified version. The API offers the only two operations such a module needs
+to support: setting a new passcode and verifying that a given passcode matches
+the stored one.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">let</span> <span class="nx">Passcode</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">store</span><span class="p">(</span><span class="nx">code</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+  <span class="p">},</span>
+
+  <span class="nx">verify</span><span class="p">(</span><span class="nx">code</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<p>When setting up the phone for the first time - or when changing the passcode
+later - we call <code>Passcode.store()</code> to write a new code to disk.
+<code>Passcode.verify()</code> will help us determine whether we should unlock the phone.
+Both methods return a Promise as all operations exposed by the WebCrypto API
+are asynchronous.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">Passcode</span><span class="p">.</span><span class="nx">store</span><span class="p">(</span><span class="s2">&quot;1234&quot;</span><span class="p">).</span><span class="nx">then</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">Passcode</span><span class="p">.</span><span class="nx">verify</span><span class="p">(</span><span class="s2">&quot;1234&quot;</span><span class="p">);</span>
+<span class="p">}).</span><span class="nx">then</span><span class="p">(</span><span class="nx">valid</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">valid</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="c1">// Output: true</span>
+</pre></div></figure>
+
+
+<h2>Make the passcode look &ldquo;random&rdquo;</h2>
+
+<p>The module should <em>absolutely not</em> store passcodes in the clear. We will use
+<a href="https://en.wikipedia.org/wiki/PBKDF2">PBKDF2</a> as a
+<a href="https://en.wikipedia.org/wiki/Pseudorandom_function_family">pseudorandom function (PRF)</a>
+to retrieve a result that <em>looks random</em>. An attacker with read access to the
+part of the disk storing the user&rsquo;s passcode should not be able to recover the
+original input, assuming limited computational resources.</p>
+
+<p>The function <code>deriveBits()</code> is a PRF that takes a passcode and returns a Promise
+resolving to a random looking sequence of bytes. To be a little more specific,
+it uses PBKDF2 to derive pseudorandom bits.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">deriveBits</span><span class="p">(</span><span class="nx">code</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Convert string to a TypedArray.</span>
+  <span class="kd">let</span> <span class="nx">bytes</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">TextEncoder</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">).</span><span class="nx">encode</span><span class="p">(</span><span class="nx">code</span><span class="p">);</span>
+
+  <span class="c1">// Create the base key to derive from.</span>
+  <span class="kd">let</span> <span class="nx">importedKey</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">importKey</span><span class="p">(</span>
+    <span class="s2">&quot;raw&quot;</span><span class="p">,</span> <span class="nx">bytes</span><span class="p">,</span> <span class="s2">&quot;PBKDF2&quot;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;deriveBits&quot;</span><span class="p">]);</span>
+
+  <span class="k">return</span> <span class="nx">importedKey</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">key</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="c1">// Salt should be at least 64 bits.</span>
+    <span class="kd">let</span> <span class="nx">salt</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">getRandomValues</span><span class="p">(</span><span class="k">new</span> <span class="nx">Uint8Array</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span>
+
+    <span class="c1">// All required PBKDF2 parameters.</span>
+    <span class="kd">let</span> <span class="nx">params</span> <span class="o">=</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;PBKDF2&quot;</span><span class="p">,</span> <span class="nx">hash</span><span class="o">:</span> <span class="s2">&quot;SHA-1&quot;</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">iterations</span><span class="o">:</span> <span class="mi">5000</span><span class="p">};</span>
+
+    <span class="c1">// Derive 160 bits using PBKDF2.</span>
+    <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">deriveBits</span><span class="p">(</span><span class="nx">params</span><span class="p">,</span> <span class="nx">key</span><span class="p">,</span> <span class="mi">160</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h2>Choosing PBKDF2 parameters</h2>
+
+<p>As you can see above PBKDF2 takes a whole bunch of parameters. Choosing good
+values is crucial for the security of our passcode module so it is best to take
+a detailed look at every single one of them.</p>
+
+<h3>Select a cryptographic hash function</h3>
+
+<p>PBKDF2 is a <em>big</em> PRF that iterates a <em>small</em> PRF. The small PRF, iterated
+multiple times (more on why this is done later), is fixed to be an
+<a href="https://en.wikipedia.org/wiki/HMAC">HMAC</a> construction; you are however
+allowed to specify the cryptographic hash function used inside HMAC itself. To
+understand why you need to select a hash function it helps to take a look at
+HMAC&rsquo;s definition, here with <a href="https://en.wikipedia.org/wiki/SHA-1">SHA-1</a> at
+its core:</p>
+
+<figure class='code'><div class="highlight"><pre>HMAC-SHA-1(k, m) = SHA-1((k ⊕ opad) + SHA-1((k ⊕ ipad) + m))
+</pre></div></figure>
+
+
+<p>The outer and inner padding <code>opad</code> and <code>ipad</code> are static values that can be
+ignored for our purpose, the important takeaway is that the given hash function
+will be called twice, combining the message <code>m</code> and the key <code>k</code>. Whereas HMAC
+is usually used for authentication PBKDF2 makes use of its PRF properties, that
+means its output is computationally indistinguishable from random.</p>
+
+<p><code>deriveBits()</code> as defined above uses <a href="https://en.wikipedia.org/wiki/SHA-1">SHA-1</a>
+as well, and although it is <a href="http://valerieaurora.org/hash.html">considered broken</a>
+as a <a href="https://en.wikipedia.org/wiki/Collision_resistance">collision-resistant</a>
+hash function it is still a safe building block in the HMAC-SHA-1 construction.
+HMAC only relies on a hash function&rsquo;s PRF properties, and while finding SHA-1
+collisions is considered feasible it is still believed to be a secure PRF.</p>
+
+<p>That said, it would not hurt to switch to a secure cryptographic hash function
+like <a href="https://en.wikipedia.org/wiki/SHA-2">SHA-256</a>. Chrome supports other hash
+functions for PBKDF2 today, Firefox unfortunately has to wait for an
+<a href="https://bugzil.la/554827">NSS fix</a> before those can be unlocked for the
+WebCrypto API.</p>
+
+<h3>Pass a random salt</h3>
+
+<p>The salt is a random component that PBKDF2 feeds into the HMAC function along
+with the passcode. This prevents an attacker from simply computing the hashes
+of for example all 8-character combinations of alphanumerics (~5.4 PetaByte of
+storage for SHA-1) and use a huge
+<a href="https://en.wikipedia.org/wiki/Lookup_table">lookup table</a> to quickly reverse
+a given password hash. Specify 8 random bytes as the salt and the poor attacker
+will have to suddenly compute (and store!) 2<sup>64</sup> of those lookup tables and face
+8 additional random characters in the input. Even without the salt the effort
+to create even one lookup table would be hard to justify because chances are
+high you cannot reuse it to attack another target, they might be using a
+different hash function or combine two or more of them.</p>
+
+<p>The same goes for <a href="https://en.wikipedia.org/wiki/Rainbow_table">Rainbow Tables</a>.
+A random salt included with the password would have to be incorporated
+when precomputing the hash chains and the attacker is back to square one where
+she has to compute a Rainbow Table for every possible salt value. That certainly
+works ad-hoc for a single salt value but preparing and storing 2<sup>64</sup> of those
+tables is impossible.</p>
+
+<p>The salt is public and will be stored in the clear along with the derived bits.
+We need the exact same salt to arrive at the exact same derived bits later
+again. We thus have to modify <code>deriveBits()</code> to accept the salt as an argument
+so that we can either generate a random one or read it from disk.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">deriveBits</span><span class="p">(</span><span class="nx">code</span><span class="p">,</span> <span class="nx">salt</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Convert string to a TypedArray.</span>
+  <span class="kd">let</span> <span class="nx">bytes</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">TextEncoder</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">).</span><span class="nx">encode</span><span class="p">(</span><span class="nx">code</span><span class="p">);</span>
+
+  <span class="c1">// Create the base key to derive from.</span>
+  <span class="kd">let</span> <span class="nx">importedKey</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">importKey</span><span class="p">(</span>
+    <span class="s2">&quot;raw&quot;</span><span class="p">,</span> <span class="nx">bytes</span><span class="p">,</span> <span class="s2">&quot;PBKDF2&quot;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;deriveBits&quot;</span><span class="p">]);</span>
+
+  <span class="k">return</span> <span class="nx">importedKey</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">key</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="c1">// All required PBKDF2 parameters.</span>
+    <span class="kd">let</span> <span class="nx">params</span> <span class="o">=</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;PBKDF2&quot;</span><span class="p">,</span> <span class="nx">hash</span><span class="o">:</span> <span class="s2">&quot;SHA-1&quot;</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">iterations</span><span class="o">:</span> <span class="mi">5000</span><span class="p">};</span>
+
+    <span class="c1">// Derive 160 bits using PBKDF2.</span>
+    <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">deriveBits</span><span class="p">(</span><span class="nx">params</span><span class="p">,</span> <span class="nx">key</span><span class="p">,</span> <span class="mi">160</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Keep in mind though that Rainbow tables today are mainly a thing from the past
+where password hashes were smaller and <a href="http://en.wikipedia.org/wiki/LM_hash">shittier</a>.
+Salts are the bare minimum a good password storage scheme needs, but they
+merely protect against a threat that is largely irrelevant today.</p>
+
+<h3>Specify a number of iterations</h3>
+
+<p>As computers became faster and Rainbow Table attacks infeasible due to the
+prevalent use of salts everywhere, people started attacking password hashes
+with dictionaries, simply by taking the public salt value and passing that
+combined with their educated guess to the hash function until a match was found.
+Modern password schemes thus employ a &ldquo;work factor&rdquo; to make hashing millions of
+password guesses unbearably slow.</p>
+
+<p>By specifying a <em>sufficiently high</em> number of iterations we can slow down
+PBKDF2&rsquo;s inner computation so that an attacker will have to face a massive
+performance decrease and be able to only try a few thousand passwords per
+second instead of millions.</p>
+
+<p>For a single-user disk or file encryption it might be acceptable if computing
+the password hash takes a few seconds; for a lock screen 300-500ms might be
+the upper limit to not interfere with user experience. Take a look at
+<a href="http://security.stackexchange.com/questions/3959/recommended-of-iterations-when-using-pkbdf2-sha256/3993#3993">this great StackExchange post</a>
+for more advice on what might be the right number of iterations for your
+application and environment.</p>
+
+<p>A much more secure version of a lock screen would allow to not only use four
+digits but any number of characters. An additional delay of a few seconds
+after a small number of wrong guesses might increase security even more,
+assuming the attacker cannot access the PRF output stored on disk.</p>
+
+<h3>Determine the number of bits to derive</h3>
+
+<p>PBKDF2 can output an almost arbitrary amount of pseudo-random data. A single
+execution yields the number of bits that is equal to the chosen hash function&rsquo;s
+output size. If the desired number of bits exceeds the hash function&rsquo;s output
+size PBKDF2 will be repeatedly executed until enough bits have been derived.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">getHashOutputLength</span><span class="p">(</span><span class="nx">hash</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="nx">hash</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="s2">&quot;SHA-1&quot;</span><span class="o">:</span>   <span class="k">return</span> <span class="mi">160</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;SHA-256&quot;</span><span class="o">:</span> <span class="k">return</span> <span class="mi">256</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;SHA-384&quot;</span><span class="o">:</span> <span class="k">return</span> <span class="mi">384</span><span class="p">;</span>
+    <span class="k">case</span> <span class="s2">&quot;SHA-512&quot;</span><span class="o">:</span> <span class="k">return</span> <span class="mi">512</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s2">&quot;Unsupported hash function&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Choose 160 bits for SHA-1, 256 bits for SHA-256, and so on. Slowing down the
+key derivation even further by requiring more than one round of PBKDF2 will not
+increase the security of the password storage.</p>
+
+<h2>Do not hard-code parameters</h2>
+
+<p>Hard-coding PBKDF2 parameters - the name of the hash function to use in the
+HMAC construction, and the number of HMAC iterations - is tempting at first.
+We however need to be flexible if for example it turns out that SHA-1 can no
+longer be considered a secure PRF, or you need to increase the number of
+iterations to keep up with faster hardware.</p>
+
+<p>To ensure future code can verify old passwords we store the parameters that
+were passed to PBKDF2 at the time, including the salt. When verifying the
+passcode we will read the hash function name, the number of iterations, and the
+salt from disk and pass those to <code>deriveBits()</code> along with the passcode itself.
+The number of bits to derive will be the hash function&rsquo;s output size.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">deriveBits</span><span class="p">(</span><span class="nx">code</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">hash</span><span class="p">,</span> <span class="nx">iterations</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Convert string to a TypedArray.</span>
+  <span class="kd">let</span> <span class="nx">bytes</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">TextEncoder</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">).</span><span class="nx">encode</span><span class="p">(</span><span class="nx">code</span><span class="p">);</span>
+
+  <span class="c1">// Create the base key to derive from.</span>
+  <span class="kd">let</span> <span class="nx">importedKey</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">importKey</span><span class="p">(</span>
+    <span class="s2">&quot;raw&quot;</span><span class="p">,</span> <span class="nx">bytes</span><span class="p">,</span> <span class="s2">&quot;PBKDF2&quot;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;deriveBits&quot;</span><span class="p">]);</span>
+
+  <span class="k">return</span> <span class="nx">importedKey</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">key</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="c1">// Output length in bits for the given hash function.</span>
+    <span class="kd">let</span> <span class="nx">hlen</span> <span class="o">=</span> <span class="nx">getHashOutputLength</span><span class="p">(</span><span class="nx">hash</span><span class="p">);</span>
+
+    <span class="c1">// All required PBKDF2 parameters.</span>
+    <span class="kd">let</span> <span class="nx">params</span> <span class="o">=</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;PBKDF2&quot;</span><span class="p">,</span> <span class="nx">hash</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">iterations</span><span class="p">};</span>
+
+    <span class="c1">// Derive |hlen| bits using PBKDF2.</span>
+    <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">deriveBits</span><span class="p">(</span><span class="nx">params</span><span class="p">,</span> <span class="nx">key</span><span class="p">,</span> <span class="nx">hlen</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h2>Storing a new passcode</h2>
+
+<p>Now that we are done implementing <code>deriveBits()</code>, the heart of the Passcode
+module, completing the API is basically a walk in the park. For the sake of
+simplicity we will use <a href="https://mozilla.github.io/localForage/">localforage</a>
+as the storage backend. It provides a simple, asynchronous, and Promise-based
+key-value store.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="c1">// &lt;script src=&quot;localforage.min.js&quot;/&gt;</span>
+
+<span class="kr">const</span> <span class="nx">HASH</span> <span class="o">=</span> <span class="s2">&quot;SHA-1&quot;</span><span class="p">;</span>
+<span class="kr">const</span> <span class="nx">ITERATIONS</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">;</span>
+
+<span class="nx">Passcode</span><span class="p">.</span><span class="nx">store</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">code</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Generate a new random salt for every new passcode.</span>
+  <span class="kd">let</span> <span class="nx">salt</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">getRandomValues</span><span class="p">(</span><span class="k">new</span> <span class="nx">Uint8Array</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span>
+
+  <span class="k">return</span> <span class="nx">deriveBits</span><span class="p">(</span><span class="nx">code</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">HASH</span><span class="p">,</span> <span class="nx">ITERATIONS</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">bits</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span>
+      <span class="nx">localforage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">&quot;digest&quot;</span><span class="p">,</span> <span class="nx">bits</span><span class="p">),</span>
+      <span class="nx">localforage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">&quot;salt&quot;</span><span class="p">,</span> <span class="nx">salt</span><span class="p">),</span>
+      <span class="nx">localforage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">&quot;hash&quot;</span><span class="p">,</span> <span class="nx">HASH</span><span class="p">),</span>
+      <span class="nx">localforage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">&quot;iterations&quot;</span><span class="p">,</span> <span class="nx">ITERATIONS</span><span class="p">)</span>
+    <span class="p">]);</span>
+  <span class="p">});</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<p>We generate a new random salt for every new passcode. The derived bits are
+stored along with the salt, the hash function name, and the number of
+iterations. <code>HASH</code> and <code>ITERATIONS</code> are constants that provide default values
+for our PBKDF2 parameters and can be updated whenever desired. The Promise
+returned by <code>Passcode.store()</code> will resolve when all values have been
+successfully stored in the backend.</p>
+
+<h2>Verifying a given passcode</h2>
+
+<p>To verify a passcode all values and parameters stored by <code>Passcode.store()</code>
+will have to be read from disk and passed to <code>deriveBits()</code>. Comparing the
+derived bits with the value stored on disk tells whether the passcode is valid.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">Passcode</span><span class="p">.</span><span class="nx">verify</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">code</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">let</span> <span class="nx">loadValues</span> <span class="o">=</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span>
+    <span class="nx">localforage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">&quot;digest&quot;</span><span class="p">),</span>
+    <span class="nx">localforage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">&quot;salt&quot;</span><span class="p">),</span>
+    <span class="nx">localforage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">&quot;hash&quot;</span><span class="p">),</span>
+    <span class="nx">localforage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">&quot;iterations&quot;</span><span class="p">)</span>
+  <span class="p">]);</span>
+
+  <span class="k">return</span> <span class="nx">loadValues</span><span class="p">.</span><span class="nx">then</span><span class="p">(([</span><span class="nx">digest</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">hash</span><span class="p">,</span> <span class="nx">iterations</span><span class="p">])</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">deriveBits</span><span class="p">(</span><span class="nx">code</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="nx">hash</span><span class="p">,</span> <span class="nx">iterations</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">bits</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">compare</span><span class="p">(</span><span class="nx">bits</span><span class="p">,</span> <span class="nx">digest</span><span class="p">);</span>
+    <span class="p">});</span>
+  <span class="p">});</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<h3>Should compare() be a constant-time operation?</h3>
+
+<p><code>compare()</code> does not <em>have</em> to be constant-time. Even if the attacker learns
+the first byte of the final digest stored on disk she cannot easily produce
+inputs to guess the second byte - the opposite would imply knowing the
+pre-images of all those two-byte values. She cannot do better than submitting
+simple guesses that become harder the more bytes are known. For a successful
+attack all bytes have to be recovered, which in turns means a valid pre-image
+for the full final digest needs to be found.</p>
+
+<p>If it makes you feel any better, you can of course implement <code>compare()</code> as a
+constant-time operation. This might be tricky though given that all modern
+JavaScript engines optimize code heavily.</p>
+
+<h2>What about bcrypt or scrypt?</h2>
+
+<p>Both <a href="https://en.wikipedia.org/wiki/Bcrypt">bcrypt</a> and
+<a href="https://en.wikipedia.org/wiki/Scrypt">scrypt</a> are probably better alternatives
+to PBKDF2. Bcrypt automatically embeds the salt and cost factor into its output,
+most APIs are clever enough to parse and use those parameters when verifying a
+given password.</p>
+
+<p>Scrypt implementations can usually securely generate a random salt, that is one
+less thing for you to care about. The most important aspect of scrypt though is
+that it allows consuming a lot of memory when computing the password hash which
+makes cracking passwords using ASICs or FPGAs close to impossible.</p>
+
+<p>The Web Cryptography API does unfortunately support neither of the two
+algorithms and currently there are no proposals to add those. In the case of
+scrypt it might also be somewhat controversial to allow a website to consume
+arbitrary amounts of memory.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Continuous Integration for NSS - Automating builds and tests with Mozilla&#8217;s Taskcluster framework</title>
+    
+    <meta name="description" content="Continuous Integration for NSS Automating builds and tests with Mozilla's Taskcluster framework August 9, 2016 The following image shows our &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Continuous Integration for NSS</h1>
+      <h2>Automating builds and tests with Mozilla&#8217;s Taskcluster framework</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">August 9, 2016</time>
+    <p>The following image shows our <a href="https://treeherder.mozilla.org/#/jobs?repo=nss">TreeHerder dashboard</a>
+after pushing a changeset to the <a href="https://hg.mozilla.org/projects/nss">NSS repository</a>.
+It is the result of only a few weeks of work (on our side):</p>
+
+<p><a href="/images/treeherder.png" title="The TreeHerder dashboard showing the NSS repository" class="img"><img src="/images/treeherder.png" title="The TreeHerder dashboard showing the NSS repository" ></a></p>
+
+<p>Based on my experience from building a <a href="https://docs.taskcluster.net/">Taskcluster</a>
+CI for NSS over the last weeks, I want to share a rough outline of the process
+of setting this up for basically any Mozilla project, using NSS as an example.</p>
+
+<h2>What is the goal?</h2>
+
+<p>The development of NSS has for a long time been heavily supported by a fleet of
+buildbots. You can see them in action by looking at our waterfall diagram
+showing the build and test statuses of the latest pushes to the NSS repository.</p>
+
+<p><a href="/images/buildbots.png" title="The waterfall diagram showing buildbot statuses" class="img"><img src="/images/buildbots.png" title="The waterfall diagram showing buildbot statuses" ></a></p>
+
+<p>Unfortunately, this setup is rather complex and the bots are slow. Build and
+test tasks are run sequentially and so on some machines it takes 10-15 hours
+before you will be notified about potential breakage.</p>
+
+<p>The first thing that needs to be done is to replicate the current setup as good
+as possible and then split monolithic test runs into many small tasks that can
+be run in parallel. Builds will be prepared by build tasks, test tasks will
+later download those pieces (called <em>artifacts</em>) to run tests.</p>
+
+<p>A good turnaround time is essential, ideally one should know whether a push
+broke the tree after not more than 15-30 minutes. We want a <a href="https://github.com/mozilla/treeherder/">TreeHerder</a>
+dashboard that gives a good overview of all current build and test tasks, as
+well as an IRC and email notification system so we don&rsquo;t have to watch the
+tree all day.</p>
+
+<h2>Docker for Linux tasks</h2>
+
+<p>To build and test on Linux, Taskcluster uses Docker. The build instructions for
+the image containing all NSS dependencies, as well as the scripts to build and
+run tests, can be found in the <a href="https://hg.mozilla.org/projects/nss/file/tip/automation/taskcluster/docker">automation/taskcluster/docker</a>
+directory.</p>
+
+<p>For a start, the fastest way to get something up and running (or building) is
+to use <code>ADD</code> in the Dockerfile to bake your scripts into the image. That way
+you can just pass them as the <em>command</em> in the task definition later.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="c"># Add build and test scripts.</span>
+ADD bin /home/worker/bin
+RUN chmod +x /home/worker/bin/*
+</pre></div></figure>
+
+
+<p>Once you have NSS and its tests building and running in a local Docker container,
+the next step is to run a Taskcluster task in the <em>cloud</em>. You can use the
+<a href="https://tools.taskcluster.net/task-creator/">Task Creator</a> to spawn a one-off
+task, experiment with your Docker image, and with the task definition.
+Taskcluster will automatically pull your image from Docker Hub:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="p">{</span>
+
+  <span class="nt">&quot;created&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span><span class="p">,</span>
+  <span class="nt">&quot;deadline&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span><span class="p">,</span>
+  <span class="nt">&quot;payload&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;image&quot;</span><span class="p">:</span> <span class="s2">&quot;ttaubert/nss-ci:0.0.21&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="p">[</span>
+      <span class="s2">&quot;/bin/bash&quot;</span><span class="p">,</span>
+      <span class="s2">&quot;-c&quot;</span><span class="p">,</span>
+      <span class="s2">&quot;bin/build.sh&quot;</span>
+    <span class="p">],</span>
+    <span class="nt">&quot;maxRunTime&quot;</span><span class="p">:</span> <span class="mi">3600</span>
+  <span class="p">},</span>
+
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Docker and task definitions are well-documented, so this step shouldn&rsquo;t be too
+difficult and you should be able to confirm everything runs fine. Now instead
+of kicking off tasks manually the next logical step is to spawn tasks
+automatically when changesets are pushed to the repository.</p>
+
+<h2>Using taskcluster-github</h2>
+
+<p>Triggering tasks on repository pushes should remind you of Travis CI, CircleCI,
+or AppVeyor, if you worked with any of those before. Taskcluster offers a similar
+tool called <a href="https://github.com/taskcluster/taskcluster-github">taskcluster-github</a>
+that uses a configuration file in the root of your repository for task definitions.</p>
+
+<p>If your master is a Mercurial repository then it&rsquo;s very helpful that you don&rsquo;t
+have to mess with it until you get the configuration right, and can instead
+simply create a fork on GitHub. The <a href="http://docs.taskcluster.net/services/taskcluster-github/">documentation</a>
+is rather self-explanatory, and the task definition is similar to the one used
+by the Task Creator.</p>
+
+<p>Once the WebHook is set up and receives pings, a push to your fork will make
+&ldquo;Lisa Lionheart&rdquo;, the Taskcluster bot, comment on your push and leave either an
+error message or a link to the task graph. If on the first try you see failures
+about missing scopes you are lacking permissions and should talk to the nice
+folks over in <a href="irc://irc.mozilla.org/taskcluster">#taskcluster</a>.</p>
+
+<h2>Move scripts into the repository</h2>
+
+<p>Once you have a GitHub fork spawning build and test tasks when pushing you
+should move all the scripts you wrote so far into the repository. The only
+script left on the Docker image would be a script that checks out the hg/git
+repository and then uses the scripts in the tree to build and run tests.</p>
+
+<p>This step will pay off very early in the process, rebuilding and pushing the
+Docker image to Docker Hub is something that you really don&rsquo;t want to do too
+often. All NSS scripts for Linux live in the <a href="https://hg.mozilla.org/projects/nss/file/tip/automation/taskcluster/scripts">automation/taskcluster/scripts</a>
+directory.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="c">#!/usr/bin/env bash</span>
+
+<span class="nb">set</span> -v -e -x
+
+<span class="k">if</span> <span class="o">[</span> <span class="k">$(</span>id -u<span class="k">)</span> <span class="o">=</span> <span class="m">0</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+    <span class="c"># Drop privileges by re-running this script.</span>
+    <span class="nb">exec </span>su worker <span class="nv">$0</span> <span class="nv">$@</span>
+<span class="k">fi</span>
+
+<span class="c"># Do things here ...</span>
+</pre></div></figure>
+
+
+<p>Use the above snippet as a template for your scripts. It will set a few flags
+that help with debugging later, drop root privileges, and rerun it as the
+unprivileged <em>worker</em> user. If you need to do things as root before building or
+running tests, just put them before the <code>exec su ...</code> call.</p>
+
+<h2>Split build and test runs</h2>
+
+<p>Taskcluster encourages many small tasks. It&rsquo;s easy to split the big monolithic
+test run I mentioned at the beginning into multiple tasks, one for each test
+suite. However, you wouldn&rsquo;t want to build NSS before every test run again,
+so we should build it only once and then reuse the binary. Taskcluster allows
+to leave artifacts after a task run that can then be downloaded by subtasks.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="c"># Build.</span>
+<span class="nb">cd </span>nss <span class="o">&amp;&amp;</span> make nss_build_all
+
+<span class="c"># Package.</span>
+mkdir artifacts
+tar cvfjh artifacts/dist.tar.bz2 dist
+</pre></div></figure>
+
+
+<p>The above snippet builds NSS and creates an archive containing all the binaries
+and libraries. You need to let Taskcluster know that there&rsquo;s a directory with
+artifacts so that it picks those up and makes them available to the public.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="p">{</span>
+
+  <span class="nt">&quot;created&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span><span class="p">,</span>
+  <span class="nt">&quot;deadline&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span><span class="p">,</span>
+  <span class="nt">&quot;payload&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;image&quot;</span><span class="p">:</span> <span class="s2">&quot;ttaubert/nss-ci:0.0.21&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;artifacts&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;public&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;directory&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/home/worker/artifacts&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;expires&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span>
+      <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="nt">&quot;command&quot;</span><span class="p">:</span> <span class="p">[</span>
+      <span class="err">...</span>
+    <span class="p">],</span>
+    <span class="nt">&quot;maxRunTime&quot;</span><span class="p">:</span> <span class="mi">3600</span>
+  <span class="p">},</span>
+
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>The test task then uses the <code>$TC_PARENT_TASK_ID</code> environment variable to
+determine the correct download URL, unpacks the build and starts running tests.
+Making artifacts automatically available to subtasks, without having to pass
+the parent task ID and build a URL, will hopefully be added to Taskcluster in
+the future.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="c"># Fetch build artifact.</span>
+curl --retry <span class="m">3</span> -Lo dist.tar.bz2 https://queue.taskcluster.net/v1/task/<span class="nv">$TC_PARENT_TASK_ID</span>/artifacts/public/dist.tar.bz2
+tar xvjf dist.tar.bz2
+
+<span class="c"># Run tests.</span>
+<span class="nb">cd </span>nss/tests <span class="o">&amp;&amp;</span> ./all.sh
+</pre></div></figure>
+
+
+<h2>Writing decision tasks</h2>
+
+<p>Specifying task dependencies in your .taskcluster.yml file is unfortunately not
+possible at the moment. Even though the set of builds and tasks you want may
+be static you can&rsquo;t create the necessary links without knowing the random task
+IDs assigned to them.</p>
+
+<p>Your only option is to create a so-called <em>decision task</em>. A decision task is
+the only task defined in your .taskcluster.yml file and started after you
+push a new changeset. It will leave an artifact in the form of a JSON file that
+Taskcluster picks up and uses to extend the task graph, i.e. schedule further
+tasks with appropriate dependencies. You can use whatever tool or language you
+like to generate these JSON files, e.g. Python, Ruby, Node, &hellip;</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="l-Scalar-Plain">task</span><span class="p-Indicator">:</span>
+  <span class="l-Scalar-Plain">payload</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">image</span><span class="p-Indicator">:</span> <span class="s">&quot;ttaubert/nss-ci:0.0.21&quot;</span>
+
+    <span class="l-Scalar-Plain">maxRunTime</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1800</span>
+
+    <span class="l-Scalar-Plain">artifacts</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">public</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="s">&quot;directory&quot;</span>
+        <span class="l-Scalar-Plain">path</span><span class="p-Indicator">:</span> <span class="s">&quot;/home/worker/artifacts&quot;</span>
+        <span class="l-Scalar-Plain">expires</span><span class="p-Indicator">:</span> <span class="s">&quot;7</span><span class="nv"> </span><span class="s">days&quot;</span>
+
+    <span class="l-Scalar-Plain">graphs</span><span class="p-Indicator">:</span>
+      <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">/home/worker/artifacts/graph.json</span>
+</pre></div></figure>
+
+
+<p>All task graph definitions including the Node.JS build script for NSS can be
+found in the <a href="https://hg.mozilla.org/projects/nss/file/tip/automation/taskcluster/graph">automation/taskcluster/graph</a>
+directory. Depending on the needs of your project you might want to use a
+completely different structure. All that matters is that in the end you
+produce a valid JSON file. Slightly more intelligent decision tasks can be used
+to implement features like <a href="https://wiki.mozilla.org/NSS:TryServer#Using_try_syntax">try syntax</a>.</p>
+
+<h2>mozilla-taskcluster for Mercurial projects</h2>
+
+<p>If you have all of the above working with GitHub but your main repository is
+hosted on <em>hg.mozilla.org</em> you will want to have Mercurial spawn decision tasks
+when pushing.</p>
+
+<p>The Taskcluster team is working on making .taskcluster.yml files work for
+Mozilla-hosted Mercurial repositories too, but while that work isn&rsquo;t finished
+yet you have to add your project to <a href="https://github.com/taskcluster/mozilla-taskcluster/">mozilla-taskcluster</a>.
+mozilla-taskcluster will listen for pushes and then kick off tasks just like
+the WebHook.</p>
+
+<h2>TreeHerder Configuration</h2>
+
+<p>A CI is no CI without a proper dashboard. That&rsquo;s the role of <a href="https://github.com/mozilla/treeherder/">TreeHerder</a>
+at Mozilla. Add your project to the end of the <a href="https://github.com/mozilla/treeherder/blob/master/treeherder/model/fixtures/repository.json">repository.json</a>
+file and create a new pull request. It will usually take a day or two after
+merging until your change is deployed and your project shows up in the
+dashboard.</p>
+
+<p>TreeHerder gets the per-task configuration from the task definition. You can
+configure the symbol, the platform and collection (i.e. row), and other
+parameters. Here&rsquo;s the configuration data for the green <em>B</em> at the start of the
+fifth row of the image at the top of this post:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="p">{</span>
+
+  <span class="nt">&quot;created&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span><span class="p">,</span>
+  <span class="nt">&quot;deadline&quot;</span><span class="p">:</span> <span class="s2">&quot; ... &quot;</span><span class="p">,</span>
+  <span class="nt">&quot;payload&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="err">...</span>
+  <span class="p">},</span>
+  <span class="nt">&quot;extra&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;treeherder&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;jobKind&quot;</span><span class="p">:</span> <span class="s2">&quot;build&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;symbol&quot;</span><span class="p">:</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;build&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;platform&quot;</span><span class="p">:</span> <span class="s2">&quot;linux64&quot;</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;machine&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;platform&quot;</span><span class="p">:</span> <span class="s2">&quot;linux64&quot;</span>
+      <span class="p">},</span>
+      <span class="nt">&quot;collection&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;debug&quot;</span><span class="p">:</span> <span class="kc">true</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h2>IRC and email notifications</h2>
+
+<p>Taskcluster is a very modular system and offers many APIs. It&rsquo;s built with
+mostly Node, and thus there are many Node libraries available to interact with
+the many parts. The communication between those is realized by <a href="https://wiki.mozilla.org/Auto-tools/Projects/Pulse">Pulse</a>,
+a managed RabbitMQ cluster.</p>
+
+<p>The last missing piece we wanted is an IRC and email notification system, a bot
+that notifies about failures on IRC and sends emails to all parties involved.
+It was a piece of cake to write <a href="https://github.com/ttaubert/nss-taskcluster">nss-tc</a>
+that uses Taskcluster Node.JS libraries and Mercurial JSON APIs to connect to
+the task queue and listen for task definitions and failures.</p>
+
+<h2>A rough overview</h2>
+
+<p>I could have probably written a detailed post for each of the steps outlined
+here but I think it&rsquo;s much more helpful to start with an overview of what&rsquo;s
+needed to get the CI for a project up and running. Each step and each part of
+the system is hopefully more obvious now if you haven&rsquo;t had too much interaction
+with Taskcluster and TreeHerder so far.</p>
+
+<p><em>Thanks to the Taskcluster team, especially John Ford, Greg Arndt, and Pete
+Moore! They helped us pull this off in a matter of weeks and besides Linux
+builds and tests we already have Windows tasks, static analysis, ASan+LSan,
+and are in the process of setting up workers for ARM builds and tests.</em></p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

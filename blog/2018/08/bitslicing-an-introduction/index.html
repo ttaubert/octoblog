@@ -1,0 +1,459 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bitslicing, An Introduction - Data Orthogonalization for Cryptography</title>
+    
+    <meta name="description" content="Bitslicing, An Introduction Data Orthogonalization for Cryptography August 15, 2018 Bitslicing (in software) is an implementation strategy enabling &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Bitslicing, An Introduction</h1>
+      <h2>Data Orthogonalization for Cryptography</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">August 15, 2018</time>
+    <p><em>Bitslicing</em> (in software) is an implementation strategy enabling fast,
+constant-time implementations of cryptographic algorithms immune to cache and
+timing-related side channel attacks.</p>
+
+<p>This post intends to give a brief overview of the general technique, not requiring
+much of a cryptographic background. It will demonstrate bitslicing a small S-box,
+talk about multiplexers, LUTs, Boolean functions, and minimal forms.</p>
+
+<blockquote><p>Part 1: Bitslicing, An Introduction<br/>
+<a href="/blog/2018/08/bitslicing-with-karnaugh-maps/">Part 2: Bitslicing with Karnaugh maps</a><br/>
+<a href="/blog/2018/08/bitslicing-with-quine-mccluskey/">Part 3: Bitslicing with Quine-McCluskey</a></p></blockquote>
+
+<h2>What is bitslicing?</h2>
+
+<p>Matthew Kwan coined the term about 20 years ago after seeing Eli Biham present
+his paper <a href="http://www.cs.technion.ac.il/users/wwwb/cgi-bin/tr-get.cgi/1997/CS/CS0891.pdf">A Fast New DES Implementation in Software</a>.
+He later published <a href="http://fgrieu.free.fr/Mattew%20Kwan%20-%20Reducing%20the%20Gate%20Count%20of%20Bitslice%20DES.pdf">Reducing the Gate Count of Bitslice DES</a>
+showing an even faster DES building on Biham&rsquo;s ideas.</p>
+
+<p>The basic concept is to express a function in terms of single-bit logical
+operations &ndash; <em>AND</em>, <em>XOR</em>, <em>OR</em>, <em>NOT</em>, etc. &ndash; as if you were implementing a
+logic circuit in hardware. These operations are then carried out for multiple
+instances of the function in parallel, using bitwise operations on a CPU.</p>
+
+<p>In a bitsliced implementation, instead of having a single variable storing a,
+say, 8-bit number, you have eight variables (slices). The first storing the
+left-most bit of the number, the next storing the second bit from the left,
+and so on. The parallelism is bounded only by the target architecture&rsquo;s register
+width.</p>
+
+<h2>What&rsquo;s it good for?</h2>
+
+<p>Biham applied bitslicing to <a href="https://en.wikipedia.org/wiki/Data_Encryption_Standard">DES</a>,
+a cipher designed to be fast in hardware. It uses eight different S-boxes,
+that were usually implemented as lookup tables. Table lookups in DES however are
+rather inefficient, since one has to collect six bits from different words,
+combine them, and afterwards put each of the four resulting bits in a
+different word.</p>
+
+<h3>Speed</h3>
+
+<p>In classical implementations, these bit permutations would be implemented with a
+combination of shifts and masks. In a bitslice representation though, permuting
+bits really just means using the &ldquo;right&rdquo; variables in the next step; this is
+mere data routing, which is resolved at compile-time, with no cost at runtime.</p>
+
+<p>Additionally, the code is extremely linear so that it usually runs well on
+heavily pipelined modern CPUs. It tends to have a low risk of pipeline stalls,
+as it&rsquo;s unlikely to suffer from branch misprediction, and plenty of
+opportunities for optimal instruction reordering for efficient scheduling of
+data accesses.</p>
+
+<h3>Parallelization</h3>
+
+<p>With a register width of <em>n</em> bits, as long as the bitsliced implementation is no
+more than <em>n</em> times slower to run a single instance of the cipher, you end up
+with a net gain in throughput. This only applies to workloads that allow for
+parallelization. CTR and ECB mode always benefit, CBC and CFB mode only when
+decrypting.</p>
+
+<h3>Constant execution time</h3>
+
+<p>Constant-time, secret independent computation is all the rage in modern applied
+cryptography. Bitslicing is interesting because by using only single-bit logical
+operations the resulting code is immune to cache and timing-related
+<a href="https://en.wikipedia.org/wiki/Side-channel_attack">side channel attacks</a>.</p>
+
+<h3>Fully Homomorphic Encryption</h3>
+
+<p>The last decade brought great advances in the field of Fully Homomorphic
+Encryption (FHE), i.e. computation on ciphertexts. If you have a secure crypto
+scheme and an efficient <a href="https://en.wikipedia.org/wiki/NAND_gate">NAND gate</a>
+you can use bitslicing to <a href="https://crypto.stanford.edu/craig/easy-fhe.pdf">compute arbitrary functions of encrypted data</a>.</p>
+
+<h2>Bitslicing a small S-box</h2>
+
+<p>Let&rsquo;s work through a small example to see how one could go about converting
+arbitrary functions into a bunch of Boolean gates.</p>
+
+<p>Imagine a 3-to-2-bit <a href="https://en.wikipedia.org/wiki/S-box">S-box</a> function, a
+component found in many symmetric encryption algorithms. Naively, this would be
+represented by a lookup table with eight entries, e.g.  <code>SBOX[0b000] = 0b01</code>,
+<code>SBOX[0b001] = 0b00</code>, etc.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="n">SBOX</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span> <span class="p">};</span>
+</pre></div></figure>
+
+
+<blockquote><p>This AES-inspired S-box interprets three input bits as a polynomial in
+<em>GF(2<sup>3</sup>)</em> and computes its inverse <em>mod P(x) = x<sup>3</sup> + x<sup>2</sup> + 1</em>, with
+<em>0<sup>-1</sup> := 0</em>. The result plus <em>(x<sup>2</sup> + 1)</em> is converted back into bits
+and the MSB is dropped.</p></blockquote>
+
+<p>You can think of the above S-box&rsquo;s output as being a function of three Boolean
+variables, where for instance <em>f(0,0,0) = 0b01</em>. Each output bit can be
+represented by its own Boolean function, i.e. <em>f<sub>L</sub>(0,0,0) = 0</em> and
+<em>f<sub>R</sub>(0,0,0) = 1</em>.</p>
+
+<h3>LUTs and Multiplexers</h3>
+
+<p>If you&rsquo;ve dealt with <a href="https://en.wikipedia.org/wiki/Field-programmable_gate_array">FPGAs</a>
+before you probably know that these do not actually implement Boolean gates,
+but allow Boolean algebra by programming Look-Up-Tables (LUTs). We&rsquo;re going
+to do the reverse and convert our S-box into trees of multiplexers.</p>
+
+<p><a href="https://en.wikipedia.org/wiki/Multiplexer">Multiplexer</a> is just a fancy word
+for <em>data selector</em>. A 2-to-1 multiplexer selects one of two input bits. A
+<em>selector</em> bit decides which of the two inputs will be passed through.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">bool</span> <span class="nf">mux</span><span class="p">(</span><span class="k">bool</span> <span class="n">a</span><span class="p">,</span> <span class="k">bool</span> <span class="n">b</span><span class="p">,</span> <span class="k">bool</span> <span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">s</span> <span class="o">?</span> <span class="nl">b</span> <span class="p">:</span> <span class="n">a</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Here are the LUTs, or rather truth tables, for the Boolean functions
+<em>f<sub>L</sub>(a,b,c)</em> and <em>f<sub>R</sub>(a,b,c)</em>:</p>
+
+<div class="table-wrapper truth">
+  <table>
+    <caption>SBOX(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>01</td>
+      </tr>
+      <tr>
+        <td>001</td><td>00</td>
+      </tr>
+      <tr>
+        <td>010</td><td>11</td>
+      </tr>
+      <tr>
+        <td>011</td><td>01</td>
+      </tr>
+      <tr>
+        <td>100</td><td>10</td>
+      </tr>
+      <tr>
+        <td>101</td><td>10</td>
+      </tr>
+      <tr>
+        <td>110</td><td>11</td>
+      </tr>
+      <tr>
+        <td>111</td><td>00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>L</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>0</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>0</td>
+      </tr>
+      <tr>
+        <td>100</td><td>1</td>
+      </tr>
+      <tr>
+        <td>101</td><td>1</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table>
+    <caption>f<sub>R</sub>(a,b,c)</caption>
+    <thead>
+      <tr>
+        <th>abc</th>
+        <th>out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>000</td><td>1</td>
+      </tr>
+      <tr>
+        <td>001</td><td>0</td>
+      </tr>
+      <tr>
+        <td>010</td><td>1</td>
+      </tr>
+      <tr>
+        <td>011</td><td>1</td>
+      </tr>
+      <tr>
+        <td>100</td><td>0</td>
+      </tr>
+      <tr>
+        <td>101</td><td>0</td>
+      </tr>
+      <tr>
+        <td>110</td><td>1</td>
+      </tr>
+      <tr>
+        <td>111</td><td>0</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<p>The truth table for <em>f<sub>L</sub>(a,b,c)</em> is <em>(0, 0, 1, 0, 1, 1, 1, 0)</em> or
+<em>2E<sub>h</sub></em>. We can also call this the LUT-mask in the context of an
+FPGA. For each output bit of our S-box we need a 3-to-1 multiplexer, and
+that in turn can be represented by 2-to-1 multiplexers.</p>
+
+<p><a href="/images/mux.png" title="A 3-to-1 multiplexer with LUT-mask 0x2E" class="img"><img src="/images/mux.png" title="A 3-to-1 multiplexer with LUT-mask 0x2E" ></a></p>
+
+<h3>Multiplexers in Software</h3>
+
+<p>Let&rsquo;s take the <code>mux()</code> function from above and make it constant-time. As stated
+earlier, bitslicing is competitive only through parallelization, so, for
+demonstration, we&rsquo;ll use <code>uint8_t</code> arguments to later compute eight
+S-box lookups in parallel.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">mux</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">s</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="n">s</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>If the <em>n</em>-th bit of <code>s</code> is zero it selects the <em>n</em>-th bit in <code>a</code>, if not it
+forwards the <em>n</em>-th bit in <code>b</code>. The wider the target architecture&rsquo;s registers,
+the bigger the theoretical throughput &ndash; but only if the workload can take
+advantage of the level of parallelization.</p>
+
+<h3>A first implementation</h3>
+
+<p>The two output bits will be computed separately and then assembled into the
+final value returned by <code>SBOX()</code>. Each multiplexer in the above diagram is
+represented by a <code>mux()</code> call. The first four take the LUT-masks
+<em>2E<sub>h</sub></em> and <em>B2<sub>h</sub></em> as inputs.</p>
+
+<p>The diagram shows Boolean functions that only work with single-bit parameters.
+We use <code>uint8_t</code>, so instead of <code>1</code> we need to use <code>~0</code> to get <code>0b11111111</code>.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">SBOXL</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">c0</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">c1</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="o">~</span><span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">c2</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="o">~</span><span class="mi">0</span><span class="p">,</span> <span class="o">~</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">c3</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="o">~</span><span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+
+  <span class="k">uint8_t</span> <span class="n">b0</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">b1</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="n">c2</span><span class="p">,</span> <span class="n">c3</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="n">mux</span><span class="p">(</span><span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">SBOXR</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">c0</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="o">~</span><span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">c1</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="o">~</span><span class="mi">0</span><span class="p">,</span> <span class="o">~</span><span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">c2</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">c3</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="o">~</span><span class="mi">0</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+
+  <span class="k">uint8_t</span> <span class="n">b0</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+  <span class="k">uint8_t</span> <span class="n">b1</span> <span class="o">=</span> <span class="n">mux</span><span class="p">(</span><span class="n">c2</span><span class="p">,</span> <span class="n">c3</span><span class="p">,</span> <span class="n">b</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="n">mux</span><span class="p">(</span><span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><pre><span class="k">void</span> <span class="nf">SBOX</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">l</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+  <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">SBOXL</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+  <span class="o">*</span><span class="n">r</span> <span class="o">=</span> <span class="n">SBOXR</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>That wasn&rsquo;t too hard. <code>SBOX()</code> is constant-time and immune to cache timing
+attacks. Not counting the negation of constants (<code>~0</code>) we have 42 gates in total
+and perform eight lookups in parallel.</p>
+
+<p>Assuming, for simplicity, that a table lookup is just one operation, the
+bitsliced version is about five times as slow. If we had a workflow that
+allowed for 64 parallel S-box lookups we could achieve eight times the
+current throughput by using <code>uint64_t</code> variables.</p>
+
+<h3>A better mux() function</h3>
+
+<p><code>mux()</code> currently needs three operations. Here&rsquo;s another variant using <em>XOR</em>:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">uint8_t</span> <span class="nf">mux</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">c</span> <span class="o">=</span> <span class="n">a</span> <span class="o">^</span> <span class="n">b</span><span class="p">;</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">c</span> <span class="o">&amp;</span> <span class="n">s</span><span class="p">)</span> <span class="o">^</span> <span class="n">a</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Now there still are three gates, but the new version lends itself often to
+easier optimization as we might be able to precompute <code>a ^ b</code> and reuse the
+result.</p>
+
+<h3>Simplifying the circuit</h3>
+
+<p>Let&rsquo;s optimize our circuit manually by following these simple rules:</p>
+
+<ul>
+<li><code>mux(a, a, s)</code> reduces to <code>a</code>.</li>
+<li>Any <code>X AND ~0</code> will always be <code>X</code>.</li>
+<li>Anything <code>AND 0</code> will always be <code>0</code>.</li>
+<li><code>mux()</code> with constant inputs can be reduced.</li>
+</ul>
+
+
+<p>With the new <code>mux()</code> variant there are a few <em>XOR</em> rules to follow as well:</p>
+
+<ul>
+<li>Any <code>X XOR X</code> reduces to <code>0</code>.</li>
+<li>Any <code>X XOR 0</code>  reduces to <code>X</code>.</li>
+<li>Any <code>X XOR ~0</code> reduces to <code>~X</code>.</li>
+</ul>
+
+
+<p>Inline the remaining <code>mux()</code> calls, eliminate common subexpressions, repeat.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">void</span> <span class="nf">SBOX</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">c</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">l</span><span class="p">,</span> <span class="k">uint8_t</span><span class="o">*</span> <span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">na</span> <span class="o">=</span> <span class="o">~</span><span class="n">a</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nb</span> <span class="o">=</span> <span class="o">~</span><span class="n">b</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">nc</span> <span class="o">=</span> <span class="o">~</span><span class="n">c</span><span class="p">;</span>
+
+  <span class="k">uint8_t</span> <span class="n">t0</span> <span class="o">=</span> <span class="n">nb</span> <span class="o">&amp;</span> <span class="n">a</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">t1</span> <span class="o">=</span> <span class="n">nc</span> <span class="o">&amp;</span> <span class="n">b</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">t2</span> <span class="o">=</span> <span class="n">b</span> <span class="o">|</span> <span class="n">nc</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">t3</span> <span class="o">=</span> <span class="n">na</span> <span class="o">&amp;</span> <span class="n">t2</span><span class="p">;</span>
+
+  <span class="o">*</span><span class="n">l</span> <span class="o">=</span> <span class="n">t0</span> <span class="o">|</span> <span class="n">t1</span><span class="p">;</span>
+  <span class="o">*</span><span class="n">r</span> <span class="o">=</span> <span class="n">t1</span> <span class="o">|</span> <span class="n">t3</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Using the <a href="https://en.wikipedia.org/wiki/Boolean_algebra#Laws">laws of Boolean algebra</a>
+and the rules formulated above I&rsquo;ve reduced the circuit to nine gates (down from 42!).
+We actually couldn&rsquo;t simplify it any further.</p>
+
+<h2>Circuit Minimization</h2>
+
+<p>Finding the <em>minimal form</em> of a Boolean function is an NP-complete problem. Manual
+optimization is tedious but doable for a tiny S-box such as the example used in
+this post. It will not be as easy for multiple 6-to-4-bit S-boxes (DES) or an
+8-to-8-bit one (AES).</p>
+
+<p>There are simpler and faster ways to build those circuits, and deterministic
+algorithms to check whether we reached the minimal form. One of those is
+covered in the next post <a href="/blog/2018/08/bitslicing-with-karnaugh-maps/">Bitslicing with Karnaugh maps</a>.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

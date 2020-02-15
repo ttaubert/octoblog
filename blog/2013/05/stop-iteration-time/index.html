@@ -1,0 +1,338 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stop. Iteration time! - Implementing ES6 generators and iterators</title>
+    
+    <meta name="description" content="Stop. Iteration time! Implementing ES6 generators and iterators May 3, 2013 You have probably already heard of
+generators and iterators
+coming to a &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Stop. Iteration time!</h1>
+      <h2>Implementing ES6 generators and iterators</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">May 3, 2013</time>
+    <p>You have probably already heard of
+<a href="https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Iterators_and_Generators">generators and iterators</a>
+coming to a browser near you. They have been available in Firefox for a long
+time and are used extensively all over the Mozilla code base. The V8 team
+will implement iterators and generators
+<a href="http://code.google.com/p/v8/issues/detail?id=2355">once ES6 has been finalized</a>.</p>
+
+<p>This post describes the current implementation in SpiderMonkey and tries to
+include the current state of the ES6 draft and discussions.</p>
+
+<h2>A simple generator</h2>
+
+<p>Let us take a look at a simple example of a generator function that represents
+an infinite sequence containing all the numbers from 0 to <em>Number.MAX_VALUE</em>.
+Once it reaches <em>MAX_VALUE</em> it will not increase any further but always return
+the same number.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">myInfiniteGenerator</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">while</span> <span class="p">(</span><span class="kc">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">yield</span> <span class="nx">i</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">iter</span> <span class="o">=</span> <span class="nx">myInfiniteGenerator</span><span class="p">();</span>
+
+<span class="k">while</span> <span class="p">(</span><span class="kc">true</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">iter</span><span class="p">.</span><span class="nx">next</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Any object of the following shape is an
+<a href="http://wiki.ecmascript.org/doku.php?id=harmony:iterators">iterator</a>:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="p">{</span> <span class="nx">next</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nx">any</span> <span class="p">}</span>
+</pre></div></figure>
+
+
+<p>The <em>next()</em> method simply returns the item next in the sequence.</p>
+
+<h2>Finite sequences</h2>
+
+<p>As you surely noticed the generator of the first example produces iterators that
+will never run out of items. The next example shows an iterator representing a
+finite sequence:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">MyFiniteIterator</span><span class="p">(</span><span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">cur</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">max</span> <span class="o">=</span> <span class="nx">max</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">MyFiniteIterator</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">next</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">cur</span> <span class="o">&lt;</span> <span class="k">this</span><span class="p">.</span><span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">cur</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">throw</span> <span class="nx">StopIteration</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<p>The given code implements a custom iterator without writing a generator
+function. Note that it throws <em>StopIteration</em> as soon as it reaches the maximum
+value to signal that the sequence is exhausted. It is a lot more elegant to
+implement the same sequence using a generator function:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">myFiniteGenerator</span><span class="p">(</span><span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">while</span> <span class="p">(</span><span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">yield</span> <span class="nx">i</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Generator functions will automatically throw <em>StopIteration</em> when terminating.
+So how should one consume iterators with finite sequences?</p>
+
+<h2>Consuming sequences</h2>
+
+<p>In Java for example, you would check <em>iter.hasNext()</em> and stop when it returns
+false. In JavaScript however you need to use a <em>try&hellip;catch</em> statement to catch
+<em>StopIteration</em> when it is being thrown.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">var</span> <span class="nx">iter</span> <span class="o">=</span> <span class="nx">myFiniteGenerator</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+
+<span class="k">while</span> <span class="p">(</span><span class="kc">true</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">iter</span><span class="p">.</span><span class="nx">next</span><span class="p">());</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">e</span> <span class="k">if</span> <span class="nx">e</span> <span class="o">===</span> <span class="nx">StopIteration</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">break</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>You might wonder if there is a better way to do this and indeed there is. Using
+<em>for&hellip;in</em> or <em>for&hellip;of</em> you do not have to catch <em>StopIteration</em> yourself, the
+JavaScript engine will do it for you. As soon as the sequence is exhausted the
+loop will terminate normally without the exception being propagated:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">var</span> <span class="nx">iter</span> <span class="o">=</span> <span class="nx">myFiniteGenerator</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+
+<span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="k">in</span> <span class="nx">iter</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h2>StopIteration is special</h2>
+
+<p><em>StopIteration</em> actually is a standard variable that is bound to an object of
+class <em>StopIteration</em>. It is an ordinary object with no properties of its own
+and it is not a constructor function.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">try</span> <span class="p">{</span>
+  <span class="k">throw</span> <span class="nx">StopIteration</span><span class="p">;</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">e</span> <span class="k">if</span> <span class="nx">e</span> <span class="k">instanceof</span> <span class="nx">StopIteration</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// This works because:</span>
+  <span class="nx">StopIteration</span> <span class="k">instanceof</span> <span class="nx">StopIteration</span> <span class="o">===</span> <span class="kc">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>As <em>StopIteration</em> is a singleton of type <em>StopIteration</em> you can also catch it
+by checking for equality:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="k">try</span> <span class="p">{</span>
+  <span class="k">throw</span> <span class="nx">StopIteration</span><span class="p">;</span>
+<span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">e</span> <span class="k">if</span> <span class="nx">e</span> <span class="o">===</span> <span class="nx">StopIteration</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// ... handle exception</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h2>StopIteration is mutable</h2>
+
+<p>You should be aware that <em>StopIteration</em> is a mutable global. Just like
+<em>undefined</em> it can be modified to hold any other value. If you write a library
+and want to shield against modifications from outside you can use this neat
+little trick I found on
+<a href="http://calculist.blogspot.de/2008/04/how-to-spell-stopiteration.html">Dave Herman&rsquo;s blog</a>:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="p">(</span><span class="kd">function</span><span class="p">(){</span><span class="k">try</span><span class="p">{(</span><span class="kd">function</span><span class="p">(){</span><span class="kc">true</span><span class="o">||</span><span class="p">(</span><span class="k">yield</span><span class="p">)})().</span><span class="nx">next</span><span class="p">()}</span><span class="k">catch</span><span class="p">(</span><span class="nx">e</span><span class="p">){</span><span class="k">return</span> <span class="nx">e</span><span class="p">}})()</span>
+</pre></div></figure>
+
+
+<p>The inner function is a generator that terminates immediately and therefore will
+throw a <em>StopIteration</em>. The outer function simply catches and returns it.</p>
+
+<h2>StopIteration may become a constructor</h2>
+
+<p>The current
+<a href="http://wiki.ecmascript.org/doku.php?id=harmony:iterators#stopiteration">iterator strawman</a>
+states that <em>StopIteration</em> will become a constructor to maintain compatibility
+with generator functions returning values.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">Iter</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">next</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">cur</span> <span class="o">&lt;</span> <span class="k">this</span><span class="p">.</span><span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">cur</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kd">var</span> <span class="nx">stop</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">StopIteration</span><span class="p">();</span>
+  <span class="nx">stop</span><span class="p">.</span><span class="nx">value</span> <span class="o">=</span> <span class="s2">&quot;sequence exhausted&quot;</span><span class="p">;</span>
+  <span class="k">throw</span> <span class="nx">stop</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<p>The equality check from above would not work anymore so it might be better to
+just use <em>instanceof</em>.</p>
+
+<h2>StopIteration may not be part of ES6</h2>
+
+<p>The Python way of throwing to denote the end of a sequence is backwards
+compatible with old ECMAScript versions but there seem to be
+<a href="https://mail.mozilla.org/pipermail/es-discuss/2013-February/028668.html">people</a>
+<a href="https://mail.mozilla.org/pipermail/es-discuss/2013-March/028937.html">not happy</a>
+<a href="http://esdiscuss.org/notes/2013-03-12">with the current proposal</a>.
+While I can&rsquo;t tell whether <em>StopIteration</em> is really to be removed a couple of
+alternative suggestions have been made:</p>
+
+<h3>Introduce a keyword to end a frame</h3>
+
+<p>To not misuse exceptions for normal control flow ES6 could introduce a
+<em>stopiteration</em> or <em>endframe</em> keyword that would end the current frame with
+an optional return value. The obvious downside is that it is probably not
+backwards compatible.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">Iter</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">next</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">cur</span> <span class="o">&lt;</span> <span class="k">this</span><span class="p">.</span><span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">cur</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="nx">stopiteration</span> <span class="p">[</span><span class="nx">reason</span><span class="p">];</span>
+  <span class="c1">// or endframe [reason];</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<h3>Add an iterator.hasNext() method</h3>
+
+<p>Just like Java the iterator API could consist of the two methods <em>next()</em> and
+<em>hasNext()</em>. The client would then need to check <em>hasNext()</em> every time before
+calling <em>next()</em>.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">Iter</span><span class="p">.</span><span class="nx">prototype</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">hasNext</span><span class="o">:</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">cur</span> <span class="o">&lt;</span> <span class="k">this</span><span class="p">.</span><span class="nx">max</span><span class="p">;</span>
+  <span class="p">},</span>
+
+  <span class="nx">next</span><span class="o">:</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">hasNext</span><span class="p">())</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">cur</span><span class="o">++</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s2">&quot;sequence exhausted&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+</pre></div></figure>
+
+
+<h3>Let next() always return an object</h3>
+
+<p>Custom iterators would be required to implement a single method but would not
+need to throw. Instead they would return an object with the property <em>done</em> set
+to true to indicate that the sequence has ended. The <em>value</em> property would be
+used to store values passed to <em>yield</em> or <em>return</em> in a generator function.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="p">{</span>
+  <span class="nx">next</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">{</span> <span class="nx">done</span><span class="o">:</span> <span class="kc">false</span> <span class="p">,</span> <span class="nx">value</span><span class="o">:</span> <span class="nx">any</span>  <span class="p">}</span>
+          <span class="o">|</span> <span class="p">{</span> <span class="nx">done</span><span class="o">:</span> <span class="kc">true</span> <span class="p">[,</span> <span class="nx">value</span><span class="o">:</span> <span class="nx">any</span><span class="p">]</span> <span class="p">}</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<h3>Food for thought</h3>
+
+<p>This is in no way a complete list of possibilities or proposals that were
+brought up on <a href="http://mail.mozilla.org/pipermail/es-discuss/">es-discuss</a> so
+please make up your own mind about the current iterators implementation and the
+suggested improvements.</p>
+
+<h2>The future is bright</h2>
+
+<p>Whether or not <em>StopIteration</em> will end up in ES6, generators and iterators are
+great and you should make sure to be prepared when they become available in
+modern browsers as well as on Node.js.</p>
+
+<p>I concentrated particularly on <em>StopIteration</em> but there are
+<a href="http://jlongster.com/2012/10/05/javascript-yield.html">lots of</a>
+<a href="http://ejohn.org/blog/javascript-18-progress/">great</a>
+<a href="http://bjouhier.wordpress.com/2012/05/18/asynchronous-javascript-with-generators-an-experiment/">posts</a>
+out there that go way more into depth about generators and their usage. Make
+sure to also take a look at libraries like <a href="http://taskjs.org/">Task.js</a> that
+combines generators with promises to cooperative tasks.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

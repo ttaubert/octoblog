@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The Mozilla build VM - A virtual build environment for Firefox</title>
+    
+    <meta name="description" content="The Mozilla build VM A virtual build environment for Firefox April 7, 2014 Note: This post might be outdated as it has been turned into an MDN page &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>The Mozilla build VM</h1>
+      <h2>A virtual build environment for Firefox</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">April 7, 2014</time>
+    <blockquote><p><strong>Note:</strong> This post might be outdated as it has been turned into an MDN page.
+Please refer to the MDN page for the latest information about the Firefox
+Developer VM. It will also tell you the correct checksum to compare to after
+downloading.</p>
+
+<p><a href="https://developer.mozilla.org/docs/Mozilla/Developer_guide/Using_the_VM">https://developer.mozilla.org/docs/Mozilla/Developer_guide/Using_the_VM</a></p></blockquote>
+
+<p>If you ever wondered what contributing to Firefox feels like but you never had
+the time to read and follow through our
+<a href="https://developer.mozilla.org/docs/Simple_Firefox_build">instructions to setup a build environment</a>
+or wanted to avoid screwing around with your precious system then this might
+be for you.</p>
+
+<p>This article will guide you through a small list of steps that in the end
+will leave you with a virtual machine ready to modify and build your own
+development version of Firefox.</p>
+
+<p>I hope this will be valuable to novice programmers that do not have a full
+C++ development environment at hand as well as to the more experienced
+folks with little time and lots of curiosity.</p>
+
+<h2>Install VirtualBox</h2>
+
+<blockquote><p><em>Note: The <a href="https://en.wikipedia.org/wiki/Open_Virtualization_Format">Open Virtualization Format (OVF)</a>
+is supported by other Virtualization Environments such as VMWare, etc. You
+can use those if already installed instead of VirtualBox.</em></p></blockquote>
+
+<p>Go to the <a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox Downloads</a>
+page and download the latest version available for your operating system.
+Should you already have VirtualBox installed then please ensure you are running
+the latest version by checking for updates before continuing.</p>
+
+<h2>Download the Firefox Build Environment</h2>
+
+<p>Now is the time to download the virtual machine containing our development
+environment ready to modify and build Firefox. You can get it here:</p>
+
+<p><a href="http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova">http://vmimages.mozilla.net/ovf/FirefoxBuildEnv.ova</a><br/>
+(SHA-256 = <em>&lt;Please see MDN page linked at the top.&gt;</em>)</p>
+
+<p>Downloading ~2.8 GB might take a while if you are on a slow connection, sorry.</p>
+
+<h2>Set up the virtual machine</h2>
+
+<p>Once the image has been downloaded you can double-click the .ova file
+and import the new virtual machine into VirtualBox. Please give it at least
+2048MB of RAM (4096MB if you can) and the same number of processors that your
+host machine has available. Building Firefox takes up a lot of resources and
+you want it to build as fast as possible.</p>
+
+<p><a href="/images/firefoxdev3.png" title="The VirtualBox import dialog" class="img"><img src="/images/firefoxdev3.png" title="The VirtualBox import dialog" ></a></p>
+
+<p>Now that your virtual machine is ready, boot it and wait for the Ubuntu desktop
+to be shown. A terminal will pop up automatically and do some last steps before
+we can get started. After a successful installation Sublime 2 should start
+automatically.</p>
+
+<p><a href="/images/firefoxdev1.png" title="Sublime 2 running on Ubuntu" class="img"><img src="/images/firefoxdev1.png" title="Sublime 2 running on Ubuntu" ></a></p>
+
+<blockquote><p><em>Note: Should you ever need root credentials, use &ldquo;firefox-dev&rdquo; as the
+password. If you want to change your Language and Keyboard settings then
+follow the instructions on
+<a href="http://www.howtogeek.com/howto/17528/change-the-user-interface-language-in-ubuntu/">How to change the UI Language in Ubuntu</a>.</em></p></blockquote>
+
+<h2>Build Firefox</h2>
+
+<p>Click <code>Tools &gt; Build</code> to start the process. This might take a long time
+depending on the features of your host machine, please be patient. You can
+watch the build progress in the text editor&rsquo;s console at the bottom. Once the
+build has finished you can use <code>Tools &gt; Run</code> to start your custom Firefox
+build and check that everything works as expected.</p>
+
+<p><a href="/images/firefoxdev2.png" title="The build menu" class="img"><img src="/images/firefoxdev2.png" title="The build menu" ></a></p>
+
+<blockquote><p><em>Note: if you want to switch from an optimized to a debug build then
+choose <code>Tools &gt; Build System &gt; Firefox (Debug)</code> and hit <code>Tools &gt; Build</code>
+again to start a debug build.</em></p></blockquote>
+
+<h2>Now what?</h2>
+
+<p>You successfully built Firefox for the first time and wonder what&rsquo;s next? How
+about picking a small bug for a start, contribute code and get your changes
+shipped to half a billion people? If that sounds compelling then take a look
+at <a href="http://www.joshmatthews.net/bugsahoy/">Bugs Ahoy!</a> and find something to
+work on that sounds interesting to you.</p>
+
+<p>If you are interested in digging deeper into the build system or the version
+control system, or want to know more about how to create your first patch and
+post it to our bug tracker then take a look at our
+<a href="http://codefirefox.com/">Code Firefox Lessons</a>.</p>
+
+<p>I would love to hear your feedback about the Firefox Build Environment!
+Please tell me what can be improved and what you would like to see in the next
+version. Do not hesitate to drop me a mail should you have a more detailed
+opinion.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

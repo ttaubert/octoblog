@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>getUserMedia() part #2 - Building an EyeToy-like mini-game</title>
+    
+    <meta name="description" content="getUserMedia() part #2 Building an EyeToy-like mini-game October 18, 2012 This post is a follow-up to my previous one about
+building a live green &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>getUserMedia() part #2</h1>
+      <h2>Building an EyeToy-like mini-game</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">October 18, 2012</time>
+    <p>This post is a follow-up to my previous one about
+<a href="/blog/2012/10/building-a-live-green-screen-with-getusermedia-and-mediastreams/">building a live green screen with getUserMedia() and MediaStreams</a>.
+If you have not read it yet, this might be a good time. We will extend the small
+example to build an EyeToy-like mini-game.</p>
+
+<h2>Some additions</h2>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">var</span> <span class="nx">video</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span><span class="p">,</span> <span class="nx">context</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">revealed</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="kc">null</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">initialize</span><span class="p">()</span> <span class="p">{</span>
+</pre></div></figure>
+
+
+<p>First, we will add a variable called <em>revealed</em> that keeps track of all pixels
+that have already been revealed by holding a green object in front of the
+camera. Instead of <em>replaceGreen()</em> we will call our method <em>revealGreen()</em>
+from now on:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">revealGreen</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">len</span> <span class="o">=</span> <span class="nx">width</span> <span class="o">*</span> <span class="nx">height</span><span class="p">;</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">len</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">,</span> <span class="nx">j</span> <span class="o">+=</span> <span class="mi">4</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// This pixel has already been revealed.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">i</span> <span class="k">in</span> <span class="nx">revealed</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">data</span><span class="p">[</span><span class="nx">j</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+      <span class="k">continue</span><span class="p">;</span>
+    <span class="p">}</span>
+</pre></div></figure>
+
+
+<p>When iterating over all of the canvas&#8217; pixels we check whether the current index
+is marked as revealed. If so we do not need to check its color but set its
+opacity to zero and continue with the next iteration.</p>
+
+<figure class='code'><div class="highlight"><pre>    <span class="c1">// Convert from RGB to HSL...</span>
+    <span class="kd">var</span> <span class="nx">hsl</span> <span class="o">=</span> <span class="nx">rgb2hsl</span><span class="p">(</span><span class="nx">data</span><span class="p">[</span><span class="nx">j</span><span class="p">],</span> <span class="nx">data</span><span class="p">[</span><span class="nx">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="nx">data</span><span class="p">[</span><span class="nx">j</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]);</span>
+    <span class="kd">var</span> <span class="nx">h</span> <span class="o">=</span> <span class="nx">hsl</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">s</span> <span class="o">=</span> <span class="nx">hsl</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nx">l</span> <span class="o">=</span> <span class="nx">hsl</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+
+    <span class="c1">// ... and check if we have a somewhat green pixel.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">h</span> <span class="o">&gt;=</span> <span class="mi">90</span> <span class="o">&amp;&amp;</span> <span class="nx">h</span> <span class="o">&lt;=</span> <span class="mi">160</span> <span class="o">&amp;&amp;</span> <span class="nx">s</span> <span class="o">&gt;=</span> <span class="mi">25</span> <span class="o">&amp;&amp;</span> <span class="nx">s</span> <span class="o">&lt;=</span> <span class="mi">90</span> <span class="o">&amp;&amp;</span> <span class="nx">l</span> <span class="o">&gt;=</span> <span class="mi">20</span> <span class="o">&amp;&amp;</span> <span class="nx">l</span> <span class="o">&lt;=</span> <span class="mi">75</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">data</span><span class="p">[</span><span class="nx">j</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+      <span class="nx">revealed</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>If the pixel has not been revealed yet but is a green one, we make it
+transparent like before and mark it to stay that way.</p>
+
+<h2>Demo and screencast</h2>
+
+<p>That is all! Take a look at the <a href="/demos/eye-toy/">live demo</a> or watch the
+screencast below:</p>
+
+<iframe class="embed"
+ src="http://player.vimeo.com/video/51703468?title=1&amp;byline=1&amp;portrait=1"
+ width="100%" height="300" frameborder="0"
+ webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
+
+
+<h2>I know&hellip;</h2>
+
+<p>&hellip; this is not much of a game but rather a small demo one could turn into a
+mini-game with little effort. Play around with the code and see what you can
+come up with!</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

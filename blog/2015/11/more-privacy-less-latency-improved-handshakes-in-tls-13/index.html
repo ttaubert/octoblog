@@ -1,0 +1,414 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>More Privacy, Less Latency - Improved Handshakes in TLS version 1.3</title>
+    
+    <meta name="description" content="More Privacy, Less Latency Improved Handshakes in TLS version 1.3 November 16, 2015 Please note that this post is about draft-11 of the TLS v1.3 &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>More Privacy, Less Latency</h1>
+      <h2>Improved Handshakes in TLS version 1.3</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">November 16, 2015</time>
+    <blockquote><p><em>Please note that this post is about draft-11 of the TLS v1.3 standard.</em></p></blockquote>
+
+<p><em>TLS must be <a href="https://istlsfastyet.com/">fast</a>.</em> Adoption will greatly benefit
+from speeding up the initial handshake that authenticates and secures the
+connection. You want to get the protocol out of the way and start delivering
+data to visitors as soon as possible. This is crucial if we want the web to
+succeed at <a href="https://blog.mozilla.org/security/2015/04/30/deprecating-non-secure-http/">deprecating non-secure HTTP</a>.</p>
+
+<p>Let&rsquo;s start by looking at full handshakes as standardized in
+<a href="https://tools.ietf.org/html/rfc5246">TLS v1.2</a>, and then continue to
+abbreviated handshakes that decrease connection times for resumed sessions.
+Once we understand the current protocol we can proceed to proposals made in
+the latest <a href="https://tlswg.github.io/tls13-spec/">TLS v1.3 draft</a> to achieve
+full 1-RTT and even 0-RTT handshakes.</p>
+
+<p>It helps if you already have a rough idea of how TLS and Diffie-Hellman work
+as I can&rsquo;t go into every detail. The focus of this post is on comparing current
+and future handshakes and I might omit a few technicalities to get basic ideas
+across more easily.</p>
+
+<h2>Full TLS 1.2 Handshake (static RSA)</h2>
+
+<p>Static RSA is a straightforward key exchange method, available since
+<a href="https://tools.ietf.org/html/draft-hickman-netscape-ssl-00">SSLv2</a>. After
+sharing basic protocol information via the <code>ClientHello</code> and <code>ServerHello</code>
+messages the server sends its certificate to the client. <code>ServerHelloDone</code>
+signals that for now there will be no further messages until the client
+responds.</p>
+
+<p><a href="/images/tls-hs-static-rsa.png" title="Full TLS v1.2 Handshake with Static RSA Key Exchange (2-RTT)" class="img"><img src="/images/tls-hs-static-rsa.png" width="600" title="Full TLS v1.2 Handshake with Static RSA Key Exchange (2-RTT)" ></a></p>
+
+<p>The client then encrypts the so-called premaster secret with the server&rsquo;s
+public key found in the certificate and wraps it in a <code>ClientKeyExchange</code>
+message. <code>ChangeCipherSpec</code> signals that from now on messages will be encrypted.
+<code>Finished</code>, the first message to be encrypted and the client&rsquo;s last message of
+the handshake, contains a MAC of all handshake messages exchanged thus far to
+prove that both parties saw the same messages, without interference from a MITM.</p>
+
+<p>The server decrypts the premaster secret found in the <code>ClientKeyExchange</code>
+message using its certificate&rsquo;s private key, and derives the master secret and
+communication keys. It then too signals a switch to encrypted communication
+and completes the handshake. <em>It takes two round-trips to establish a
+connection.</em></p>
+
+<p><strong>Authentication:</strong> With static RSA key exchanges, the connection is
+authenticated by encrypting the premaster secret with the server certificate&rsquo;s
+public key. Only the server in possession of the private key can decrypt,
+correctly derive the master secret, and send an encrypted <code>Finished</code> message
+with the right MAC.</p>
+
+<p>The simplicity of static RSA has a serious drawback: it does not offer
+<a href="https://en.wikipedia.org/wiki/Forward_secrecy">forward secrecy</a>. If a passive
+adversary records all traffic to a server then every recorded TLS session can
+be broken later by obtaining the certificate&rsquo;s private key.</p>
+
+<p><em>This key exchange method will be <a href="https://tlswg.github.io/tls13-spec/#major-differences-from-tls-12">removed in TLS v1.3</a>.</em></p>
+
+<h2>Full TLS 1.2 Handshake (ephemeral DH)</h2>
+
+<p>A full handshake using (Elliptic Curve)
+<a href="https://en.wikipedia.org/wiki/Diffie-Hellman_key_exchange">Diffie-Hellman</a> to
+exchange ephemeral keys is very similar to the flow of static RSA. The main
+difference is that after sending the certificate the server will also send a
+<code>ServerKeyExchange</code> message. This message contains either the parameters of a
+DH group or of an elliptic curve, paired with an ephemeral public key computed
+by the server.</p>
+
+<p><a href="/images/tls-hs-ecdhe.png" title="Full TLS v1.2 Handshake with Ephemeral Diffie-Hellman Key Exchange (2-RTT)" class="img"><img src="/images/tls-hs-ecdhe.png" width="600" title="Full TLS v1.2 Handshake with Ephemeral Diffie-Hellman Key Exchange (2-RTT)" ></a></p>
+
+<p>The client too computes an ephemeral public key compatible with the given
+parameters and sends it to the server. Knowing their private keys and the other
+party&rsquo;s public key both sides should now share the same premaster secret and
+can derive a shared master secret.</p>
+
+<p><strong>Authentication:</strong> With (EC)DH key exchanges it&rsquo;s still the certificate that
+must be signed by a CA listed in the client&rsquo;s trust store. To authenticate the
+connection the server will sign the parameters contained in <code>ServerKeyExchange</code>
+with the certificate&rsquo;s private key. The client verifies the signature with the
+certificate&rsquo;s public key and only then proceeds with the handshake.</p>
+
+<h2>Abbreviated Handshakes in TLS 1.2</h2>
+
+<p>Since <a href="https://tools.ietf.org/html/draft-hickman-netscape-ssl-00">SSLv2</a>
+clients have been able to use session identifiers as a way to resume previously
+established TLS/SSL sessions. <a href="https://blog.cloudflare.com/tls-session-resumption-full-speed-and-secure/">Session resumption</a>
+is important because a full handshake can take time: it has a high latency as
+it needs two round-trips and might involve expensive computation to exchange
+keys, or sign and verify certificates.</p>
+
+<p><strong><a href="https://tools.ietf.org/html/rfc5246#appendix-F.1.4">Session IDs</a></strong>, assigned
+by the server, are unique identifiers under which both parties store the master
+secret and other details of the connection they established. The client may
+include this ID in the <code>ClientHello</code> message of the next handshake to
+short-circuit the negotiation and reuse previous connection parameters.</p>
+
+<p><a href="/images/tls-hs-session-ids.png" title="Abbreviated Handshake with Session IDs (1-RTT)" class="img"><img src="/images/tls-hs-session-ids.png" width="600" title="Abbreviated Handshake with Session IDs (1-RTT)" ></a></p>
+
+<p>If the server is willing and able to resume the session it responds with a
+<code>ServerHello</code> message including the Session ID given by the client. This
+handshake is effectively 1-RTT as the client can send application data
+immediately after the <code>Finished</code> message.</p>
+
+<p>Sites with lots of visitors will have to manage and secure big session caches,
+or risk pushing out saved sessions too quickly. A setup involving multiple
+load-balanced servers will need to securely synchronize session caches across
+machines. The forward secrecy of a connection is bounded by how long session
+information is retained on servers.</p>
+
+<p><strong><a href="http://tools.ietf.org/html/rfc5077">Session tickets</a></strong>, created by the server
+and stored by the client, are blobs containing all necessary information about
+a connection, encrypted by a key only known to the server. If the client
+presents this tickets with the <code>ClientHello</code> message, and proves that it knows
+the master secret stored in the ticket, the session will be resumed.</p>
+
+<p><a href="/images/tls-hs-session-tickets.png" title="Abbreviated Handshake with Session Tickets (1-RTT)" class="img"><img src="/images/tls-hs-session-tickets.png" width="600" title="Abbreviated Handshake with Session Tickets (1-RTT)" ></a></p>
+
+<p>A server willing and able to decrypt the given ticket responds with a
+<code>ServerHello</code> message including an empty <em>SessionTicket</em> extension, otherwise
+the extension would be omitted completely. As with session IDs, the client will
+start sending application data immediately after the <code>Finished</code> message to
+achieve 1-RTT.</p>
+
+<p>To not affect the forward secrecy provided by (EC)DHE suites session ticket
+keys should be rotated periodically, otherwise stealing the ticket key would
+allow recovering recorded sessions later. In a setup with multiple load-balanced
+servers the main challenge here is to securely generate, rotate, and
+synchronize keys across machines.</p>
+
+<p><strong>Authentication:</strong> Both session resumption mechanisms retain the client&rsquo;s and
+server&rsquo;s authentication states as established in the session&rsquo;s initial handshake.
+Neither the server nor the client have to send and verify certificates a second
+time, and thus can reduce connection times significantly, especially when
+dealing with RSA certificates.</p>
+
+<h2>Full Handshakes in TLS 1.3</h2>
+
+<p>The first good news about handshakes in TLS v1.3 is that static RSA key
+exchanges are no longer supported. Great! That means we can start with full
+handshakes using forward-secure Diffie-Hellman.</p>
+
+<p>Another important change is the removal of the <code>ChangeCipherSpec</code> protocol
+(yes, it&rsquo;s actually a protocol, not a message). With TLS v1.3 every message
+sent after <code>ServerHello</code> is encrypted with the so-called
+<a href="https://tlswg.github.io/tls13-spec/#key-schedule">ephemeral secret</a> to lock
+out passive adversaries very early in the game. <code>EncryptedExtensions</code> carries
+Hello extension data that must be encrypted because it&rsquo;s not needed to set up
+secure communication.</p>
+
+<p><a href="/images/tls13-hs-ecdhe.png" title="Full TLS v1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange (1-RTT)" class="img"><img src="/images/tls13-hs-ecdhe.png" width="600" title="Full TLS v1.3 Handshake with Ephemeral Diffie-Hellman Key Exchange (1-RTT)" ></a></p>
+
+<p>The probably most important change with regard to 1-RTT is the removal of the
+<code>ServerKeyExchange</code> and <code>ClientKeyExchange</code> messages. The DH parameters and
+public keys are now sent in special <em>KeyShare</em> extensions, a new type of
+extension to be included in the <code>ServerHello</code> and <code>ClientHello</code> messages.
+Moving this data into Hello extensions keeps the handshake compatible with TLS
+v1.2 as it doesn&rsquo;t change the order of messages.</p>
+
+<p>The client sends a list of <em>KeyShareEntry</em> values, each consisting of a named
+(EC)DH group and an ephemeral public key. If the server accepts it must respond
+with one of the proposed groups and its own public key. If the server does not
+support any of the given key shares the server will request retrying the
+handshake or abort the connection with a fatal <code>handshake_failure</code> alert.</p>
+
+<p><strong>Authentication:</strong> The Diffie-Hellman parameters itself aren&rsquo;t signed anymore,
+authentication will be a tad more explicit in TLS v1.3. The server sends a
+<code>CertificateVerify</code> message that contains a hash of all handshake message
+exchanged so far, signed with the certificate&rsquo;s private key. The client then
+simply verifies the signature with the certificate&rsquo;s public key.</p>
+
+<h2>Session Resumption in TLS 1.3 (PSK)</h2>
+
+<p>Session resumption via identifiers and tickets is obsolete in TLS v1.3.
+Both methods are replaced by a <a href="https://tlswg.github.io/tls13-spec/#rfc.section.6.2.3">pre-shared key (PSK) mode</a>.
+A PSK is established on a previous connection after the handshake is completed,
+and can then be presented by the client on the next visit.</p>
+
+<p><a href="/images/tls13-hs-resumption.png" title="Session Resumption / PSK Mode in TLS v1.3 (1-RTT)" class="img"><img src="/images/tls13-hs-resumption.png" width="600" title="Session Resumption / PSK Mode in TLS v1.3 (1-RTT)" ></a></p>
+
+<p>The client sends one or more <em>PSK identities</em> as opaque blobs of data. They can
+be database lookup keys (similar to Session IDs), or self-encrypted and
+self-authenticated values (similar to Session Tickets). If the server accepts
+one of the given PSK identities it replies with the one it selected. The
+<em>KeyShare</em> extension is sent to allow servers to ignore PSKs and fall back to
+a full handshake.</p>
+
+<p>Forward secrecy can be maintained by limiting the lifetime of PSK identities
+sensibly. Clients and servers may also choose an (EC)DHE cipher suite for PSK
+handshakes to provide forward secrecy for every connection, not just the whole
+session.</p>
+
+<p><strong>Authentication:</strong> As in TLS v1.2, the client&rsquo;s and server&rsquo;s authentication
+states are retained and both parties don&rsquo;t need to exchange and verify
+certificates again. A regular PSK handshake initiating a new session, instead
+of resuming, omits certificates completely.</p>
+
+<p>Session resumption still allows significantly faster handshakes when using RSA
+certificates and can prevent user-facing client authentication dialogs on
+subsequent connections. However, the fact that it requires a single round-trip
+just like a full handshake might make it less appealing, especially if you
+have an ECDSA or EdDSA certificate and do not require client authentication.</p>
+
+<h2>Zero-RTT Handshakes in TLS 1.3</h2>
+
+<p>The latest draft of the specification contains a proposal to let clients
+encrypt application data and include it in their first flights. On a previous
+connection, after the handshake completes, the server would send a
+<code>ServerConfiguration</code> message that the client can use for
+<a href="https://tlswg.github.io/tls13-spec/#zero-rtt-exchange">0-RTT handshakes</a>
+on subsequent connections. The
+<a href="https://tlswg.github.io/tls13-spec/#server-configuration">configuration</a>
+includes a configuration identifier, the server&rsquo;s semi-static (EC)DH parameters,
+an expiration date, and other details.</p>
+
+<p><a href="/images/tls13-hs-zero-rtt.png" title="TLS v1.3 0-RTT Handshake" class="img"><img src="/images/tls13-hs-zero-rtt.png" width="600" title="TLS v1.3 0-RTT Handshake" ></a></p>
+
+<p>With the very first TLS record the client sends its <code>ClientHello</code> and, changing
+the order of messages, directly appends application data (e.g. <code>GET / HTTP/1.1</code>).
+Everything after the <code>ClientHello</code> will be encrypted with the
+<a href="https://tlswg.github.io/tls13-spec/#key-schedule">static secret</a>, derived from
+the client&rsquo;s ephemeral <em>KeyShareEntry</em> and the semi-static DH parameters given
+in the server&rsquo;s configuration. The <code>end_of_early_data</code> alert indicates the end
+of the flight.</p>
+
+<p>The server, if able and willing to decrypt, responds with its default set of
+messages and immediately appends the contents of the requested resource. <em>That&rsquo;s
+the same round-trip time as for an unencrypted HTTP request.</em> All communication
+following the <code>ServerHello</code> will again be encrypted with the ephemeral secret,
+derived from the client&rsquo;s <em>and</em> server&rsquo;s ephemeral key shares. After exchanging
+<code>Finished</code> messages the server will be re-authenticated, and traffic encrypted
+with keys derived from the master secret.</p>
+
+<h3>Security of 0-RTT Handshakes</h3>
+
+<p>At first glance, 0-RTT mode seems similar to session resumption or PSK, and you
+might wonder why one wouldn&rsquo;t merge these mechanisms. The differences however
+are subtle but important, and the security properties of 0-RTT handshakes are
+weaker than those for other kinds of TLS data:</p>
+
+<p><strong>1.</strong> To protect against replay attacks the server must incorporate a <em>server
+random</em> into the master secret. That is unfortunately not possible before the
+first round-trip and so the poor server can&rsquo;t easily tell whether it&rsquo;s a valid
+request or an attacker replaying a recorded conversation. Replay protection
+will be in place again after the <code>ServerHello</code> message is sent.</p>
+
+<p><strong>2.</strong> The semi-static DH share given in the server configuration, used to
+derive the static secret and encrypt first flight data, defies forward secrecy.
+We need at least one round-trip to establish the ephemeral secret. As
+configurations are shared between clients, and recovering the server&rsquo;s DH share
+becomes more attractive, expiration dates should be limited sensibly. The
+maximum allowed validity is 7 days.</p>
+
+<p><strong>3.</strong> If the server&rsquo;s DH share is compromised a MITM can tamper with the
+0-RTT data sent by the client, without being detected. This does not extend to
+the full session as the client can retrospectively authenticate the server via
+the remaining handshake messages.</p>
+
+<h3>Defending against Replay Attacks</h3>
+
+<p>Thwarting replay attacks without input from the server is fundamentally very
+expensive. It&rsquo;s important to understand that this is a generic problem, not an
+issue with TLS in particular, so alas one can&rsquo;t just borrow another protocol&rsquo;s
+0-RTT model and put that into TLS.</p>
+
+<p>It is possible to have servers keep a list of every <em>ClientRandom</em> they have
+received in a given time window. Upon receiving a <code>ClientHello</code> the server
+checks its list and rejects replays if necessary. This list must be globally
+and temporally consistent as there are
+<a href="https://www.ietf.org/mail-archive/web/tls/current/msg15594.html">possible attack vectors</a>
+due to TLS&#8217; reliable delivery guarantee if an attacker can force a server to
+lose its state, as well as with multiple servers in loosely-synchronized data
+centers.</p>
+
+<p>Maintaining a consistent global state is possible, but only in some limited
+circumstances, namely for very sophisticated operators or situations where
+there is a single server with good state management. We will need something
+better.</p>
+
+<h3>Removing Anti-Replay Guarantee</h3>
+
+<p>A possible solution might be a TLS stack API to let applications designate
+certain data as replay-safe, for example <code>GET / HTTP/1.1</code> assuming that GET
+requests against a given resource are idempotent.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">let</span> <span class="nx">c</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">TLSConnection</span><span class="p">(...);</span>
+<span class="nx">c</span><span class="p">.</span><span class="nx">setReplayable0RTTData</span><span class="p">(</span><span class="s2">&quot;GET / ...&quot;</span><span class="p">);</span>
+<span class="nx">c</span><span class="p">.</span><span class="nx">connect</span><span class="p">();</span>
+</pre></div></figure>
+
+
+<p>Applications can, before opening the connection, specify replayable 0-RTT data
+to send on the first flight. If the server ignores the given 0-RTT data, the
+TLS stack automatically replays it after the first round-trip.</p>
+
+<h3>Removing Reliable Delivery Guarantee</h3>
+
+<p>Another way of achieving the same outcome would be a TLS stack API that
+again lets applications designate certain data as replay-safe, but does <em>not
+automatically</em> replay if the server ignores it. The application can decide to
+do this manually if necessary.</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">let</span> <span class="nx">c</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">TLSConnection</span><span class="p">(...);</span>
+<span class="nx">c</span><span class="p">.</span><span class="nx">setUnreliable0RTTData</span><span class="p">(</span><span class="s2">&quot;GET / ...&quot;</span><span class="p">);</span>
+<span class="nx">c</span><span class="p">.</span><span class="nx">connect</span><span class="p">();</span>
+
+<span class="k">if</span> <span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">delivered0RTTData</span><span class="p">())</span> <span class="p">{</span>
+  <span class="c1">// Things are cool.</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="c1">// Try to figure out whether to replay or not.</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Both of these APIs are early proposals and the final version of the
+specification might look very different from what we can see above. Though, as
+0-RTT handshakes are a charter goal, the working group will very likely find a
+way to make them work.</p>
+
+<h2>Summing up</h2>
+
+<p>TLS v1.3 will bring major improvements to handshakes, how exactly will be
+finalized in the coming months. They will be more private by default as all
+information not needed to set up a secure channel will be encrypted as early
+as possible. Clients will need only a single round-trip to establish secure
+and authenticated connections to servers they never spoke to before.</p>
+
+<p>Static RSA mode will no longer be available, forward secrecy will be the
+default. The two session resumption standards, session identifiers and session
+tickets, are merged into a single PSK mode which will allow streamlining
+implementations.</p>
+
+<p>The proposed 0-RTT mode is promising, for custom application communication
+based on TLS but also for browsers, where a <code>GET / HTTP/1.1</code> request to your
+favorite news page could deliver content blazingly fast as if no TLS was
+involved. The security aspects of zero round-trip handshakes will become more
+clear as the draft progresses.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

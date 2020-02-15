@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Generating .onion names for Tor hidden services - Tinkering with the WebCrypto API</title>
+    
+    <meta name="description" content="Generating .onion names for Tor hidden services Tinkering with the WebCrypto API November 2, 2014 You have probably read that
+Facebook unveiled its &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Generating .onion names for Tor hidden services</h1>
+      <h2>Tinkering with the WebCrypto API</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">November 2, 2014</time>
+    <p>You have probably read that
+<a href="https://www.facebook.com/notes/protect-the-graph/making-connections-to-facebook-more-secure/1526085754298237">Facebook unveiled its hidden service</a>
+that lets users access their website more safely via Tor. While there are lots
+of opinions about whether this is good or bad I think that
+the Tor project described best <a href="https://blog.torproject.org/blog/facebook-hidden-services-and-https-certs">why that is not as crazy as it seems</a>.</p>
+
+<p>The most interesting part to me however is that
+<a href="https://lists.torproject.org/pipermail/tor-talk/2014-October/035412.html">Facebook brute-forced a custom hidden service address</a>
+as it never occurred to me that this is something you might want to do. Again
+ignoring the pros and cons of doing that, investigating the <em>how</em> seems like a
+fun exercise to get more familiar with the
+<a href="http://dvcs.w3.org/hg/webcrypto-api/raw-file/tip/spec/Overview.html">WebCrypto API</a>
+if that is still unknown territory to you.</p>
+
+<h2>How are .onion names created?</h2>
+
+<p><a href="https://trac.torproject.org/projects/tor/wiki/doc/HiddenServiceNames">Names for Tor hidden services</a>
+are meant to be self-authenticating. When creating a hidden service Tor
+generates a new 1024 bit <a href="https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29">RSA</a>
+key pair and then computes the <a href="https://en.wikipedia.org/wiki/SHA-1">SHA-1</a>
+digest of the public key. The .onion name will be the
+<a href="http://en.wikipedia.org/wiki/Base32">Base32</a>-encoded first half of that digest.</p>
+
+<p>By using a hash of the public key as the URL to contact a hidden service you
+can easily authenticate it and bypass the existing CA structure. This 80 bit
+URL is sufficient to prevent collisions, even with
+a <a href="http://en.wikipedia.org/wiki/Birthday_attack">birthday attack</a> (and thus an
+entropy of 40 bit) you can only find a <em>random</em> collision but not the key pair
+matching a specific .onion name.</p>
+
+<h2>Creating custom .onion names</h2>
+
+<p>So how did Facebook manage to come up with a public key resulting in
+<code>facebookcorewwwi.onion</code>? The answer is that they were incredibly lucky.</p>
+
+<p>You can brute-force .onion names matching a specific pattern using tools like
+<a href="https://github.com/katmagic/Shallot">Shallot</a> or
+<a href="https://github.com/lachesis/scallion">Scallion</a>. Those will generate key pairs
+until they find one resulting in a matching URL. That is usably fast for 1-5
+characters. Finding a 6-character pattern takes on average 30 minutes and for
+just 7 characters you might need to let it run for a full day.</p>
+
+<p>Coming up with an .onion name <em>starting with</em> an 8-character pattern like
+<code>facebook</code> would thus take even longer or need a lot more resources. As a
+<a href="https://lists.torproject.org/pipermail/tor-talk/2014-October/035413.html">Facebook engineer confirmed</a>
+they indeed got extremely lucky: they generated a few keys matching the pattern,
+picked the best and then just needed to come up with an explanation for the
+<code>corewwwi</code> part to let users memorize it better.</p>
+
+<p>Without taking a closer look at &ldquo;Shallot&rdquo; or &ldquo;Scallion&rdquo; let us go with a naive
+approach. We do not <em>need</em> to create another tool to find .onion names in the
+browser (the existing ones work great) but it is a good opportunity to again
+show what you can do with the WebCrypto API in the browser.</p>
+
+<h2>Generating a random .onion name</h2>
+
+<p>To generate a random name for a Tor hidden service we first need to generate
+a new 1024 bit RSA key just as Tor would do:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">generateRSAKey</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">alg</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1">// This could be any supported RSA* algorithm.</span>
+    <span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;RSASSA-PKCS1-v1_5&quot;</span><span class="p">,</span>
+    <span class="c1">// We won&#39;t actually use the hash function.</span>
+    <span class="nx">hash</span><span class="o">:</span> <span class="p">{</span><span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;SHA-1&quot;</span><span class="p">},</span>
+    <span class="c1">// Tor hidden services use 1024 bit keys.</span>
+    <span class="nx">modulusLength</span><span class="o">:</span> <span class="mi">1024</span><span class="p">,</span>
+    <span class="c1">// We will use a fixed public exponent for now.</span>
+    <span class="nx">publicExponent</span><span class="o">:</span> <span class="k">new</span> <span class="nx">Uint8Array</span><span class="p">([</span><span class="mh">0x03</span><span class="p">])</span>
+  <span class="p">};</span>
+
+  <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">generateKey</span><span class="p">(</span><span class="nx">alg</span><span class="p">,</span> <span class="kc">true</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;sign&quot;</span><span class="p">,</span> <span class="s2">&quot;verify&quot;</span><span class="p">]);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p><em>generateKey()</em> returns a Promise that resolves to the new key pair. The second
+argument specifies that we want the key to be exportable as we need to do that
+in order to check for pattern matches. We will not actually use the key to
+<em>sign</em> or <em>verify</em> data but we need specify valid usages for the public and
+private keys.</p>
+
+<p>To check whether a generated public key matches a specific pattern we of course
+have to compute the hash for the .onion URL:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">computeOnionHash</span><span class="p">(</span><span class="nx">publicKey</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Export the DER encoding of the SubjectPublicKeyInfo structure.</span>
+  <span class="kd">var</span> <span class="nx">promise</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">exportKey</span><span class="p">(</span><span class="s2">&quot;spki&quot;</span><span class="p">,</span> <span class="nx">publicKey</span><span class="p">);</span>
+
+  <span class="nx">promise</span> <span class="o">=</span> <span class="nx">promise</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">spki</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Compute the SHA-1 digest of the SPKI.</span>
+    <span class="c1">// Skip 22 bytes (the SPKI header) that are ignored by Tor.</span>
+    <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">digest</span><span class="p">({</span><span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;SHA-1&quot;</span><span class="p">},</span> <span class="nx">spki</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="mi">22</span><span class="p">));</span>
+  <span class="p">});</span>
+
+  <span class="k">return</span> <span class="nx">promise</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">digest</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Base32-encode the first half of the digest.</span>
+    <span class="k">return</span> <span class="nx">base32</span><span class="p">(</span><span class="nx">digest</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">));</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>We first use <em>exportKey()</em> to get an <a href="https://tools.ietf.org/html/rfc5280">SPKI</a>
+representation of the public key, use <em>digest()</em> to compute the SHA-1 digest
+of that, and finally pass it to <em>base32()</em> to Base32-encode the first half of
+that digest.</p>
+
+<blockquote><p>Note: <em>base32()</em> is an <a href="https://tools.ietf.org/html/rfc3548">RFC 3548</a>
+compliant Base32 implementation. <a href="https://github.com/chrisumbel/thirty-two">chrisumbel/thirty-two</a>
+is a good one that unfortunately does not support ArrayBuffers, I will use a
+slightly adapted version of it in the example code.</p></blockquote>
+
+<h2>Finding a specific .onion name</h2>
+
+<p>The only thing missing now is a function that checks for pattern matches and
+loops until we found one:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">findOnionName</span><span class="p">(</span><span class="nx">pattern</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">key</span><span class="p">;</span>
+
+  <span class="c1">// Start by generating a random key pair.</span>
+  <span class="kd">var</span> <span class="nx">promise</span> <span class="o">=</span> <span class="nx">generateRSAKey</span><span class="p">().</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">pair</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">key</span> <span class="o">=</span> <span class="nx">pair</span><span class="p">.</span><span class="nx">privateKey</span><span class="p">;</span>
+
+    <span class="c1">// Generate the .onion hash of the public key.</span>
+    <span class="k">return</span> <span class="nx">computeOnionHash</span><span class="p">(</span><span class="nx">pair</span><span class="p">.</span><span class="nx">publicKey</span><span class="p">);</span>
+  <span class="p">});</span>
+
+  <span class="k">return</span> <span class="nx">promise</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">hash</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Try again if the pattern doesn&#39;t match.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">pattern</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">hash</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">findOnionName</span><span class="p">(</span><span class="nx">pattern</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Key matches! Export and format it.</span>
+    <span class="k">return</span> <span class="nx">formatKey</span><span class="p">(</span><span class="nx">key</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">formatted</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="p">{</span><span class="nx">key</span><span class="o">:</span> <span class="nx">formatted</span><span class="p">,</span> <span class="nx">hash</span><span class="o">:</span> <span class="nx">hash</span><span class="p">};</span>
+    <span class="p">});</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>We simply use <em>generateRSAKey()</em> and <em>computeOnionHash()</em> as defined before.
+In case of a pattern match we export the
+<a href="http://tools.ietf.org/html/rfc5208">PKCS8</a> private key information, encode it
+as <a href="https://en.wikipedia.org/wiki/Base64">Base64</a> and format it nicely:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="kd">function</span> <span class="nx">formatKey</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Export the DER-encoded ASN.1 private key information.</span>
+  <span class="kd">var</span> <span class="nx">promise</span> <span class="o">=</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">subtle</span><span class="p">.</span><span class="nx">exportKey</span><span class="p">(</span><span class="s2">&quot;pkcs8&quot;</span><span class="p">,</span> <span class="nx">key</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="nx">promise</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">pkcs8</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">encoded</span> <span class="o">=</span> <span class="nx">base64</span><span class="p">(</span><span class="nx">pkcs8</span><span class="p">);</span>
+
+    <span class="c1">// Wrap lines after 64 characters.</span>
+    <span class="kd">var</span> <span class="nx">formatted</span> <span class="o">=</span> <span class="nx">encoded</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/.{1,64}/g</span><span class="p">).</span><span class="nx">join</span><span class="p">(</span><span class="s2">&quot;\n&quot;</span><span class="p">);</span>
+
+    <span class="c1">// Wrap the formatted key in a header and footer.</span>
+    <span class="k">return</span> <span class="s2">&quot;-----BEGIN PRIVATE KEY-----\n&quot;</span> <span class="o">+</span> <span class="nx">formatted</span> <span class="o">+</span>
+           <span class="s2">&quot;\n-----END PRIVATE KEY-----&quot;</span><span class="p">;</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<blockquote><p>Note: <em>base64()</em> refers to an existing Base64 implementation that can deal with
+ArrayBuffers. <a href="https://github.com/niklasvh/base64-arraybuffer">niklasvh/base64-arraybuffer</a>
+is a good one that I will use in the example code.</p></blockquote>
+
+<p>What is logged to the console can be directly used to replace any random key
+that Tor has assigned before. Here is how you would use the code we just wrote:</p>
+
+<figure class='code'><div class="highlight"><pre><span class="nx">findOnionName</span><span class="p">(</span><span class="sr">/ab/</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">result</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">hash</span> <span class="o">+</span> <span class="s2">&quot;.onion&quot;</span><span class="p">,</span> <span class="nx">result</span><span class="p">.</span><span class="nx">key</span><span class="p">);</span>
+<span class="p">},</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;An error occurred, please reload the page.&quot;</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div></figure>
+
+
+<p>The Promise returned by <em>findOnionName()</em> will not resolve until a match was
+found. When generating lots of keys Firefox currently sometimes fails with a
+&ldquo;transient error&rdquo; that needs to be investigated. If you want a loop that runs
+despite that error you could simply restart the search in the error handler.</p>
+
+<p><a href="/images/onion-console.png" title="The Web Console showing a found .onion name with its key" class="img"><img src="/images/onion-console.png" title="The Web Console showing a found .onion name with its key" ></a></p>
+
+<h2>The code</h2>
+
+<p><a href="https://gist.github.com/ttaubert/389255d724f219f76900">https://gist.github.com/ttaubert/389255d724f219f76900</a></p>
+
+<p>Include it in a minimal web site and have the Web Console open. It will run in
+Firefox 33+ and Chrome 37+ with the WebCrypto API explicitly enabled (if
+necessary).</p>
+
+<h2>The pitfalls</h2>
+
+<p>As said before, the approach shown above is quite naive and thus very slow. The
+easiest optimization to implement might be to spawn multiple web workers and
+let them search in parallel.</p>
+
+<p>We could also speed up finding keys by not regenerating the whole RSA key every
+loop iteration but instead increasing the public exponent by 2 (starting from 3)
+until we find a match and then check whether that produces a valid key pair.
+If it does not we can just continue.</p>
+
+<p>Lastly, the current implementation does not perform any safety checks that Tor
+might run on the generated key. All of these points would be great reasons for
+a follow-up post.</p>
+
+<blockquote><p><strong>Important</strong>: You should use the keys generated with this code to run a
+hidden service only if you trust the host that serves it. Getting your keys
+off of someone else&rsquo;s web server is a terrible idea. Do not be <em>that</em> guy or gal.</p></blockquote>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

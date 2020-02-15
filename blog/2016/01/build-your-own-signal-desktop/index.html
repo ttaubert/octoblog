@@ -1,0 +1,210 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Build your own Signal Desktop - Packaging the Signal Private Messenger and NW.js into a standalone app</title>
+    
+    <meta name="description" content="Build your own Signal Desktop Packaging the Signal Private Messenger and NW.js into a standalone app January 15, 2016 The Signal Private Messenger &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Build your own Signal Desktop</h1>
+      <h2>Packaging the Signal Private Messenger and NW.js into a standalone app</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">January 15, 2016</time>
+    <p>The Signal Private Messenger is great. <strong>Use it.</strong> It&rsquo;s probably the best secure
+messenger on the market. When recently a desktop app was announced people were
+eager to join the beta and even happier when an invite finally showed up in
+their inbox. So was I, it&rsquo;s a great app and works surprisingly well for an early
+version.</p>
+
+<p>The only problem is that it&rsquo;s a Chrome App. Apart from excluding folks with
+other browsers it&rsquo;s also a shitty user experience. If you too want your
+messaging app not tied to a browser then let&rsquo;s just build our own standalone
+variant of Signal Desktop.</p>
+
+<h2>NW.js beta with Chrome App support</h2>
+
+<p>Signal Desktop is a Chrome App, so the easiest way to turn it into a standalone
+app is to use <a href="http://nwjs.io/">NW.js</a>. Conveniently, their next release v0.13
+will ship with Chrome App support and is available for download as a beta
+version.</p>
+
+<p>First, make sure you have <code>git</code> and <code>npm</code> installed. Then open a terminal and
+prepare a temporary build directory to which we can download a few things and
+where we can build the app:</p>
+
+<figure class='code'><div class="highlight"><pre>$ mkdir signal-build
+$ cd signal-build
+</pre></div></figure>
+
+
+<h2>[OS X] Packaging Signal and NW.js</h2>
+
+<p>Download the latest beta of NW.js and <code>unzip</code> it. We&rsquo;ll extract the application
+and use it as a template for our Signal clone. The NW.js project does
+unfortunately not seem to provide a secure source (or at least hashes)
+for their downloads.</p>
+
+<figure class='code'><div class="highlight"><pre>$ wget http://dl.nwjs.io/v0.14.4/nwjs-sdk-v0.14.4-osx-x64.zip
+$ unzip nwjs-sdk-v0.14.4-osx-x64.zip
+$ cp -r nwjs-sdk-v0.14.4-osx-x64/nwjs.app SignalPrivateMessenger.app
+</pre></div></figure>
+
+
+<p>Next, clone the Signal repository and use NPM to install the necessary modules.
+Run the <code>grunt</code> automation tool to build the application.</p>
+
+<figure class='code'><div class="highlight"><pre>$ git clone https://github.com/WhisperSystems/Signal-Desktop.git
+$ cd Signal-Desktop/
+$ npm install
+$ node_modules/grunt-cli/bin/grunt
+</pre></div></figure>
+
+
+<p>Finally, simply to copy the <code>dist</code> folder containing all the juicy Signal files
+into the application template we created a few moments ago.</p>
+
+<figure class='code'><div class="highlight"><pre>$ cp -r dist ../SignalPrivateMessenger.app/Contents/Resources/app.nw
+$ open ..
+</pre></div></figure>
+
+
+<p>The last command opens a Finder window. Move <code>SignalPrivateMessenger.app</code> to
+your Applications folder and launch it as usual. You should now see a welcome
+page!</p>
+
+<h2>[Linux] Packaging Signal and NW.js</h2>
+
+<p>The build instructions for Linux aren&rsquo;t too different but I&rsquo;ll write them down,
+if just for convenience. Start by cloning the Signal Desktop repository and
+build.</p>
+
+<figure class='code'><div class="highlight"><pre>$ git clone https://github.com/WhisperSystems/Signal-Desktop.git
+$ cd Signal-Desktop/
+$ npm install
+$ node_modules/grunt-cli/bin/grunt
+</pre></div></figure>
+
+
+<p>The <code>dist</code> folder contains the app, ready to be launched. <code>zip</code> it and place
+the resulting package somewhere handy.</p>
+
+<figure class='code'><div class="highlight"><pre>$ cd dist
+$ zip -r ../../package.nw *
+</pre></div></figure>
+
+
+<p>Back to the top. Download the NW.js binary, extract it, and change into the
+newly created directory. Move the <code>package.nw</code> file we created earlier next to
+the <code>nw</code> binary and we&rsquo;re done. The <code>nwjs-sdk-v0.13.0-beta3-linux-x64</code> folder
+does now contain the standalone Signal app.</p>
+
+<figure class='code'><div class="highlight"><pre>$ cd ../..
+$ wget http://dl.nwjs.io/v0.14.4/nwjs-sdk-v0.14.4-linux-x64.tar.gz
+$ tar xfz nwjs-sdk-v0.14.4-linux-x64.tar.gz
+$ cd nwjs-sdk-v0.14.4-linux-x64
+$ mv ../package.nw .
+</pre></div></figure>
+
+
+<p>Finally, launch NW.js. You should see a welcome page!</p>
+
+<figure class='code'><div class="highlight"><pre>$ ./nw
+</pre></div></figure>
+
+
+<h2>If you see something, file something</h2>
+
+<p>Our standalone Signal clone mostly works, but it&rsquo;s far from perfect. We&rsquo;re
+pulling from master and that might bring breaking changes that weren&rsquo;t
+sufficiently tested.</p>
+
+<p>We don&rsquo;t have the right icons. The app crashes when you click a media message.
+It opens a blank popup when you click a link. It&rsquo;s quite big because also NW.js
+has bugs and so we have to use the SDK build for now. In the future it would be
+great to have automatic updates, and maybe even signed builds.</p>
+
+<p>Remember, Signal Desktop is beta, and completely untested with NW.js. If you
+want to help file bugs, but only after checking that those affect the Chrome
+App too. If you want to fix a bug only occurring in the standalone version
+it&rsquo;s probably best to file a pull request and cross fingers.</p>
+
+<h2>Is this secure?</h2>
+
+<p>Great question! I don&rsquo;t know. I would love to get some more insights from people
+that know more about the NW.js security model and whether it comes with all the
+protections Chromium can offer. Another interesting question is whether bundling
+Signal Desktop with NW.js is in any way worse (from a security perspective) than
+installing it as a Chrome extension. If you happen to have an opinion about
+that, I would love to hear it.</p>
+
+<p>Another important thing to keep in mind is that when building Signal on your
+own you will possibly miss automatic and signed security updates from the
+Chrome Web Store. Keep an eye on the repository and rebuild your app from
+time to time to not fall behind too much.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

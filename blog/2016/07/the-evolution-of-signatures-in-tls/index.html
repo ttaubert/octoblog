@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The Evolution of Signatures in TLS - Signature algorithms and schemes in TLS 1.0 - 1.3</title>
+    
+    <meta name="description" content="The Evolution of Signatures in TLS Signature algorithms and schemes in TLS 1.0 - 1.3 July 26, 2016 This post will take a look at the evolution of &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>The Evolution of Signatures in TLS</h1>
+      <h2>Signature algorithms and schemes in TLS 1.0 - 1.3</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">July 26, 2016</time>
+    <p>This post will take a look at the evolution of signature algorithms and schemes
+in the TLS protocol since version 1.0. I at first started taking notes for
+myself but then decided to polish and publish them, hoping that others will
+benefit as well.</p>
+
+<p>(Let&rsquo;s ignore client authentication for simplicity.)</p>
+
+<h2>Signature algorithms in TLS 1.0 and TLS 1.1</h2>
+
+<p>In <a href="https://tools.ietf.org/html/rfc2246">TLS 1.0</a> as well as <a href="https://tools.ietf.org/html/rfc4346">TLS 1.1</a>
+there are only two supported signature schemes: RSA with MD5/SHA-1 and DSA with
+SHA-1. The RSA here stands for the PKCS#1 v1.5 signature scheme, naturally.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="n">select</span> <span class="p">(</span><span class="n">SignatureAlgorithm</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">case</span> <span class="nl">rsa</span><span class="p">:</span>
+        <span class="n">digitally</span><span class="o">-</span><span class="kt">signed</span> <span class="k">struct</span> <span class="p">{</span>
+            <span class="n">opaque</span> <span class="n">md5_hash</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+            <span class="n">opaque</span> <span class="n">sha_hash</span><span class="p">[</span><span class="mi">20</span><span class="p">];</span>
+        <span class="p">};</span>
+    <span class="k">case</span> <span class="nl">dsa</span><span class="p">:</span>
+        <span class="n">digitally</span><span class="o">-</span><span class="kt">signed</span> <span class="k">struct</span> <span class="p">{</span>
+            <span class="n">opaque</span> <span class="n">sha_hash</span><span class="p">[</span><span class="mi">20</span><span class="p">];</span>
+        <span class="p">};</span>
+<span class="p">}</span> <span class="n">Signature</span><span class="p">;</span>
+</pre></div></figure>
+
+
+<p>An RSA signature signs the concatenation of the MD5 and SHA-1 digest, the DSA
+signature only the SHA-1 digest. Hashes will be computed as follows:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="n">h</span> <span class="o">=</span> <span class="n">Hash</span><span class="p">(</span><span class="n">ClientHello</span><span class="p">.</span><span class="n">random</span> <span class="o">+</span> <span class="n">ServerHello</span><span class="p">.</span><span class="n">random</span> <span class="o">+</span> <span class="n">ServerParams</span><span class="p">)</span>
+</pre></div></figure>
+
+
+<p>The <code>ServerParams</code> are the actual data to be signed, the <code>*Hello.random</code> values
+are prepended to prevent replay attacks. This is the reason TLS 1.3 puts a
+<a href="https://tlswg.github.io/tls13-spec/#server-hello">downgrade sentinel</a>
+at the end of <code>ServerHello.random</code> for clients to check.</p>
+
+<p>The <a href="https://tools.ietf.org/html/rfc2246#section-7.4.3">ServerKeyExchange message</a>
+containing the signature is sent only when static RSA/DH key exchange is <em>not</em>
+used, that means we have a DHE_* cipher suite, an RSA_EXPORT_* suite
+downgraded due to export restrictions, or a DH_anon_* suite where both
+parties don&rsquo;t authenticate.</p>
+
+<h2>Signature algorithms in TLS 1.2</h2>
+
+<p><a href="https://tools.ietf.org/html/rfc5246">TLS 1.2</a> brought bigger changes to
+signature algorithms by introducing the <a href="https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1">signature_algorithms extension</a>.
+This is a <code>ClientHello</code> extension allowing clients to signal supported and
+preferred signature algorithms and hash functions.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="k">enum</span> <span class="p">{</span>
+    <span class="n">none</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">md5</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">sha1</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">sha224</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">sha256</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">sha384</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">sha512</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="p">}</span> <span class="n">HashAlgorithm</span><span class="p">;</span>
+
+<span class="k">enum</span> <span class="p">{</span>
+    <span class="n">anonymous</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">rsa</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">dsa</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">ecdsa</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="p">}</span> <span class="n">SignatureAlgorithm</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="p">{</span>
+    <span class="n">HashAlgorithm</span> <span class="n">hash</span><span class="p">;</span>
+    <span class="n">SignatureAlgorithm</span> <span class="n">signature</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">SignatureAndHashAlgorithm</span><span class="p">;</span>
+</pre></div></figure>
+
+
+<p>If a client does not include the <code>signature_algorithms</code> extension then it is
+assumed to support RSA, DSA, or ECDSA (depending on the negotiated cipher suite)
+with SHA-1 as the hash function.</p>
+
+<p>Besides adding all SHA-2 family hash functions, TLS 1.2 also introduced ECDSA
+as a new signature algorithm. Note that the extension does not allow to
+restrict the curve used for a given scheme, P-521 with SHA-1 is therefore
+perfectly legal.</p>
+
+<p>A new requirement for RSA signatures is that the hash has to be wrapped in a
+DER-encoded <code>DigestInfo</code> sequence before passing it to the RSA sign function.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="n">DigestInfo</span> <span class="o">::=</span> <span class="n">SEQUENCE</span> <span class="p">{</span>
+    <span class="n">digestAlgorithm</span> <span class="n">DigestAlgorithm</span><span class="p">,</span>
+    <span class="n">digest</span> <span class="n">OCTET</span> <span class="n">STRING</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>This unfortunately led to attacks like <a href="https://www.ietf.org/mail-archive/web/openpgp/current/msg00999.html">Bleichenbacher&#8217;06</a>
+and <a href="http://www.intelsecurity.com/advanced-threat-research/berserk.html">BERserk</a>
+because it turns out handling ASN.1 correctly is hard. As in TLS 1.1, a
+<code>ServerKeyExchange</code> message is sent only when static RSA/DH key exchange is not
+used. The hash computation did not change either:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="n">h</span> <span class="o">=</span> <span class="n">Hash</span><span class="p">(</span><span class="n">ClientHello</span><span class="p">.</span><span class="n">random</span> <span class="o">+</span> <span class="n">ServerHello</span><span class="p">.</span><span class="n">random</span> <span class="o">+</span> <span class="n">ServerParams</span><span class="p">)</span>
+</pre></div></figure>
+
+
+<h2>Signature schemes in TLS 1.3</h2>
+
+<p>The <code>signature_algorithms</code> extension introduced by TLS 1.2 was revamped in
+<a href="https://tlswg.github.io/tls13-spec/#rfc.section.4.2.2">TLS 1.3</a> and MUST now
+be sent if the client offers a single non-PSK cipher suite. The format is
+backwards compatible and keeps some old code points.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="k">enum</span> <span class="p">{</span>
+    <span class="cm">/* RSASSA-PKCS1-v1_5 algorithms */</span>
+    <span class="n">rsa_pkcs1_sha1</span> <span class="p">(</span><span class="mh">0x0201</span><span class="p">),</span>
+    <span class="n">rsa_pkcs1_sha256</span> <span class="p">(</span><span class="mh">0x0401</span><span class="p">),</span>
+    <span class="n">rsa_pkcs1_sha384</span> <span class="p">(</span><span class="mh">0x0501</span><span class="p">),</span>
+    <span class="n">rsa_pkcs1_sha512</span> <span class="p">(</span><span class="mh">0x0601</span><span class="p">),</span>
+
+    <span class="cm">/* ECDSA algorithms */</span>
+    <span class="n">ecdsa_secp256r1_sha256</span> <span class="p">(</span><span class="mh">0x0403</span><span class="p">),</span>
+    <span class="n">ecdsa_secp384r1_sha384</span> <span class="p">(</span><span class="mh">0x0503</span><span class="p">),</span>
+    <span class="n">ecdsa_secp521r1_sha512</span> <span class="p">(</span><span class="mh">0x0603</span><span class="p">),</span>
+
+    <span class="cm">/* RSASSA-PSS algorithms */</span>
+    <span class="n">rsa_pss_sha256</span> <span class="p">(</span><span class="mh">0x0700</span><span class="p">),</span>
+    <span class="n">rsa_pss_sha384</span> <span class="p">(</span><span class="mh">0x0701</span><span class="p">),</span>
+    <span class="n">rsa_pss_sha512</span> <span class="p">(</span><span class="mh">0x0702</span><span class="p">),</span>
+
+    <span class="cm">/* EdDSA algorithms */</span>
+    <span class="n">ed25519</span> <span class="p">(</span><span class="mh">0x0703</span><span class="p">),</span>
+    <span class="n">ed448</span> <span class="p">(</span><span class="mh">0x0704</span><span class="p">),</span>
+
+    <span class="cm">/* Reserved Code Points */</span>
+    <span class="n">private_use</span> <span class="p">(</span><span class="mh">0xFE00</span><span class="p">.</span><span class="mf">.0</span><span class="n">xFFFF</span><span class="p">)</span>
+<span class="p">}</span> <span class="n">SignatureScheme</span><span class="p">;</span>
+</pre></div></figure>
+
+
+<p>Instead of <code>SignatureAndHashAlgorithm</code>, a code point is now called a
+<code>SignatureScheme</code> and tied to a hash function (if applicable) by the
+specification. TLS 1.2 algorithm/hash combinations not listed here
+are deprecated and MUST NOT be offered or negotiated.</p>
+
+<p>New code points for RSA-PSS schemes, as well as Ed25519 and Ed448-Goldilocks
+were added. ECDSA schemes are now tied to the curve given by the code point
+name, to be enforced by implementations. SHA-1 signature schemes SHOULD NOT be
+offered, if needed for backwards compatibility then only as the lowest priority
+after all other schemes.</p>
+
+<p>The current draft-13 lists RSASSA-PSS as the only valid signature algorithm
+allowed to sign handshake messages with an RSA key. The rsa_pkcs1_* values
+solely refer to signatures which appear in certificates and are not defined for
+use in signed handshake messages.</p>
+
+<p>To prevent various downgrade attacks like <a href="https://freakattack.com/">FREAK</a> and <a href="https://weakdh.org/">Logjam</a> the computation of the hashes to be signed
+has changed significantly and covers the complete handshake, up until
+<code>CertificateVerify</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><pre><span class="n">h</span> <span class="o">=</span> <span class="n">Hash</span><span class="p">(</span><span class="n">Handshake</span> <span class="n">Context</span> <span class="o">+</span> <span class="n">Certificate</span><span class="p">)</span> <span class="o">+</span> <span class="n">Hash</span><span class="p">(</span><span class="n">Resumption</span> <span class="n">Context</span><span class="p">)</span>
+</pre></div></figure>
+
+
+<p>This includes amongst other data the client and server random, key shares, the
+cipher suite, the certificate, and resumption information to prevent replay and
+downgrade attacks. With static key exchange algorithms gone the
+<a href="https://tlswg.github.io/tls13-spec/#rfc.section.4.3.2">CertificateVerify message</a>
+is now the one carrying the signature.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>

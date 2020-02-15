@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Simple Cryptol specifications - Exploring formal verification (part 2)</title>
+    
+    <meta name="description" content="Simple Cryptol specifications Exploring formal verification (part 2) February 7, 2017 In the previous post I showed how to prove equivalence of two &hellip;">
+    <meta content="Tim Taubert" name="author">
+    <link href="/stylesheets/bootstrap.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/screen.min.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/tables.css" media="screen" rel="stylesheet" type="text/css">
+    <link href="/favicon.ico" rel="icon" type="image/ico">
+    <link href="/atom.xml" rel="alternate" title="Tim Taubert" type="application/atom+xml">
+  </head>
+
+
+<body>
+  <section id="wrapper">
+    <nav class="navbar navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">Tim Taubert</a>
+    </div>
+    <div id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/">Blog</a></li>
+        <li><a href="/talks">Talks</a></li>
+        <li><a href="https://twitter.com/ttaubert">Twitter</a></li>
+        <li><a href="https://github.com/ttaubert">GitHub</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <article>
+  <header id="article-header">
+    <div class="container">
+      <h1>Simple Cryptol specifications</h1>
+      <h2>Exploring formal verification (part 2)</h2>
+    </div>
+  </header>
+
+  <div class="container">
+    <time pubdate="pubdate">February 7, 2017</time>
+    <p>In the <a href="/blog/2017/01/equivalence-proofs-with-saw/">previous post</a> I showed how to prove equivalence of two different implementations of the same algorithm. This post will cover writing an algorithm specification in <a href="http://cryptol.net/">Cryptol</a> to prove the correctness of a constant-time C/C++ implementation.</p>
+
+<p>Apart from rather simple Cryptol I&rsquo;m also going to introduce <a href="http://saw.galois.com/">SAW</a>&rsquo;s <code>llvm_verify</code> function that allows much more complex verification. We need this as our function will not only take scalar inputs but also store the result of the computation using pointer arguments.</p>
+
+<h2>Constant-time multiplication</h2>
+
+<p>Part 1 dealt with addition, in part 2 we&rsquo;re going to look at multiplication. Let&rsquo;s implement a function <code>mul(a, b, *hi, *lo)</code> that multiplies <code>a</code> and <code>b</code>, and stores the eight most significant bits of the product in <code>*hi</code>, and the eight LSBs in <code>*lo</code>.</p>
+
+<p>This time we&rsquo;ll make it run in constant time right away and won&rsquo;t bother implementing a trivial version first. Instead, we will write a Cryptol specification to verify LLVM bitcode afterwards &mdash; you will be amazed how simple that is.</p>
+
+<h3>Some helper functions</h3>
+
+<p>The first two functions of our C/C++ implementation will seem familiar if you&rsquo;ve read the previous part of the series. <code>msb</code> hasn&rsquo;t changed, and <code>ge</code> is the negated version of <code>lt</code>. <code>nz</code> returns <code>0xff</code> if the given argument <code>x</code> is non-zero, <code>0</code> otherwise.</p>
+
+<figure class='code'><figcaption><span>cmul.c</span><a href='https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-c'>[gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-c] </a></figcaption><div class="highlight"><pre><span class="c1">// 0xff if MSB(x) = 1 else 0x00</span>
+<span class="k">uint8_t</span> <span class="nf">msb</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span> <span class="o">-</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">// 0xff if a &gt;= b else 0x00</span>
+<span class="k">uint8_t</span> <span class="nf">ge</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="o">~</span><span class="n">msb</span><span class="p">(</span><span class="n">a</span> <span class="o">^</span> <span class="p">((</span><span class="n">a</span> <span class="o">^</span> <span class="n">b</span><span class="p">)</span> <span class="o">|</span> <span class="p">((</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">^</span> <span class="n">b</span><span class="p">)));</span>
+<span class="p">}</span>
+
+<span class="c1">// 0xff if x &gt; 0 else 0x00</span>
+<span class="k">uint8_t</span> <span class="nf">nz</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="o">~</span><span class="n">msb</span><span class="p">(</span><span class="o">~</span><span class="n">x</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="k">uint8_t</span> <span class="nf">add</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="o">*</span><span class="n">carry</span><span class="p">)</span> <span class="p">{</span>
+  <span class="o">*</span><span class="n">carry</span> <span class="o">=</span> <span class="n">msb</span><span class="p">(</span><span class="n">ge</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="mi">0</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">nz</span><span class="p">(</span><span class="n">b</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>Our <code>add</code> function that previously dealt with overflows by capping at <code>UINT8_MAX</code> is a little more mature now and will set <code>*carry = 1</code> when an overflow occurs.</p>
+
+<h3>The core of the algorithm</h3>
+
+<p><code>mul(a, b, *hi, *lo)</code>, using all the helper functions we defined above, implements standard long multiplication, i.e. four multiplications per function call. We split the two 8-bit arguments into two 4-bit halves, multiply and add a few times, and then store two 8-bit results at the addresses pointed to by <code>hi</code> and <code>lo</code>.</p>
+
+<figure class='code'><figcaption><span>cmul.c</span><a href='https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-c'>[gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-c] </a></figcaption><div class="highlight"><pre><span class="k">void</span> <span class="nf">mul</span><span class="p">(</span><span class="k">uint8_t</span> <span class="n">a</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="n">b</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="o">*</span><span class="n">hi</span><span class="p">,</span> <span class="k">uint8_t</span> <span class="o">*</span><span class="n">lo</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">uint8_t</span> <span class="n">a1</span> <span class="o">=</span> <span class="n">a</span> <span class="o">&gt;&gt;</span> <span class="mi">4</span><span class="p">,</span> <span class="n">a0</span> <span class="o">=</span> <span class="n">a</span> <span class="o">&amp;</span> <span class="mh">0xf</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">b1</span> <span class="o">=</span> <span class="n">b</span> <span class="o">&gt;&gt;</span> <span class="mi">4</span><span class="p">,</span> <span class="n">b0</span> <span class="o">=</span> <span class="n">b</span> <span class="o">&amp;</span> <span class="mh">0xf</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">z0</span> <span class="o">=</span> <span class="n">a0</span> <span class="o">*</span> <span class="n">b0</span><span class="p">;</span>
+  <span class="k">uint8_t</span> <span class="n">z2</span> <span class="o">=</span> <span class="n">a1</span> <span class="o">*</span> <span class="n">b1</span><span class="p">;</span>
+
+  <span class="k">uint8_t</span> <span class="n">z1</span><span class="p">,</span> <span class="n">z1carry</span><span class="p">,</span> <span class="n">carry</span><span class="p">,</span> <span class="n">trash</span><span class="p">;</span>
+  <span class="n">z1</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="n">a0</span> <span class="o">*</span> <span class="n">b1</span><span class="p">,</span> <span class="n">a1</span> <span class="o">*</span> <span class="n">b0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">z1carry</span><span class="p">);</span>
+  <span class="o">*</span><span class="n">lo</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="n">z1</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">,</span> <span class="n">z0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">carry</span><span class="p">);</span>
+  <span class="o">*</span><span class="n">hi</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="n">z2</span><span class="p">,</span> <span class="p">(</span><span class="n">z1</span> <span class="o">&gt;&gt;</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">carry</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">trash</span><span class="p">);</span>
+  <span class="o">*</span><span class="n">hi</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="o">*</span><span class="n">hi</span><span class="p">,</span> <span class="n">z1carry</span> <span class="o">&lt;&lt;</span> <span class="mi">4</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">trash</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div></figure>
+
+
+<p>It&rsquo;s relatively easy to see that <code>a * b</code> can be rewritten as <code>(a1 * 2^4 + a0) * (b1 * 2^4 + b0)</code>, all four variables being 4-bit integers. After multiplying and rearranging you&rsquo;ll get an equation that&rsquo;s very similar to <code>mul</code> above. Here&rsquo;s a <a href="http://people.mpi-inf.mpg.de/~mehlhorn/ftp/chapter2A-en.pdf">good introduction</a> to computing with long integers if you want to know more.</p>
+
+<figure class='code'><div class="highlight"><pre>$ clang -c -emit-llvm -o cmul.bc cmul.c
+</pre></div></figure>
+
+
+<p>Compile the code to LLVM bitcode as before so that we can load it into SAW later.</p>
+
+<h2>The Cryptol specification</h2>
+
+<p>To automate verification we&rsquo;ll again write a SAW script. It will contain the necessary verification commands and details, as well as a Cryptol specification.</p>
+
+<p>The specification doesn&rsquo;t need to be constant-time, all it needs to be is correct and as simple as possible. We declare a function <code>mul</code> taking two 8-bit integers and returning a tuple containing two 8-bit integers. Read the notation <code>[8]</code> as &ldquo;sequence of 8 bits&rdquo;.</p>
+
+<figure class='code'><figcaption><span>cmul.saw</span><a href='https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw'>[gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw] </a></figcaption><div class="highlight"><pre><span class="err">m</span> <span class="err">&lt;-</span> <span class="k">llvm_load_module</span> <span class="s2">&quot;cmul.bc&quot;</span><span class="err">;</span>
+
+<span class="k">let</span> <span class="err">{{</span>
+  <span class="err">mul</span> <span class="err">:</span> <span class="err">[8]</span> <span class="err">-&gt;</span> <span class="err">[8]</span> <span class="err">-&gt;</span> <span class="err">([8],</span> <span class="err">[8])</span>
+  <span class="err">mul</span> <span class="err">a</span> <span class="err">b</span> <span class="err">=</span> <span class="err">(</span><span class="k">take</span><span class="err">`{8}</span> <span class="err">prod,</span> <span class="k">drop</span><span class="err">`{8}</span> <span class="err">prod)</span>
+      <span class="k">where</span> <span class="err">prod</span> <span class="err">=</span> <span class="err">(pad</span> <span class="err">a)</span> <span class="err">*</span> <span class="err">(pad</span> <span class="err">b)</span>
+            <span class="err">pad</span> <span class="err">x</span> <span class="err">=</span> <span class="k">zero</span> <span class="err">#</span> <span class="err">x</span>
+<span class="err">}};</span>
+</pre></div></figure>
+
+
+<p>The built-in function <code>take`{n} x</code> returns a sequence with only the first <code>n</code> items of <code>x</code>. <code>drop`{n} x</code> returns sequence <code>x</code> without the first <code>n</code> items. <code>zero</code> is a special value that has a number of use cases, here it represents a flexible sequence of all zero bits. <code>#</code> is the append operator for sequences.</p>
+
+<p>The first line of the definition gives the return value, a tuple with the first and the last 8 bits of <code>prod</code>. The Cryptol type system can automatically infer that the variable <code>prod</code> must hold a 16-bit sequence if the result of the <code>take`{8}</code> and <code>drop`{8}</code> function calls is a sequence of 8 bits each.</p>
+
+<p><code>prod</code> is the result of multiplying the zero-padded arguments <code>a</code> and <code>b</code>. <code>zero # x</code> appends <code>x</code> to 8 zero bits, and that number is again determined by the type system. If you want to learn more about the language, take a look at <a href="http://www.cryptol.net/files/ProgrammingCryptol.pdf">Programming Cryptol</a>.</p>
+
+<p>That&rsquo;s about as simple as it gets. We multiply two 8-bit integers and out comes a 16-bit integer, split into two halves. Now let&rsquo;s use the specification to verify our constant-time implementation.</p>
+
+<h2>SAW&rsquo;s llvm_verify function</h2>
+
+<p>We will add LLVM SAW instructions to the same file that contains the Cryptol code from above. The <code>llvm_verify</code> call here takes module <code>m</code>, extracts the symbol <code>"mul"</code>, and uses the body given after <code>do</code> for verification.</p>
+
+<p>We need to declare all symbolic inputs as given by our C/C++ implementation. With <code>llvm_var</code> we tell SAW that <code>"a"</code> and <code>"b"</code> are 8-bit integer arguments, and map those to the SAW variables <code>a</code> and <code>b</code>.</p>
+
+<p>The arguments <code>"hi"</code> and <code>"lo"</code> are declared as pointers to 8-bit integers using <code>llvm_ptr</code>. And because we want to dereference the pointers and refer to their values later we declare <code>"*hi"</code> and <code>"*lo"</code> as 8-bit integers too.</p>
+
+<figure class='code'><figcaption><span>cmul.saw</span><a href='https://gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw'>[gist.github.com/ttaubert/c742ba7adf040e14ff21e111a929f5b8#file-cmul-saw] </a></figcaption><div class="highlight"><pre><span class="k">llvm_verify</span> <span class="err">m</span> <span class="s2">&quot;mul&quot;</span> <span class="err">[]</span> <span class="k">do</span> <span class="err">{</span>
+  <span class="err">a</span> <span class="err">&lt;-</span> <span class="k">llvm_var</span> <span class="s2">&quot;a&quot;</span> <span class="err">(</span><span class="k">llvm_int</span> <span class="err">8);</span>
+  <span class="err">b</span> <span class="err">&lt;-</span> <span class="k">llvm_var</span> <span class="s2">&quot;b&quot;</span> <span class="err">(</span><span class="k">llvm_int</span> <span class="err">8);</span>
+
+  <span class="k">llvm_ptr</span> <span class="s2">&quot;hi&quot;</span> <span class="err">(</span><span class="k">llvm_int</span> <span class="err">8);</span>
+  <span class="err">hi</span> <span class="err">&lt;-</span> <span class="k">llvm_var</span> <span class="s2">&quot;*hi&quot;</span> <span class="err">(</span><span class="k">llvm_int</span> <span class="err">8);</span>
+  <span class="k">llvm_ptr</span> <span class="s2">&quot;lo&quot;</span> <span class="err">(</span><span class="k">llvm_int</span> <span class="err">8);</span>
+  <span class="err">lo</span> <span class="err">&lt;-</span> <span class="k">llvm_var</span> <span class="s2">&quot;*lo&quot;</span> <span class="err">(</span><span class="k">llvm_int</span> <span class="err">8);</span>
+
+  <span class="k">let</span> <span class="err">res</span> <span class="err">=</span> <span class="err">{{</span> <span class="err">mul</span> <span class="err">a</span> <span class="err">b</span> <span class="err">}};</span>
+  <span class="k">llvm_ensure_eq</span> <span class="s2">&quot;*hi&quot;</span> <span class="err">{{</span> <span class="err">res.0</span> <span class="err">}};</span>
+  <span class="k">llvm_ensure_eq</span> <span class="s2">&quot;*lo&quot;</span> <span class="err">{{</span> <span class="err">res.1</span> <span class="err">}};</span>
+
+  <span class="k">llvm_verify_tactic</span> <span class="err">abc;</span>
+<span class="err">};</span>
+</pre></div></figure>
+
+
+<p>We specify no constraints for any of the arguments and expect the verification to consider all possible inputs. I will talk a bit more about such constraints and how these are useful in a later post.</p>
+
+<p>With <code>llvm_ensure_eq</code> we tell SAW what values we expect <em>after</em> symbolic execution. We expect <code>"*hi"</code> to be equal to the first 8-bit integer element of the tuple returned by <code>mul</code>, and <code>"*lo"</code> to be equal to the second 8-bit integer.</p>
+
+<p><code>llvm_verify_tactic</code> chooses UC Berkely&rsquo;s ABC tool again and off we go.</p>
+
+<h2>Verification with SAW</h2>
+
+<p>Again, make sure you have <code>saw</code> and <code>z3</code> in your <code>$PATH</code>. If you haven&rsquo;t downloaded the binaries yet, take a look at the early sections of the <a href="/blog/2017/01/equivalence-proofs-with-saw/">previous post</a>.</p>
+
+<figure class='code'><div class="highlight"><pre>$ saw cmul.saw
+Loading module Cryptol
+Loading file &quot;cmul.saw&quot;
+Successfully verified @mul
+</pre></div></figure>
+
+
+<p><em>Successfully verified @mul.</em> SAW tells us that for all possible inputs <code>a</code> and <code>b</code>, and actually <code>hi</code> and <code>lo</code> too, our constant-time C/C++ implementation behaves as stated by the SAW verification script and is thereby equivalent to our Cryptol specification.</p>
+
+<h2>Next: Finding bugs and more LLVM commands</h2>
+
+<p>In <a href="/blog/2017/06/verified-binary-multiplication-for-ghash/">the next post</a> I&rsquo;m going to introduce and write more Cryptol, talk about specifying constraints on LLVM arguments and return values, and provide an example for finding bugs in a real-world codebase.</p>
+
+<p>And while you wait, why not try your hand at optimizing <code>mul</code> to use only three instead of four multiplications with the <a href="https://en.wikipedia.org/wiki/Karatsuba_algorithm">Karatsuba algorithm</a>? You can reuse the above Cryptol specification to verify you got it right.</p>
+
+  </div>
+</article>
+
+  </section>
+
+  <footer>
+  <div class="container">
+    <span class="break">&#8203;</span><div class="section">
+      <a class="main" href="/">Tim Taubert</a>
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short1">
+      <span class="job">Security &amp; Crypto Engineer</span>
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <span class="break">&#8203;</span><div class="section short2">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+      <a href="https://twitter.com/ttaubert">@ttaubert</a>
+    </div>
+    <div class="section short3">
+      <a class="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>
+    </div>
+  </div>
+  <a class="imprint collapse" href="/impressum">Impressum</a>
+</footer>
+
+</body>
+</html>
