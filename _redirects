@@ -1,0 +1,6 @@
+# Redirect default Netlify subdomain to primary domain
+https://vigorous-lamarr-b1c622.netlify.com/* https://timtaubert.de/:splat 301!
+http://vigorous-lamarr-b1c622.netlify.com/* https://timtaubert.de/:splat 301!
+
+# Redirect to HTTPS
+http://timtaubert.de/* https://timtaubert.de/:splat 301!
